@@ -1,5 +1,11 @@
 [
   {
+    "version": "1.2.3",
+    "title": "test",
+    "description": "test",
+    "date": "2025-08-25T14:30:00Z"
+  },
+  {
     "version": "1.2.2",
     "title": "Faster search + login fix",
     "description": "Improves search speed and fixes OAuth login race condition.",
