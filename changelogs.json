@@ -1,21 +1,20 @@
-{
-    version: "1.2.2",
-    title: "Faster search + login fix", 
-    description: "Improves search speed and fixes OAuth login race...",
-    date: "2025-08-25T14:30:00Z"
+[
+  {
+    "version": "1.2.2",
+    "title": "Faster search + login fix",
+    "description": "Improves search speed and fixes OAuth login race condition.",
+    "date": "2025-08-25T14:30:00Z"
+  },
+  {
+    "version": "1.2.1", 
+    "title": "UI improvements",
+    "description": "Enhanced user interface with better responsive design and accessibility features.",
+    "date": "2025-08-20T10:15:00Z"
+  },
+  {
+    "version": "1.2.0",
+    "title": "New security tools",
+    "description": "Added advanced encryption and decryption tools for cybersecurity analysis.",
+    "date": "2025-08-15T16:45:00Z"
   }
-
-{
-    version: "1.2.1",
-    title: "Faster search + login fix", 
-    description: "Improves search speed and fixes OAuth login race...",
-    date: "2025-08-25T14:30:00Z"
-  }
-
-{
-    version: "1.2.0",
-    title: "Faster search + login fix", 
-    description: "Improves search speed and fixes OAuth login race...",
-    date: "2025-08-25T14:30:00Z"
-  }
-  
+]
