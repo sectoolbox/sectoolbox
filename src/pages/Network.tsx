@@ -26,7 +26,7 @@ import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-type TabType = 'subnet' | 'dns' | 'whois' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
+type TabType = 'subnet' | 'dns' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
 
 interface SubnetInfo {
   network: string
@@ -62,15 +62,6 @@ interface DNSRecord {
   data: string
 }
 
-interface WhoisInfo {
-  ip?: string
-  domain?: string
-  country?: string
-  org?: string
-  isp?: string
-  asn?: string
-  [key: string]: any
-}
 
 interface GeoInfo {
   ip: string
@@ -187,10 +178,6 @@ export default function Network() {
   // DNS Lookup
   const [dnsInput, setDnsInput] = useState('')
   const [dnsRecords, setDnsRecords] = useState<DNSRecord[]>([])
-
-  // WHOIS Lookup
-  const [whoisInput, setWhoisInput] = useState('')
-  const [whoisInfo, setWhoisInfo] = useState<WhoisInfo | null>(null)
 
   // Geolocation
   const [geoInput, setGeoInput] = useState('')
@@ -397,38 +384,6 @@ export default function Network() {
     }
   }, [])
 
-  // WHOIS Lookup - Temporarily disabled due to rate limiting
-  // WHOIS API temporarily disabled due to rate limiting. Use IPInfo tab for IP information.
-  const performWhoisLookup = useCallback(async (target: string) => {
-    setLoading(true)
-    setError('WHOIS API temporarily disabled due to rate limiting. Use IPInfo tab for IP information.')
-    setWhoisInfo(null)
-    setLoading(false)
-
-    /* Original implementation - commented out due to API rate limiting
-    try {
-      const response = await fetch(`https://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
-
-      if (!response.ok) {
-        throw new Error(`WHOIS lookup failed: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.status === 'fail') {
-        throw new Error(data.message || 'WHOIS lookup failed')
-      }
-
-      setWhoisInfo(data)
-    } catch (err: any) {
-      setError(err.message || 'WHOIS lookup failed')
-      setWhoisInfo(null)
-    } finally {
-      setLoading(false)
-    }
-    */
-  }, [])
-
   // IP Geolocation (Real API)
   const performGeolocation = useCallback(async (ip: string) => {
     setLoading(true)
@@ -541,15 +496,28 @@ export default function Network() {
     }
   }, [])
 
-  // Archive.org CDX Search
+  // Archive.org CDX Search (via proxy to bypass CORS)
   const performArchiveSearch = useCallback(async (domain: string) => {
     setLoading(true)
     setError(null)
+    setArchiveUrls([]) // Clear previous results
 
     try {
-      const response = await fetch(
-        `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}*&output=json&fl=original,timestamp&collapse=urlkey&limit=1000`
-      )
+      // Try proxy server first (better for CORS), fallback to direct if proxy unavailable
+      const proxyUrl = `http://localhost:3001/api/archive/search?url=${encodeURIComponent(domain)}`
+      const directUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}*&output=json&fl=original,timestamp&collapse=urlkey&limit=1000`
+
+      let response
+      let useProxy = true
+
+      try {
+        response = await fetch(proxyUrl)
+        if (!response.ok) throw new Error('Proxy unavailable')
+      } catch {
+        // Fallback to direct Archive.org API
+        useProxy = false
+        response = await fetch(directUrl)
+      }
 
       if (!response.ok) {
         throw new Error(`Archive search failed: ${response.statusText}`)
@@ -571,7 +539,7 @@ export default function Network() {
 
       setArchiveUrls(urls)
     } catch (err: any) {
-      setError(err.message || 'Archive search failed')
+      setError(err.message || 'Archive search failed. Try starting the proxy server.')
       setArchiveUrls([])
     } finally {
       setLoading(false)
@@ -713,10 +681,6 @@ export default function Network() {
           <TabsTrigger value="dns" className="flex items-center gap-2">
             <Server className="w-4 h-4" />
             DNS Lookup
-          </TabsTrigger>
-          <TabsTrigger value="whois" className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            WHOIS
           </TabsTrigger>
           <TabsTrigger value="headers" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
@@ -928,113 +892,6 @@ export default function Network() {
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* WHOIS Tab */}
-        <TabsContent value="whois" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Search className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">WHOIS / IP Information</h2>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter IP or domain (e.g., 8.8.8.8 or google.com)"
-                  value={whoisInput}
-                  onChange={(e) => setWhoisInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performWhoisLookup(whoisInput)}
-                  className="flex-1"
-                />
-                <Button onClick={() => performWhoisLookup(whoisInput)} disabled={loading}>
-                  {loading ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4 mr-2" />
-                  )}
-                  Lookup
-                </Button>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Using ip-api.com for real WHOIS data
-              </div>
-
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500">{error}</span>
-                </div>
-              )}
-
-              {whoisInfo && (
-                <div className="space-y-4 mt-6">
-                  <Card className="p-4 space-y-2">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <Info className="w-4 h-4 text-accent" />
-                      WHOIS Information
-                    </h3>
-                    <div className="space-y-1 text-sm">
-                      {whoisInfo.query && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">IP/Domain:</span>
-                          <span className="font-mono">{whoisInfo.query}</span>
-                        </div>
-                      )}
-                      {whoisInfo.country && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Country:</span>
-                          <span>{whoisInfo.country} ({whoisInfo.countryCode})</span>
-                        </div>
-                      )}
-                      {whoisInfo.regionName && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Region:</span>
-                          <span>{whoisInfo.regionName}</span>
-                        </div>
-                      )}
-                      {whoisInfo.city && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">City:</span>
-                          <span>{whoisInfo.city}</span>
-                        </div>
-                      )}
-                      {whoisInfo.isp && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">ISP:</span>
-                          <span>{whoisInfo.isp}</span>
-                        </div>
-                      )}
-                      {whoisInfo.org && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Organization:</span>
-                          <span>{whoisInfo.org}</span>
-                        </div>
-                      )}
-                      {whoisInfo.as && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">AS Number:</span>
-                          <span className="font-mono">{whoisInfo.as}</span>
-                        </div>
-                      )}
-                      {whoisInfo.asname && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">AS Name:</span>
-                          <span>{whoisInfo.asname}</span>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-
-                  <Button variant="outline" onClick={() => exportData(whoisInfo, 'whois-info.json')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Results
-                  </Button>
                 </div>
               )}
             </div>
