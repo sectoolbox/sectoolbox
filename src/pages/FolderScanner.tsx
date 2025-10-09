@@ -100,6 +100,9 @@ const FolderScanner: React.FC = () => {
       const result = await scanFolder(files)
       setScanResult(result)
       setFilteredFiles(result.files)
+
+      // Auto-analyze after scan completes
+      handleAnalyzeAll()
     } catch (error) {
       console.error('Folder scan error:', error)
       alert('Failed to scan folder')
@@ -253,38 +256,44 @@ const FolderScanner: React.FC = () => {
       </div>
 
       {/* Upload Section */}
-      {!scanResult && (
-        <Card className="p-8">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <Upload className="w-16 h-16 text-muted-foreground" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Select Folder to Scan</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                All files including hidden files (starting with .) will be scanned
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              /* @ts-ignore - webkitdirectory is not in types but works */
-              webkitdirectory=""
-              directory=""
-              multiple
-              onChange={handleFolderSelect}
-              className="hidden"
-            />
-            <Button
-              size="lg"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-            >
-              <FolderOpen className="w-5 h-5 mr-2" />
-              {isScanning ? 'Scanning...' : 'Select Folder'}
-            </Button>
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Select Folder to Scan</h2>
+        <div
+          className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">
+            {scanResult ? `Scanned folder with ${scanResult.totalFiles} files` : 'Click to select a folder'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            All files including hidden files (starting with .) will be scanned and analyzed
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            /* @ts-ignore - webkitdirectory is not in types but works */
+            webkitdirectory=""
+            directory=""
+            multiple
+            onChange={handleFolderSelect}
+            className="hidden"
+          />
+        </div>
+        {(isScanning || isAnalyzing) && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-accent">
+            <Activity className="w-4 h-4 animate-spin" />
+            <span>
+              {isScanning ? 'Scanning folder...' : `Analyzing ${analysisProgress.current}/${analysisProgress.total} files...`}
+            </span>
           </div>
-        </Card>
+        )}
+      </Card>
+
+      {!scanResult && (
+        <div className="invisible">
+          {/* Spacer */}
+        </div>
       )}
 
       {/* Results Section */}
@@ -306,18 +315,18 @@ const FolderScanner: React.FC = () => {
               onChange={handleFolderSelect}
               className="hidden"
             />
-            <Button
-              onClick={handleAnalyzeAll}
-              disabled={isAnalyzing || analyzedFiles.length > 0}
-              variant="outline"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              {isAnalyzing
-                ? `Analyzing ${analysisProgress.current}/${analysisProgress.total}...`
-                : analyzedFiles.length > 0
-                ? 'Analysis Complete'
-                : 'Analyze All Files'}
-            </Button>
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 text-sm text-accent">
+                <Activity className="w-4 h-4 animate-spin" />
+                <span>Analyzing {analysisProgress.current}/{analysisProgress.total} files...</span>
+              </div>
+            )}
+            {!isAnalyzing && analyzedFiles.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle className="w-4 h-4" />
+                <span>Analysis Complete</span>
+              </div>
+            )}
             <Button onClick={() => setShowFilters(!showFilters)} variant="outline">
               <Filter className="w-4 h-4 mr-2" />
               Filters {showFilters ? '▲' : '▼'}
