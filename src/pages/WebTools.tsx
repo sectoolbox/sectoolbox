@@ -2028,7 +2028,8 @@ const WebTools: React.FC = () => {
                           payload.payload.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           payload.description.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = selectedCategory === 'all' || payload.category === selectedCategory
-      return matchesSearch && matchesCategory
+      const matchesFavorites = !showFavoritesOnly || isFavorite(`${payload.category}-${payload.name}`)
+      return matchesSearch && matchesCategory && matchesFavorites
     })
   }
 
@@ -2278,14 +2279,6 @@ const WebTools: React.FC = () => {
             <Zap className="h-4 w-4" />
             <span className="text-xs">Polyglot</span>
           </button>
-          <button onClick={() => setActiveTab('encoding')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'encoding' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
-            <Code className="h-4 w-4" />
-            <span className="text-xs">Encode</span>
-          </button>
-          <button onClick={() => setActiveTab('techniques')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'techniques' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
-            <Eye className="h-4 w-4" />
-            <span className="text-xs">Guide</span>
-          </button>
           <button onClick={() => setActiveTab('deserialization')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'deserialization' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
             <FileJson className="h-4 w-4" />
             <span className="text-xs">Deserialization</span>
@@ -2313,6 +2306,14 @@ const WebTools: React.FC = () => {
           <button onClick={() => setActiveTab('race')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'race' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
             <Zap className="h-4 w-4" />
             <span className="text-xs">Race</span>
+          </button>
+          <button onClick={() => setActiveTab('encoding')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'encoding' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+            <Code className="h-4 w-4" />
+            <span className="text-xs">Encode</span>
+          </button>
+          <button onClick={() => setActiveTab('techniques')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'techniques' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+            <Eye className="h-4 w-4" />
+            <span className="text-xs">Guide</span>
           </button>
         </div>
 

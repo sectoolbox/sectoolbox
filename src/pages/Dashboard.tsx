@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Clock,
   FolderOpen,
-  Headphones
+  Headphones,
+  Shield
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 // Removed unused changelog functionality
@@ -192,6 +193,27 @@ const Dashboard: React.FC = () => {
               <Headphones className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
               <p className="text-xs font-medium">Audio Analysis</p>
               <p className="text-xs text-muted-foreground">MP3, WAV, OGG</p>
+            </div>
+
+            {/* Forensics Upload */}
+            <div
+              className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => handleDrop(e, 'forensics')}
+              onClick={() => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '*'
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) handleFileUpload(file)
+                }
+                input.click()
+              }}
+            >
+              <Shield className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">Forensics</p>
+              <p className="text-xs text-muted-foreground">Any file type</p>
             </div>
 
             {/* Folder Scanner Upload */}
