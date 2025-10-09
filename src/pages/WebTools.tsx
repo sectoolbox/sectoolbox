@@ -17,12 +17,10 @@ import {
   Download,
   FolderOpen,
   Star,
-  History,
   Play,
   Hash,
   Link2,
   FileJson,
-  Wrench,
   Boxes,
   Radio,
   Cloud,
@@ -51,7 +49,7 @@ interface Technique {
 }
 
 const WebTools: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'sqli' | 'xss' | 'rce' | 'lfi' | 'ssti' | 'xxe' | 'csrf' | 'ssrf' | 'nosql' | 'graphql' | 'jwt' | 'directory' | 'fingerprint' | 'cms' | 'api' | 'waf' | 'polyglot' | 'unicode' | 'encoding' | 'techniques' | 'interactive' | 'deserialization' | 'smuggling' | 'oauth' | 'websocket' | 'prototype' | 'cache' | 'race'>('sqli')
+  const [activeTab, setActiveTab] = useState<'sqli' | 'xss' | 'rce' | 'lfi' | 'ssti' | 'xxe' | 'csrf' | 'ssrf' | 'nosql' | 'graphql' | 'jwt' | 'directory' | 'fingerprint' | 'cms' | 'api' | 'waf' | 'polyglot' | 'unicode' | 'encoding' | 'techniques' | 'deserialization' | 'smuggling' | 'oauth' | 'websocket' | 'prototype' | 'cache' | 'race'>('sqli')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [customPayload, setCustomPayload] = useState('')
@@ -59,7 +57,6 @@ const WebTools: React.FC = () => {
 
   // Payload Management State
   const [favorites, setFavorites] = useState<string[]>([])
-  const [payloadHistory, setPayloadHistory] = useState<Array<{payload: string, timestamp: Date, name: string}>>([])
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
   // Interactive Testing Tools State
@@ -75,21 +72,12 @@ const WebTools: React.FC = () => {
     if (savedFavorites) {
       setFavorites(JSON.parse(savedFavorites))
     }
-    const savedHistory = localStorage.getItem('webtools_history')
-    if (savedHistory) {
-      setPayloadHistory(JSON.parse(savedHistory).map((h: any) => ({...h, timestamp: new Date(h.timestamp)})))
-    }
   }, [])
 
   // Save favorites to localStorage
   useEffect(() => {
     localStorage.setItem('webtools_favorites', JSON.stringify(favorites))
   }, [favorites])
-
-  // Save history to localStorage
-  useEffect(() => {
-    localStorage.setItem('webtools_history', JSON.stringify(payloadHistory))
-  }, [payloadHistory])
 
   // SQL Injection Payloads for CTF
   const sqlPayloads: Payload[] = [
@@ -2046,9 +2034,6 @@ const WebTools: React.FC = () => {
 
   const copyToClipboard = (text: string, name: string = 'Payload') => {
     navigator.clipboard.writeText(text)
-    // Add to history
-    const newHistory = [{payload: text, timestamp: new Date(), name}, ...payloadHistory].slice(0, 50)
-    setPayloadHistory(newHistory)
   }
 
   const toggleFavorite = (payloadKey: string) => {
@@ -2210,14 +2195,6 @@ const WebTools: React.FC = () => {
               Favorites
             </Button>
             <Button
-              onClick={() => setActiveTab('interactive')}
-              variant="outline"
-              size="sm"
-            >
-              <History className="h-4 w-4 mr-2" />
-              History
-            </Button>
-            <Button
               onClick={exportPayloads}
               variant="outline"
               size="sm"
@@ -2336,10 +2313,6 @@ const WebTools: React.FC = () => {
           <button onClick={() => setActiveTab('race')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'race' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
             <Zap className="h-4 w-4" />
             <span className="text-xs">Race</span>
-          </button>
-          <button onClick={() => setActiveTab('interactive')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'interactive' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
-            <Wrench className="h-4 w-4" />
-            <span className="text-xs">Tools</span>
           </button>
         </div>
 
@@ -2933,321 +2906,6 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
-
-        {/* Interactive Testing Tools & Payload Management */}
-        {activeTab === 'interactive' && (
-          <div>
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <Wrench className="h-6 w-6 text-accent" />
-            <h2 className="text-2xl font-bold text-foreground">Interactive Tools & History</h2>
-          </div>
-
-          {/* Payload History */}
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-accent" />
-              <h3 className="text-xl font-semibold">Recent Payloads</h3>
-              {payloadHistory.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPayloadHistory([])}
-                >
-                  Clear History
-                </Button>
-              )}
-            </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {payloadHistory.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No recent payloads. Copy a payload to see it here.</p>
-              ) : (
-                payloadHistory.map((item, idx) => (
-                  <Card key={idx} className="p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-semibold text-sm">{item.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {item.timestamp.toLocaleString()}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(item.payload, item.name)}
-                        className="h-6"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="bg-background rounded p-2 font-mono text-xs break-all">
-                      {item.payload}
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          </Card>
-
-          {/* Hash Identifier Tool */}
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Hash className="h-5 w-5 text-accent" />
-              <h3 className="text-xl font-semibold">Hash Identifier</h3>
-            </div>
-            <div className="space-y-3">
-              <Input
-                type="text"
-                placeholder="Enter hash to identify..."
-                value={hashInput}
-                onChange={(e) => {
-                  setHashInput(e.target.value)
-                  const hash = e.target.value.trim()
-                  if (!hash) {
-                    setHashOutput('')
-                    return
-                  }
-
-                  const len = hash.length
-                  const patterns: {[key: string]: string} = {
-                    '32': hash.match(/^[a-f0-9]{32}$/i) ? 'MD5 or NTLM' : '',
-                    '40': hash.match(/^[a-f0-9]{40}$/i) ? 'SHA-1' : '',
-                    '64': hash.match(/^[a-f0-9]{64}$/i) ? 'SHA-256' : '',
-                    '128': hash.match(/^[a-f0-9]{128}$/i) ? 'SHA-512' : '',
-                    '13': hash.match(/^\$1\$/) ? 'MD5 (Unix)' : '',
-                    '6': hash.match(/^\$6\$/) ? 'SHA-512 (Unix)' : '',
-                    '60': hash.match(/^\$2[ayb]\$/) ? 'BCrypt' : '',
-                  }
-
-                  const result = patterns[len.toString()] || 'Unknown hash type'
-                  setHashOutput(result)
-                }}
-                className="w-full"
-              />
-              {hashOutput && (
-                <div className="p-3 bg-accent/10 rounded">
-                  <p className="text-sm font-semibold">Detected: {hashOutput}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Encoding Chain Tool */}
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-accent" />
-              <h3 className="text-xl font-semibold">Encoding Chain Builder</h3>
-            </div>
-            <div className="space-y-3">
-              <Input
-                type="text"
-                placeholder="Enter payload to encode..."
-                value={testInput}
-                onChange={(e) => setTestInput(e.target.value)}
-                className="w-full"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const input = testOutput || testInput
-                    setTestOutput(encodeURIComponent(input))
-                    setEncoderChain([...encoderChain, 'URL Encode'])
-                  }}
-                >
-                  URL Encode
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const input = testOutput || testInput
-                    setTestOutput(btoa(input))
-                    setEncoderChain([...encoderChain, 'Base64'])
-                  }}
-                >
-                  Base64
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const input = testOutput || testInput
-                    setTestOutput(input.split('').map(c => '&#' + c.charCodeAt(0) + ';').join(''))
-                    setEncoderChain([...encoderChain, 'HTML Entities'])
-                  }}
-                >
-                  HTML Entities
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setTestOutput(testInput.split('').map(c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')).join(''))
-                    setEncoderChain([...encoderChain, 'Unicode'])
-                  }}
-                >
-                  Unicode
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const input = testOutput || testInput
-                    setTestOutput(input.split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''))
-                    setEncoderChain([...encoderChain, 'Hex'])
-                  }}
-                >
-                  Hex Encode
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setTestOutput('')
-                    setEncoderChain([])
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-              {encoderChain.length > 0 && (
-                <div className="p-2 bg-muted rounded">
-                  <p className="text-xs text-muted-foreground">
-                    Chain: {encoderChain.join(' → ')}
-                  </p>
-                </div>
-              )}
-              {testOutput && (
-                <div className="space-y-2">
-                  <div className="bg-background rounded p-3 font-mono text-sm break-all">
-                    {testOutput}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(testOutput, 'Encoded Payload')}
-                    >
-                      <Copy className="h-3 w-3 mr-2" />
-                      Copy
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setTestInput(testOutput)
-                        setTestOutput('')
-                      }}
-                    >
-                      Use as Input
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* SQL Injection Tester */}
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-accent" />
-              <h3 className="text-xl font-semibold">SQL Injection Tester</h3>
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Test SQL injection payloads against different database types (simulation)
-              </p>
-              <Input
-                type="text"
-                placeholder="Enter SQL injection payload..."
-                value={testInput}
-                onChange={(e) => setTestInput(e.target.value)}
-                className="w-full"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const result = testInput.match(/['";]/g)
-                      ? '✓ Payload contains SQL metacharacters'
-                      : '✗ No SQL metacharacters detected'
-                    setTestOutput(result)
-                  }}
-                >
-                  Test MySQL
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const result = testInput.match(/UNION|SELECT|FROM/i)
-                      ? '✓ SQL keywords detected'
-                      : '✗ No SQL keywords found'
-                    setTestOutput(result)
-                  }}
-                >
-                  Test PostgreSQL
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const result = testInput.match(/;|--|\/\*/g)
-                      ? '✓ Comment syntax detected'
-                      : '✗ No comment syntax found'
-                    setTestOutput(result)
-                  }}
-                >
-                  Test MSSQL
-                </Button>
-              </div>
-              {testOutput && (
-                <div className="p-3 bg-accent/10 rounded">
-                  <p className="text-sm">{testOutput}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Automation Scripts */}
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-accent" />
-              <h3 className="text-xl font-semibold">Quick Reference</h3>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-sm mb-2">Common Burp Suite Shortcuts</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">Ctrl+R</span> - Send to Repeater
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">Ctrl+I</span> - Send to Intruder
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">Ctrl+Shift+B</span> - Base64 Encode
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">Ctrl+Shift+U</span> - URL Encode
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h4 className="font-semibold text-sm mb-2">Common HTTP Status Codes</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">200</span> - OK
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">301/302</span> - Redirect
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">403</span> - Forbidden
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <span className="font-mono">500</span> - Server Error
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
           </div>
         )}
         </div>
