@@ -31,39 +31,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Bar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 relative">
-        <div className="flex items-center space-x-4 lg:space-x-6">
-          {/* Logo - hidden on small screens to allow centered title */}
-          <div className="hidden lg:flex items-center space-x-2">
-            <Zap className="w-5 h-5 text-accent" />
-            <span className="text-lg font-bold">Sectoolbox</span>
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = location.pathname === item.path
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-accent/10 text-accent border border-accent/20' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            )
-            })}
-            
-
-          </nav>
+      <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 relative">
+        {/* Logo - Left Side (Desktop Only) */}
+        <div className="hidden lg:flex items-center space-x-2 absolute left-6">
+          <Zap className="w-5 h-5 text-accent" />
+          <span className="text-lg font-bold">Sectoolbox</span>
         </div>
-        
+
+        {/* Desktop Navigation - Centered */}
+        <nav className="hidden lg:flex items-center space-x-1 mx-auto">
+          {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = location.pathname === item.path
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-accent/10 text-accent border border-accent/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          )
+          })}
+        </nav>
+
+        {/* Status Indicator - Right Side (Desktop Only) */}
+        <div className="hidden lg:flex items-center space-x-2 lg:space-x-4 absolute right-6">
+          <div className="text-xs font-mono text-muted-foreground hidden sm:block">
+            {new Date().toLocaleTimeString()}
+          </div>
+          <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+        </div>
+
         {/* Mobile Navigation - Hamburger Menu + Centered Title */}
         <div className="lg:hidden flex items-center space-x-3 ml-auto">
           <h1 className="absolute left-1/2 transform -translate-x-1/2 lg:static text-lg font-semibold pointer-events-none">
@@ -80,13 +84,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Menu className="w-5 h-5 text-foreground" />
             )}
           </button>
-        </div>
-
-        <div className="hidden lg:flex items-center space-x-2 lg:space-x-4">
-          <div className="text-xs font-mono text-muted-foreground hidden sm:block">
-            {new Date().toLocaleTimeString()}
-          </div>
-          <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
         </div>
       </header>
 
