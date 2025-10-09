@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Zap, Home, Network, Image, Lock, Globe, Search, Menu, X, FolderOpen, Headphones } from 'lucide-react'
+import { Zap, Home, Network, Image, Lock, Globe, Search, Menu, X, FolderOpen, Headphones, Wifi } from 'lucide-react'
 import Footer from './Footer'
 
 interface LayoutProps {
@@ -31,6 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/forensics', label: 'Forensics', icon: Search },
     { path: '/folder-scanner', label: 'Folder', icon: FolderOpen },
     { path: '/audio', label: 'Audio', icon: Headphones },
+    { path: '/network', label: 'Network', icon: Wifi },
   ]
 
   const handleNavigation = (path: string) => {

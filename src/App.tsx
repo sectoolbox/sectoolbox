@@ -13,6 +13,7 @@ const EVTXAnalysis = lazy(() => import('./pages/EVTXAnalysis'))
 const FolderScanner = lazy(() => import('./pages/FolderScanner'))
 const AudioAnalysis = lazy(() => import('./pages/AudioAnalysis'))
 const ResultsHistory = lazy(() => import('./pages/ResultsHistory'))
+const Network = lazy(() => import('./pages/Network'))
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
               <Route path="/forensics-evtx" element={<EVTXAnalysis />} />
               <Route path="/folder-scanner" element={<FolderScanner />} />
               <Route path="/audio" element={<AudioAnalysis />} />
+              <Route path="/network" element={<Network />} />
               <Route path="/results" element={<ResultsHistory />} />
             </Routes>
           </Suspense>
