@@ -1,4 +1,5 @@
 import React from 'react';
+import { MessageSquare, Bug } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const projectName = import.meta.env.VITE_PROJECT_NAME || 'Sectoolbox';
@@ -45,6 +46,31 @@ const Footer: React.FC = () => {
               </li>
             ))}
           </ul>
+
+          {/* Community & Support Links */}
+          <div className="mt-6 flex flex-wrap justify-center items-center gap-4">
+            <a
+              href="https://discord.gg/SvvKKMzE5Q"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors duration-200 text-sm font-medium"
+              aria-label="Join our Discord community"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Join Discord
+            </a>
+            <a
+              href="https://github.com/sectoolbox/sectoolbox/issues/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition-colors duration-200 text-sm font-medium"
+              aria-label="Report an issue on GitHub"
+            >
+              <Bug className="w-4 h-4" />
+              Report Issue
+            </a>
+          </div>
+
           <div className="mt-6 text-xs text-slate-400">
             © 2025 {projectName}. All rights reserved.
           </div>
