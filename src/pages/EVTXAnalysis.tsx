@@ -223,20 +223,13 @@ const EVTXAnalysis: React.FC = () => {
       </div>
 
       {/* File Upload */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center justify-between">
-          <span>Upload EVTX Files</span>
-          {files.length > 1 && (
-            <span className="text-sm font-normal text-accent">
-              {files.length} files selected (Multi-file analysis)
-            </span>
-          )}
-        </h2>
-        <div className="space-y-4">
+      {files.length === 0 && !result ? (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload EVTX Files</h2>
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors">
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">
-              {files.length > 0 ? `${files.length} file(s) selected` : 'Select Windows Event Log files'}
+              Select Windows Event Log files
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               Supports .evtx files • Upload multiple files for cross-log correlation
@@ -255,27 +248,26 @@ const EVTXAnalysis: React.FC = () => {
               </Button>
             </label>
           </div>
-
-          {files.length > 0 && (
-            <>
-              <div className="space-y-2">
-                {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-background border border-border rounded-lg">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <FileText className="w-4 h-4 text-accent" />
-                      <span className="font-medium">{file.name}</span>
-                      <span className="text-muted-foreground">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => removeFile(index)}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileText className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">
+                  {files.length === 1 ? files[0].name : `${files.length} EVTX files selected`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {files.length === 1
+                    ? `${(files[0].size / 1024 / 1024).toFixed(2)} MB`
+                    : `Total: ${(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB`
+                  }
+                </p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Total size: {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB
-                </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {!result && (
                 <Button onClick={() => analyzeFiles()} disabled={isAnalyzing}>
                   {isAnalyzing ? (
                     <>
@@ -285,15 +277,25 @@ const EVTXAnalysis: React.FC = () => {
                   ) : (
                     <>
                       <Activity className="w-4 h-4 mr-2" />
-                      Analyze {files.length > 1 ? `${files.length} Files` : 'EVTX'}
+                      Analyze
                     </>
                   )}
                 </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </Card>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setFiles([])
+                  setResult(null)
+                }}
+              >
+                Remove File{files.length > 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Results */}
       {result && (
