@@ -24,7 +24,6 @@ import {
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 type TabType = 'subnet' | 'dns' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
 
@@ -239,6 +238,31 @@ export default function Network() {
       }
     })
     return Array.from(paths).sort()
+  }, [filteredArchiveUrls])
+
+  // Extract potential injection points (URLs with parameters)
+  const injectionPoints = useMemo(() => {
+    const points: string[] = []
+    filteredArchiveUrls.forEach(item => {
+      try {
+        const url = new URL(item.url.startsWith('http') ? item.url : `http://${item.url}`)
+        if (url.search && url.search.length > 1) {
+          // Check if URL has common vulnerable parameters
+          const params = url.searchParams
+          const vulnParams = ['id', 'page', 'file', 'url', 'path', 'redirect', 'goto', 'return', 'next', 'callback', 'data', 'load', 'include', 'dir', 'doc', 'document', 'folder', 'root', 'pg', 'p', 'cat', 'action', 'view', 'content', 'download', 'template', 'layout', 'preview', 'query', 'q']
+
+          for (const key of params.keys()) {
+            if (vulnParams.some(vp => key.toLowerCase().includes(vp))) {
+              points.push(item.url)
+              break
+            }
+          }
+        }
+      } catch {
+        // Skip invalid URLs
+      }
+    })
+    return [...new Set(points)].sort()
   }, [filteredArchiveUrls])
 
   // IPInfo.io
@@ -691,44 +715,101 @@ export default function Network() {
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="space-y-6">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 h-auto">
-          <TabsTrigger value="subnet" className="flex items-center gap-2">
+      <div className="bg-card border border-border rounded-lg">
+        <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('subnet')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'subnet'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Layers className="w-4 h-4" />
-            Subnet Calc
-          </TabsTrigger>
-          <TabsTrigger value="dns" className="flex items-center gap-2">
+            <span>Subnet Calc</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('dns')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'dns'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Server className="w-4 h-4" />
-            DNS Lookup
-          </TabsTrigger>
-          <TabsTrigger value="headers" className="flex items-center gap-2">
+            <span>DNS Lookup</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('headers')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'headers'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Shield className="w-4 h-4" />
-            Headers
-          </TabsTrigger>
-          <TabsTrigger value="shodan" className="flex items-center gap-2">
+            <span>Headers</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('shodan')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'shodan'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Eye className="w-4 h-4" />
-            Shodan
-          </TabsTrigger>
-          <TabsTrigger value="archive" className="flex items-center gap-2">
+            <span>Shodan</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('archive')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'archive'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <History className="w-4 h-4" />
-            Archive
-          </TabsTrigger>
-          <TabsTrigger value="ipinfo" className="flex items-center gap-2">
+            <span>Archive</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('ipinfo')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'ipinfo'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Database className="w-4 h-4" />
-            IPInfo
-          </TabsTrigger>
-          <TabsTrigger value="passivedns" className="flex items-center gap-2">
+            <span>IPInfo</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('passivedns')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'passivedns'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <FileText className="w-4 h-4" />
-            PassiveDNS
-          </TabsTrigger>
-          <TabsTrigger value="certs" className="flex items-center gap-2">
+            <span>PassiveDNS</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('certs')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'certs'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
             <Lock className="w-4 h-4" />
-            Certificates
-          </TabsTrigger>
-        </TabsList>
+            <span>Certificates</span>
+          </button>
+        </div>
 
+        <div className="p-6 space-y-4">
         {/* Subnet Calculator Tab */}
-        <TabsContent value="subnet" className="space-y-4">
+        {activeTab === 'subnet' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -834,10 +915,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* DNS Lookup Tab */}
-        <TabsContent value="dns" className="space-y-4">
+        {activeTab === 'dns' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -915,10 +996,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Headers Tab */}
-        <TabsContent value="headers" className="space-y-4">
+        {activeTab === 'headers' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1010,10 +1091,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Shodan InternetDB Tab */}
-        <TabsContent value="shodan" className="space-y-4">
+        {activeTab === 'shodan' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1137,10 +1218,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Archive.org Tab */}
-        <TabsContent value="archive" className="space-y-4">
+        {activeTab === 'archive' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1272,10 +1353,16 @@ export default function Network() {
                   {/* Unique Paths Section */}
                   {uniqueArchivePaths.length > 0 && (
                     <Card className="p-4">
-                      <h3 className="font-semibold flex items-center gap-2 mb-3">
-                        <Layers className="w-4 h-4 text-accent" />
-                        Unique Paths Found ({uniqueArchivePaths.length})
-                      </h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-accent" />
+                          Unique Paths Found ({uniqueArchivePaths.length})
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={() => exportData(uniqueArchivePaths, 'archive-paths.json')}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Export Paths
+                        </Button>
+                      </div>
                       <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
                         {uniqueArchivePaths.map((path, idx) => (
                           <div key={idx} className="flex justify-between items-center border-b border-border/50 py-1 hover:bg-accent/5">
@@ -1288,14 +1375,50 @@ export default function Network() {
                       </div>
                     </Card>
                   )}
+
+                  {/* Potential Injection Points Section */}
+                  {injectionPoints.length > 0 && (
+                    <Card className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-500" />
+                          Potential Injection Points ({injectionPoints.length})
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={() => exportData(injectionPoints, 'injection-points.json')}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Export Injection Points
+                        </Button>
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        URLs with parameters that could be vulnerable to injection attacks
+                      </div>
+                      <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
+                        {injectionPoints.map((url, idx) => (
+                          <div key={idx} className="flex justify-between items-center border-b border-border/50 py-1 hover:bg-accent/5">
+                            <a
+                              href={url.startsWith('http') ? url : `http://${url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-accent hover:underline flex-1 truncate"
+                            >
+                              {url}
+                            </a>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(url)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* IPInfo.io Tab */}
-        <TabsContent value="ipinfo" className="space-y-4">
+        {activeTab === 'ipinfo' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1414,10 +1537,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* PassiveDNS Tab */}
-        <TabsContent value="passivedns" className="space-y-4">
+        {activeTab === 'passivedns' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1492,10 +1615,10 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Certificate Transparency Tab */}
-        <TabsContent value="certs" className="space-y-4">
+        {activeTab === 'certs' && (
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1574,8 +1697,9 @@ export default function Network() {
               )}
             </div>
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+        </div>
+      </div>
     </div>
   )
 }
