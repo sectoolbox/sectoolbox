@@ -37,6 +37,7 @@ const Dashboard: React.FC = () => {
     { name: 'Image', path: '/image', description: 'Steganography detection and metadata extraction', icon: Image },
     { name: 'Cryptography Tools', path: '/crypto', description: 'Encoding, decoding, and cryptographic operations', icon: Lock },
     { name: 'Web', path: '/web', description: 'Web application security and exploitation utilities', icon: Globe },
+    { name: 'Network', path: '/network', description: 'Network analysis and security tools', icon: Network },
     { name: 'Forensics', path: '/forensics', description: 'File analysis and digital evidence examination', icon: Search },
     { name: 'Folder', path: '/folder-scanner', description: 'Bulk scan folders and filter files by content', icon: FolderOpen },
     { name: 'Audio', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones }
@@ -115,7 +116,7 @@ const Dashboard: React.FC = () => {
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold glow-text">Sectoolbox</h1>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Professional-grade cybersecurity analysis tools for CTF competitions and security research
+            Cybersecurity analysis tools for CTF competitions and security research
           </p>
         </div>
       </div>
@@ -129,10 +130,10 @@ const Dashboard: React.FC = () => {
             Quick Upload
           </h2>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Image Upload */}
-            <div 
-              className="bg-card border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-accent transition-colors cursor-pointer group"
+            <div
+              className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(e, 'image')}
               onClick={() => {
@@ -146,14 +147,14 @@ const Dashboard: React.FC = () => {
                 input.click()
               }}
             >
-              <FileImage className="w-8 h-8 text-muted-foreground group-hover:text-accent mx-auto mb-2" />
-              <p className="text-sm font-medium">Image Analysis</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, GIF, BMP</p>
+              <FileImage className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">Image Analysis</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, GIF</p>
             </div>
 
             {/* PCAP Upload */}
-            <div 
-              className="bg-card border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-accent transition-colors cursor-pointer group"
+            <div
+              className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(e, 'pcap')}
               onClick={() => {
@@ -167,14 +168,14 @@ const Dashboard: React.FC = () => {
                 input.click()
               }}
             >
-              <Network className="w-8 h-8 text-muted-foreground group-hover:text-accent mx-auto mb-2" />
-              <p className="text-sm font-medium">PCAP Analysis</p>
-              <p className="text-xs text-muted-foreground">PCAP, PCAPNG, CAP</p>
+              <Network className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">PCAP Analysis</p>
+              <p className="text-xs text-muted-foreground">PCAP, PCAPNG</p>
             </div>
 
             {/* Audio Upload */}
             <div
-              className="bg-card border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-accent transition-colors cursor-pointer group"
+              className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(e, 'audio')}
               onClick={() => {
@@ -188,29 +189,19 @@ const Dashboard: React.FC = () => {
                 input.click()
               }}
             >
-              <Headphones className="w-8 h-8 text-muted-foreground group-hover:text-accent mx-auto mb-2" />
-              <p className="text-sm font-medium">Audio Analysis</p>
-              <p className="text-xs text-muted-foreground">MP3, WAV, OGG, M4A</p>
+              <Headphones className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">Audio Analysis</p>
+              <p className="text-xs text-muted-foreground">MP3, WAV, OGG</p>
             </div>
 
-            {/* Forensics Upload */}
+            {/* Folder Scanner Upload */}
             <div
-              className="bg-card border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-accent transition-colors cursor-pointer group"
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'forensics')}
-              onClick={() => {
-                const input = document.createElement('input')
-                input.type = 'file'
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0]
-                  if (file) handleFileUpload(file)
-                }
-                input.click()
-              }}
+              className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
+              onClick={() => navigate('/folder-scanner')}
             >
-              <FileText className="w-8 h-8 text-muted-foreground group-hover:text-accent mx-auto mb-2" />
-              <p className="text-sm font-medium">Digital Forensics</p>
-              <p className="text-xs text-muted-foreground">Any file type</p>
+              <FolderOpen className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">Folder Scanner</p>
+              <p className="text-xs text-muted-foreground">Scan directories</p>
             </div>
           </div>
         </div>
@@ -301,13 +292,13 @@ const Dashboard: React.FC = () => {
             Changelogs
           </h2>
 
-          <div className="bg-card border border-border rounded-lg p-3 max-h-[280px]">
+          <div className="bg-card border border-border rounded-lg p-3 max-h-[400px]">
             {clLoading ? (
               <div className="text-sm text-muted-foreground">Loading changelogs...</div>
             ) : changelogs.length === 0 ? (
               <div className="text-sm text-muted-foreground">No changelogs available</div>
             ) : (
-              <div className="space-y-2 h-full max-h-60 overflow-auto">
+              <div className="space-y-2 h-full max-h-80 overflow-auto">
                 {changelogs.map((c: any, i: number) => (
                   <div key={i} className="p-2 bg-muted/20 rounded">
                     <div className="flex items-center justify-between">
