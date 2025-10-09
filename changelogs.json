@@ -1,0 +1,98 @@
+[
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0",
+    "title": "Initial Release - Sectoolbox Launch",
+    "description": "Professional cybersecurity toolkit for CTF competitions and security research now available.",
+    "changes": [
+      "🚀 Initial public release",
+      "🔧 Complete toolkit suite implementation",
+      "🌐 Vercel deployment ready",
+      "📱 Modern responsive UI design"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "PCAP Analysis Module",
+    "description": "Advanced network packet analysis capabilities for deep packet inspection.",
+    "changes": [
+      "📊 Real-time packet parsing and analysis",
+      "🔍 Protocol detection and filtering",
+      "📈 Traffic visualization charts",
+      "💾 Export analysis results"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Image Analysis & Steganography",
+    "description": "Comprehensive image forensics and steganography detection tools.",
+    "changes": [
+      "🖼️ EXIF metadata extraction",
+      "🔐 Hidden data detection",
+      "🎨 Image manipulation analysis",
+      "📋 Detailed forensic reports"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Cryptography Toolkit",
+    "description": "Extensive collection of encoding, decoding, and cryptographic analysis tools.",
+    "changes": [
+      "🔤 Base64, Hex, URL encoding/decoding",
+      "🔒 Hash analysis (MD5, SHA family)",
+      "🗝️ Caesar cipher and ROT variants",
+      "🧮 Frequency analysis tools"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Web Security Scanner",
+    "description": "Web application security testing and vulnerability assessment tools.",
+    "changes": [
+      "🌐 URL analysis and parsing",
+      "🛡️ Security header analysis",
+      "🔍 Directory enumeration",
+      "⚡ XSS and injection testing"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Digital Forensics Suite",
+    "description": "File analysis and digital evidence examination capabilities.",
+    "changes": [
+      "📁 File signature analysis",
+      "🔬 Hex dump examination",
+      "📊 Entropy and statistical analysis",
+      "🗃️ EVTX log file parsing"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-alpha",
+    "title": "Core Platform Development",
+    "description": "Foundation development with modern React architecture and security focus.",
+    "changes": [
+      "⚛️ React 19 + TypeScript foundation",
+      "🎨 Tailwind CSS + Shadcn/ui components",
+      "🚀 Vite build system optimization",
+      "📱 Responsive design implementation"
+    ]
+  },
+  {
+    "date": "2025-10-07",
+    "version": "v0.9.0-alpha",
+    "title": "Project Initialization",
+    "description": "Initial project setup and architecture planning for professional cybersecurity toolkit.",
+    "changes": [
+      "📋 Project structure and planning",
+      "🏗️ Development environment setup",
+      "🔧 Build and deployment configuration",
+      "📝 Documentation and guidelines"
+    ]
+  }
+]

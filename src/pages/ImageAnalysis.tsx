@@ -1,0 +1,3009 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
+import { Upload, Image as ImageIcon, Search, Eye, Info, Layers, Hash, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { ShowFullToggle } from '../components/ShowFullToggle'
+import { performComprehensiveImageAnalysis, ImageAnalysisResult, computeHistogramFromCanvas, extractBitPlaneFromCanvas, analyzeLSBWithDepth, extractPrintableStringsFromBuffer, applyEdgeDetection, analyzeNoise, applyAutoGammaCorrection, applyHistogramEqualization } from '../lib/imageAnalysis'
+import { parseEvtxWithWasm } from '../lib/evtxWasm'
+import { carveFiles } from '../lib/forensics'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
+import { scanImageData } from '@undecaf/zbar-wasm'
+
+type StringsResult = { 
+  all: string[]; 
+  interesting: string[]; 
+  base64: string[]; 
+  urls: string[]; 
+  ips?: string[]; 
+  emails?: string[];
+  patterns?: Record<string, string[]>;
+  counts?: {
+    ascii: number;
+    unicode: number;
+    total: number;
+    unique: number;
+  };
+}
+
+interface ImageAdjustments {
+  brightness: number
+  contrast: number
+  saturation: number
+  hue: number
+  exposure: number
+  shadows: number
+  highlights: number
+  temperature: number
+  vibrance: number
+  clarity: number
+  vignette: number
+}
+
+type ColorChannel = 'normal' | 'red' | 'green' | 'blue' | 'grayscale' | 'invert'
+
+function formatExifValue(v: any) {
+  if (v === null || v === undefined) return '-'
+  if (typeof v === 'object') {
+    // common shapes from exif libraries
+    if ('description' in v && typeof v.description === 'string') return v.description
+    if ('value' in v) return String(v.value)
+    if ('text' in v) return String(v.text)
+    try {
+      return JSON.stringify(v)
+    } catch (e) {
+      return String(v)
+    }
+  }
+  return String(v)
+}
+
+export default function ImageAnalysis() {
+  const [file, setFile] = useState<File | null>(null)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [metadata, setMetadata] = useState<any | null>(null)
+  const [structuredResults, setStructuredResults] = useState<ImageAnalysisResult | null>(null)
+  const [activeTab, setActiveTab] = useState<'metadata' | 'stego' | 'strings' | 'hex' | 'bitplane' | 'barcode'>('metadata')
+  const [debouncedStringFilter, setDebouncedStringFilter] = useState('')
+  const [extractedStrings, setExtractedStrings] = useState<StringsResult | null>(null)
+  const [stringFilter, setStringFilter] = useState('')
+  const [imageList, setImageList] = useState<string[]>([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [imageAdjustments, setImageAdjustments] = useState<ImageAdjustments>({
+    brightness: 100,
+    contrast: 100,
+    saturation: 100,
+    hue: 0,
+    exposure: 0,
+    shadows: 0,
+    highlights: 0,
+    temperature: 0,
+    vibrance: 0,
+    clarity: 0,
+    vignette: 0
+  })
+  const [colorChannel, setColorChannel] = useState<ColorChannel>('normal')
+  const [showAdjustedImage, setShowAdjustedImage] = useState(false)
+  const [lsbDepth, setLsbDepth] = useState<number>(1)
+  const [bitPlane, setBitPlane] = useState<number>(0)
+  const [bitPlaneUrl, setBitPlaneUrl] = useState<string | null>(null)
+  const [lsbDepthResult, setLsbDepthResult] = useState<any | null>(null)
+  const [hexData, setHexData] = useState<{offset: string, hex: string, ascii: string}[] | null>(null)
+  const [hexFilter, setHexFilter] = useState('')
+  const [noiseAnalysisResult, setNoiseAnalysisResult] = useState<any | null>(null)
+  const [advancedProcessingResult, setAdvancedProcessingResult] = useState<string | null>(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const [mousePosition, setMousePosition] = useState<{x: number, y: number, color?: string} | null>(null)
+  const [showPixelInfo, setShowPixelInfo] = useState(false)
+  const [showFullStrings, setShowFullStrings] = useState(false)
+  const [showFullHex, setShowFullHex] = useState(false)
+  const [colorChannelType, setColorChannelType] = useState<'rgb' | 'red' | 'green' | 'blue' | 'alpha' | 'grayscale' | 'hsv'>('rgb')
+  const [bitPlanePanPosition, setBitPlanePanPosition] = useState({ x: 0, y: 0 })
+  const [bitPlaneZoomLevel, setBitPlaneZoomLevel] = useState(1)
+  const [isBitPlanePanning, setIsBitPlanePanning] = useState(false)
+  const [bitPlaneLastPanPoint, setBitPlaneLastPanPoint] = useState({ x: 0, y: 0 })
+  const [barcodeResults, setBarcodeResults] = useState<Array<{
+    format: string,
+    text: string,
+    raw?: string,
+    quality?: number,
+    position?: {x: number, y: number, width: number, height: number},
+    decoded?: any,
+    binary?: string,
+    qrMetadata?: {
+      version?: number,
+      errorCorrectionLevel?: string,
+      maskPattern?: number,
+      encoding?: string
+    },
+    reconstructedImage?: string
+  }>>([])
+  const [isScanningBarcode, setIsScanningBarcode] = useState(false)
+  const [barcodeImage, setBarcodeImage] = useState<string | null>(null)
+  const [barcodeTryHarder, setBarcodeTryHarder] = useState(false)
+  const [barcodeFormats, setBarcodeFormats] = useState<string[]>(['ALL'])
+  const [reconstructedScanResults, setReconstructedScanResults] = useState<Record<number, {text: string, format: string} | null>>({})
+  const [barcodeSubPage, setBarcodeSubPage] = useState<'original' | 'reconstructed'>('original')
+  const [editableBytes, setEditableBytes] = useState<Record<number, string>>({})
+
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
+  const autoExtractTimerRef = useRef<number | null>(null)
+  const userHasChangedBitplaneRef = useRef<boolean>(false)
+
+  // Quick-upload handling from Dashboard (navigate state)
+  const location = useLocation()
+  const shouldAutoAnalyzeRef = useRef(false)
+
+  useEffect(() => {
+    const state: any = (location && (location as any).state) || {}
+    if (state?.quickUploadFile) {
+      try {
+        onFile(state.quickUploadFile)
+        shouldAutoAnalyzeRef.current = !!state.quickUploadAutoAnalyze
+        // Clear history state to avoid re-trigger on refresh
+        try { window.history.replaceState({}, '', window.location.pathname) } catch (e) { void e }
+      } catch (e) {
+        console.warn('Quick upload to ImageAnalysis failed', e)
+      }
+    }
+  }, [location])
+
+  useEffect(() => {
+    if (file && shouldAutoAnalyzeRef.current) {
+      analyze()
+      shouldAutoAnalyzeRef.current = false
+    }
+    // analyze function is stable in this component; disable exhaustive-deps warning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file])
+
+  // channel color mapping (use HEX per project rules)
+  const channelColors: Record<string,string> = { red: '#ef4444', green: '#34D399', blue: '#60A5FA' }
+
+  const onFile = (f?: File) => {
+    if (!f) return
+    setFile(f)
+    const newImageUrl = URL.createObjectURL(f)
+    setImageUrl(newImageUrl)
+    
+    // Add to image list for navigation
+    setImageList(prev => {
+      const newList = [...prev, newImageUrl]
+      setCurrentImageIndex(newList.length - 1)
+      return newList
+    })
+    
+    setMetadata(null)
+    setStructuredResults(null)
+    setExtractedStrings(null)
+    setBitPlaneUrl(null)
+    setLsbDepthResult(null)
+    setHexData(null)
+    setNoiseAnalysisResult(null)
+    setAdvancedProcessingResult(null)
+    setBarcodeResults([])
+    // reset user manual selection so auto-extract runs for new images
+    userHasChangedBitplaneRef.current = false
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const f = e.dataTransfer.files?.[0]
+    if (f && (f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.evtx'))) onFile(f)
+  }
+
+  // Advanced forensic processing functions
+  const applyAdvancedProcessing = (processingType: 'edge' | 'noise' | 'gamma' | 'histogram') => {
+    if (!canvasRef.current) {
+      alert('No image loaded')
+      return
+    }
+
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+
+    const width = canvasRef.current.width
+    const height = canvasRef.current.height
+
+    try {
+      let processedImageData: ImageData
+      let resultMessage = ''
+
+      switch (processingType) {
+        case 'edge':
+          processedImageData = applyEdgeDetection(ctx, width, height)
+          resultMessage = 'Edge detection applied - highlights object boundaries and texture details'
+          break
+        case 'noise':
+          const noiseResult = analyzeNoise(ctx, width, height)
+          processedImageData = noiseResult.visualData
+          setNoiseAnalysisResult(noiseResult)
+          resultMessage = `Noise analysis complete - Level: ${noiseResult.noiseLevel}% (${noiseResult.analysis})`
+          break
+        case 'gamma':
+          processedImageData = applyAutoGammaCorrection(ctx, width, height)
+          resultMessage = 'Auto gamma correction applied - enhanced luminance distribution'
+          break
+        case 'histogram':
+          processedImageData = applyHistogramEqualization(ctx, width, height)
+          resultMessage = 'Histogram equalization applied - improved contrast and detail visibility'
+          break
+        default:
+          return
+      }
+
+      // Apply the processed image data to canvas
+      ctx.putImageData(processedImageData, 0, 0)
+      setShowAdjustedImage(true)
+      setAdvancedProcessingResult(resultMessage)
+      
+      // Display result message
+      alert(resultMessage)
+    } catch (error) {
+      console.error(`${processingType} processing failed:`, error)
+      alert(`${processingType} processing failed - check console`)
+    }
+  }
+
+  // Helper: Convert text to binary representation
+  const textToBinary = (text: string): string => {
+    return Array.from(text)
+      .map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
+      .join(' ')
+  }
+
+  // Helper: Parse QR code metadata from ZXing result
+  const parseQRMetadata = (result: any): any => {
+    try {
+      const metadata: any = {}
+
+      // Try to extract version (QR codes are version 1-40)
+      const resultMetadata = result.getResultMetadata?.()
+      if (resultMetadata) {
+        // Error correction level
+        const ecLevel = resultMetadata.get?.(2) // ERROR_CORRECTION_LEVEL key
+        if (ecLevel) {
+          metadata.errorCorrectionLevel = String(ecLevel)
+        }
+
+        // Byte segments for encoding detection
+        const byteSegments = resultMetadata.get?.(6) // BYTE_SEGMENTS key
+        if (byteSegments) {
+          metadata.encoding = 'Byte Mode'
+        }
+      }
+
+      return Object.keys(metadata).length > 0 ? metadata : undefined
+    } catch (e) {
+      return undefined
+    }
+  }
+
+  // Helper: Parse Python-style escape sequences (\x89, \r, \n, etc.) to actual bytes
+  const parseEscapeSequences = (text: string): Uint8Array => {
+    const bytes: number[] = []
+    let i = 0
+
+    while (i < text.length) {
+      if (text[i] === '\\' && i + 1 < text.length) {
+        const next = text[i + 1]
+
+        // Hex escape: \xNN
+        if (next === 'x' && i + 3 < text.length) {
+          const hexStr = text.substring(i + 2, i + 4)
+          const byte = parseInt(hexStr, 16)
+          if (!isNaN(byte)) {
+            bytes.push(byte)
+            i += 4
+            continue
+          }
+        }
+
+        // Common escape sequences
+        switch (next) {
+          case 'n': bytes.push(0x0A); i += 2; continue // \n -> LF
+          case 'r': bytes.push(0x0D); i += 2; continue // \r -> CR
+          case 't': bytes.push(0x09); i += 2; continue // \t -> TAB
+          case '0': bytes.push(0x00); i += 2; continue // \0 -> NULL
+          case '\\': bytes.push(0x5C); i += 2; continue // \\ -> \
+          case '\'': bytes.push(0x27); i += 2; continue // \' -> '
+          case '\"': bytes.push(0x22); i += 2; continue // \" -> "
+        }
+      }
+
+      // Regular character
+      bytes.push(text.charCodeAt(i))
+      i++
+    }
+
+    return new Uint8Array(bytes)
+  }
+
+  // Helper: Reconstruct from binary blob (like Python: with open('flag.png', 'wb') as f: f.write(png_data))
+  const reconstructQRCode = async (rawBytes: Uint8Array, format: string, customBytes?: Uint8Array): Promise<string | undefined> => {
+    try {
+      if (!format.includes('QR')) return undefined
+
+      // Use custom bytes if provided, otherwise use original raw bytes
+      let bytes = customBytes || rawBytes
+
+      // Check if the data contains escape sequences (like \x89PNG instead of actual bytes)
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+      if (text.includes('\\x') || text.includes('\\r') || text.includes('\\n')) {
+        console.log('Detected escape sequences in QR data, parsing...')
+        bytes = parseEscapeSequences(text)
+        console.log('Parsed bytes first 4:', bytes[0], bytes[1], bytes[2], bytes[3])
+      }
+
+      // Create blob from raw bytes
+      const blob = new Blob([bytes])
+
+      // Detect file type from magic bytes
+      let mimeType = 'application/octet-stream'
+      if (bytes.length >= 4) {
+        // PNG: \x89PNG
+        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+          mimeType = 'image/png'
+        }
+        // JPEG: \xFF\xD8\xFF
+        else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+          mimeType = 'image/jpeg'
+        }
+        // GIF: GIF8
+        else if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+          mimeType = 'image/gif'
+        }
+        // PDF: %PDF
+        else if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
+          mimeType = 'application/pdf'
+        }
+      }
+
+      // Create data URL from blob (like Python write to file)
+      const blobWithType = new Blob([bytes], { type: mimeType })
+      const dataUrl = URL.createObjectURL(blobWithType)
+
+      return dataUrl
+    } catch (e) {
+      console.error('Failed to reconstruct from binary:', e)
+      return undefined
+    }
+  }
+
+  // Regenerate QR from edited bytes
+  const regenerateQRFromBytes = async (resultIndex: number, customBytesString: string) => {
+    const result = barcodeResults[resultIndex]
+    if (!result || !result.rawBytes) return
+
+    // Convert string back to bytes
+    const customBytes = new Uint8Array(Array.from(customBytesString).map(c => c.charCodeAt(0)))
+
+    const reconstructedImage = await reconstructQRCode(result.rawBytes, result.format, customBytes)
+    if (reconstructedImage) {
+      // Update the result with new reconstructed image
+      const updatedResults = [...barcodeResults]
+      updatedResults[resultIndex] = { ...result, reconstructedImage }
+      setBarcodeResults(updatedResults)
+    }
+  }
+
+  // Scan reconstructed QR code image
+  const scanReconstructedQR = async (imageDataUrl: string, resultIndex: number) => {
+    try {
+      // Create image element from data URL (blob URLs don't need CORS)
+      const img = new Image()
+      // Only set crossOrigin for external URLs, not blob: or data: URLs
+      if (!imageDataUrl.startsWith('blob:') && !imageDataUrl.startsWith('data:')) {
+        img.crossOrigin = 'anonymous'
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Failed to load reconstructed image'))
+        img.src = imageDataUrl
+      })
+
+      // Create canvas and get imageData for ZBar WASM
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas context not available')
+
+      canvas.width = img.width
+      canvas.height = img.height
+      ctx.drawImage(img, 0, 0)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      // Scan with ZBar WASM (real zbarimg algorithm!)
+      const zbarResults = await scanImageData(imageData)
+
+      if (zbarResults.length > 0) {
+        const symbol = zbarResults[0]
+        setReconstructedScanResults(prev => ({
+          ...prev,
+          [resultIndex]: {
+            text: symbol.decode(),
+            format: symbol.typeName
+          }
+        }))
+      } else {
+        setReconstructedScanResults(prev => ({
+          ...prev,
+          [resultIndex]: null
+        }))
+      }
+    } catch (error) {
+      console.warn('Failed to scan reconstructed QR:', error)
+      setReconstructedScanResults(prev => ({
+        ...prev,
+        [resultIndex]: null
+      }))
+    }
+  }
+
+  // ZBar WASM barcode scanning (real zbarimg in browser!)
+  const scanBarcodes = async () => {
+    if (!imageUrl) {
+      console.error('No image loaded for barcode scanning')
+      setIsScanningBarcode(false)
+      return
+    }
+
+    setIsScanningBarcode(true)
+    setBarcodeResults([])
+    setBarcodeImage(null)
+
+    try {
+      // Create a temporary image element with the current image
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+
+      // Wait for image to load with timeout
+      await Promise.race([
+        new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = imageUrl
+        }),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('Image load timeout')), 10000)
+        )
+      ])
+
+      // Create canvas for image processing and visualization
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas context not available')
+
+      canvas.width = img.width
+      canvas.height = img.height
+      ctx.drawImage(img, 0, 0)
+
+      // Get ImageData for ZBar WASM
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      // Scan with ZBar WASM (real zbarimg algorithm!)
+      console.log('Scanning with ZBar WASM...')
+      const zbarResults = await scanImageData(imageData)
+
+      const results: Array<{format: string, text: string, raw?: string, rawBytes?: Uint8Array, quality?: number, position?: {x: number, y: number, width: number, height: number}, decoded?: any, binary?: string, qrMetadata?: any, reconstructedImage?: string}> = []
+
+      for (const symbol of zbarResults) {
+        console.log(`Found: ${symbol.typeName} - ${symbol.decode()}`)
+
+        // Use raw binary data instead of decoded string (for binary files like PNG)
+        const rawBytes = new Uint8Array(symbol.data.buffer, symbol.data.byteOffset, symbol.data.byteLength)
+        const text = symbol.decode()
+
+        // === DEBUG: Option 6 - Show first 20 bytes in multiple formats ===
+        console.log('=== BYTE ANALYSIS (First 20 bytes) ===')
+        console.log('Total length:', rawBytes.length)
+
+        const first20 = rawBytes.slice(0, 20)
+        console.log('Hex:', Array.from(first20).map(b => b.toString(16).padStart(2, '0')).join(' '))
+        console.log('Decimal:', Array.from(first20).join(' '))
+        console.log('ASCII:', Array.from(first20).map(b => b >= 32 && b <= 126 ? String.fromCharCode(b) : '.').join(''))
+        console.log('Raw bytes[0-3]:', rawBytes[0], rawBytes[1], rawBytes[2], rawBytes[3])
+
+        // Check PNG signature
+        const isPNG = rawBytes[0] === 0x89 && rawBytes[1] === 0x50 && rawBytes[2] === 0x4E && rawBytes[3] === 0x47
+        console.log('PNG signature detected:', isPNG)
+
+        // Check if it looks like Base64
+        const isBase64 = /^[A-Za-z0-9+/=]+$/.test(text.substring(0, 100))
+        console.log('Looks like Base64:', isBase64)
+
+        // Check if it looks like Hex
+        const isHex = /^[0-9a-fA-F]+$/.test(text.substring(0, 100))
+        console.log('Looks like Hex:', isHex)
+
+        // Try Base64 decode if it looks like Base64
+        if (isBase64 && text.length > 20) {
+          try {
+            const base64Decoded = atob(text)
+            const base64Bytes = new Uint8Array(Array.from(base64Decoded).map(c => c.charCodeAt(0)))
+            console.log('Base64 decoded first 4 bytes:', base64Bytes[0], base64Bytes[1], base64Bytes[2], base64Bytes[3])
+            const isPNGAfterBase64 = base64Bytes[0] === 0x89 && base64Bytes[1] === 0x50 && base64Bytes[2] === 0x4E && base64Bytes[3] === 0x47
+            console.log('PNG signature after Base64 decode:', isPNGAfterBase64)
+          } catch (e) {
+            console.log('Base64 decode failed:', e)
+          }
+        }
+
+        // Try Hex decode if it looks like Hex
+        if (isHex && text.length > 8) {
+          try {
+            const hexBytes = new Uint8Array(text.match(/.{2}/g)?.slice(0, 4).map(byte => parseInt(byte, 16)) || [])
+            console.log('Hex decoded first 4 bytes:', hexBytes[0], hexBytes[1], hexBytes[2], hexBytes[3])
+            const isPNGAfterHex = hexBytes[0] === 0x89 && hexBytes[1] === 0x50 && hexBytes[2] === 0x4E && hexBytes[3] === 0x47
+            console.log('PNG signature after Hex decode:', isPNGAfterHex)
+          } catch (e) {
+            console.log('Hex decode failed:', e)
+          }
+        }
+        console.log('=== END BYTE ANALYSIS ===')
+        // === END DEBUG ===
+
+        let position = undefined
+
+        // Get symbol position from points
+        if (symbol.points && symbol.points.length >= 2) {
+          const xs = symbol.points.map(p => p.x)
+          const ys = symbol.points.map(p => p.y)
+          const minX = Math.min(...xs)
+          const minY = Math.min(...ys)
+          const maxX = Math.max(...xs)
+          const maxY = Math.max(...ys)
+
+          position = {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+          }
+
+          // Draw bounding box on canvas
+          ctx.strokeStyle = '#10b981'
+          ctx.lineWidth = 3
+          ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
+
+          // Draw corner points
+          ctx.fillStyle = '#10b981'
+          symbol.points.forEach(p => {
+            ctx.beginPath()
+            ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI)
+            ctx.fill()
+          })
+        }
+
+        // Auto-decode Base64, Hex, URL encoding
+        let decoded = undefined
+
+        // Try Base64 decode
+        if (text.match(/^[A-Za-z0-9+/=]{20,}$/)) {
+          try {
+            const decodedText = atob(text)
+            if (decodedText.match(/[\x20-\x7E]/)) {
+              decoded = { type: 'base64', value: decodedText }
+            }
+          } catch (e) {}
+        }
+
+        // Try Hex decode
+        if (!decoded && text.match(/^[0-9a-fA-F]+$/) && text.length % 2 === 0) {
+          try {
+            const hexDecoded = text.match(/.{2}/g)?.map(byte => String.fromCharCode(parseInt(byte, 16))).join('')
+            if (hexDecoded && hexDecoded.match(/[\x20-\x7E]/)) {
+              decoded = { type: 'hex', value: hexDecoded }
+            }
+          } catch (e) {}
+        }
+
+        // Try URL decode
+        if (!decoded && text.includes('%')) {
+          try {
+            const urlDecoded = decodeURIComponent(text)
+            if (urlDecoded !== text) {
+              decoded = { type: 'url', value: urlDecoded }
+            }
+          } catch (e) {}
+        }
+
+        // Extract binary representation
+        const binary = textToBinary(text)
+
+        // Parse QR metadata (basic - ZBar doesn't expose as much as ZXing)
+        const qrMetadata = symbol.typeName.includes('QR') ? {
+          encoding: 'Detected by ZBar',
+          quality: symbol.quality
+        } : undefined
+
+        // Reconstruct QR code from raw binary data
+        const reconstructedImage = await reconstructQRCode(rawBytes, symbol.typeName)
+
+        results.push({
+          format: symbol.typeName,
+          text: text,
+          raw: text,
+          rawBytes: rawBytes, // Store raw binary data for reconstruction
+          position,
+          quality: symbol.quality,
+          decoded,
+          binary,
+          qrMetadata,
+          reconstructedImage
+        })
+      }
+
+      if (results.length === 0) {
+        console.log('No barcodes/QR codes found with ZBar WASM')
+      }
+
+      // If we found codes and drew on canvas, save the visualization
+      if (results.length > 0) {
+        setBarcodeImage(canvas.toDataURL())
+        console.log(`Found ${results.length} barcode(s)/QR code(s)`)
+      } else {
+        console.log('No barcodes or QR codes detected in the image')
+      }
+
+      setBarcodeResults(results)
+    } catch (error) {
+      console.error('Barcode scanning failed:', error)
+      setBarcodeResults([])
+    } finally {
+      setIsScanningBarcode(false)
+    }
+  }
+
+  // Generate hex dump of file
+  const generateHexData = async (buffer: ArrayBuffer) => {
+    try {
+      const bytes = new Uint8Array(buffer)
+      const maxBytes = Math.min(bytes.length, 65536) // Limit to 64KB for display (matching Forensics)
+      const hexLines: {offset: string, hex: string, ascii: string}[] = []
+
+      for (let i = 0; i < maxBytes; i += 16) {
+        // Offset
+        const offset = '0x' + i.toString(16).padStart(8, '0').toUpperCase()
+
+        // Hex bytes and ASCII
+        const hexBytes = []
+        const asciiChars = []
+
+        for (let j = 0; j < 16 && (i + j) < maxBytes; j++) {
+          const byte = bytes[i + j]
+          hexBytes.push(byte.toString(16).padStart(2, '0').toUpperCase())
+          asciiChars.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.')
+        }
+
+        // Pad hex bytes to maintain alignment
+        while (hexBytes.length < 16) {
+          hexBytes.push('  ')
+        }
+
+        // Format hex part with spacing
+        const hexPart = hexBytes.slice(0, 8).join(' ') + '  ' + hexBytes.slice(8).join(' ')
+        const asciiPart = asciiChars.join('')
+
+        hexLines.push({
+          offset,
+          hex: hexPart,
+          ascii: asciiPart
+        })
+      }
+
+      setHexData(hexLines)
+    } catch (error) {
+      console.error('Hex generation failed:', error)
+      setHexData([])
+    }
+  }
+
+  const extractStrings = (buf: ArrayBuffer): StringsResult => {
+    try {
+      // Use the enhanced extraction function from imageAnalysis
+      const enhanced = extractPrintableStringsFromBuffer(buf, 4, 500)
+      const allStrings = enhanced.all
+      const patterns = enhanced.patterns
+      
+      // Legacy compatibility format
+      const base64 = patterns.base64 || []
+      const urls = patterns.urls || []
+      const ips = patterns.ipAddresses || []
+      const emails = patterns.emails || []
+      
+      // Enhanced interesting strings detection
+      const interesting = allStrings.filter(s => {
+        const sl = String(s).toLowerCase()
+        return (
+          sl.includes('flag') || sl.includes('password') || sl.includes('key') || 
+          sl.includes('secret') || sl.includes('token') || sl.includes('admin') || 
+          sl.includes('ctf') || sl.includes('config') || sl.includes('credential') ||
+          sl.includes('api') || sl.includes('auth') || sl.includes('login') ||
+          s.length > 50 || /^[A-Za-z0-9+/=]{20,}$/.test(s) ||
+          /[A-Za-z]:[\\\/]/.test(s) || // File paths
+          /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(s) || // IP addresses
+          /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(s) // Email domains
+        )
+      })
+
+      return { 
+        all: allStrings, 
+        interesting, 
+        base64, 
+        urls, 
+        ips, 
+        emails,
+        patterns,
+        counts: enhanced.counts
+      }
+    } catch (error) {
+      console.warn('Enhanced string extraction failed, falling back to basic:', error)
+      
+      // Fallback to original logic
+      const data = new Uint8Array(buf)
+      const strings: string[] = []
+      let cur: number[] = []
+      const minLen = 4
+      for (let i = 0; i < data.length; i++) {
+        const b = data[i]
+        if (b >= 32 && b <= 126) cur.push(b)
+        else {
+          if (cur.length >= minLen) strings.push(String.fromCharCode(...cur))
+          cur = []
+        }
+      }
+      if (cur.length >= minLen) strings.push(String.fromCharCode(...cur))
+
+      const base64 = strings.filter(s => /^[A-Za-z0-9+/=]{20,}$/.test(s))
+      const urls = strings.filter(s => /https?:\/\//i.test(s))
+      const ips = strings.filter(s => /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/.test(s))
+      const emails = strings.filter(s => /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(s))
+      const interesting = strings.filter(s => {
+        const sl = String(s).toLowerCase()
+        return (
+          sl.includes('flag') || sl.includes('password') || sl.includes('key') || 
+          sl.includes('secret') || sl.includes('token') || sl.includes('admin') || 
+          sl.includes('ctf') || s.length > 50 || /^[A-Za-z0-9+/=]{20,}$/.test(s)
+        )
+      })
+
+      return { all: strings, interesting, base64, urls, ips, emails }
+    }
+  }
+
+  const analyze = async () => {
+    if (!file) return
+    setIsAnalyzing(true)
+    try {
+      const buf = await file.arrayBuffer()
+      
+      // Check if it's an EVTX file
+      if (file.name.toLowerCase().endsWith('.evtx')) {
+        // Handle EVTX file analysis
+        const evtxResult = await parseEvtxWithWasm(buf)
+        
+        // Create a structured result similar to image analysis
+        const res: ImageAnalysisResult = {
+          metadata: {
+            filename: file.name,
+            fileSize: file.size,
+            dimensions: { width: 0, height: 0 },
+            format: 'EVTX',
+            exif: {}
+          },
+          steganography: {
+            detected: false,
+            confidence: 0,
+            techniques: [],
+            hiddenContent: []
+          },
+          forensics: {
+            signatures: [],
+            carvedFiles: [],
+            anomalies: []
+          }
+        }
+        
+        setStructuredResults(res)
+        
+        // Extract strings from EVTX content
+        const evtxStrings = {
+          all: evtxResult.events.flatMap(event => [
+            event.eventId?.toString() || '',
+            event.channel || '',
+            event.computer || '',
+            event.message || '',
+            ...Object.values(event.data || {}).map(v => String(v))
+          ]).filter(s => s.length > 0),
+          interesting: evtxResult.events.filter(e => e.level === 'Error' || e.level === 'Warning').map(e => e.message || '').filter(Boolean),
+          urls: [],
+          emails: [],
+          base64: [],
+          ips: [],
+          counts: {
+            total: 0,
+            unique: 0,
+            ascii: 0,
+            unicode: 0
+          },
+          patterns: {}
+        }
+        
+        // Calculate counts
+        evtxStrings.counts.total = evtxStrings.all.length
+        evtxStrings.counts.unique = new Set(evtxStrings.all).size
+        evtxStrings.counts.ascii = evtxStrings.all.length
+        evtxStrings.counts.unicode = 0
+        
+        setExtractedStrings(evtxStrings)
+        
+        setMetadata({
+          filename: file.name,
+          fileSize: file.size,
+          dimensions: { width: 0, height: 0 },
+          format: 'EVTX',
+          exif: {
+            'Total Events': evtxResult.events.length,
+            'Parse Status': evtxResult.success ? 'Success' : 'Failed',
+            'Parse Time': evtxResult.metadata?.parseTime ? `${evtxResult.metadata.parseTime.toFixed(2)}ms` : 'Unknown'
+          }
+        })
+      } else {
+        // Handle image file analysis (existing logic)
+        const res = await performComprehensiveImageAnalysis(file)
+        setStructuredResults(res)
+
+        const meta = res?.metadata || {}
+        setMetadata({
+          filename: meta.filename || file.name,
+          fileSize: meta.fileSize ?? file.size,
+          dimensions: meta.dimensions ?? { width: 0, height: 0 },
+          format: meta.format || '',
+          exif: meta.exif || {}
+        })
+
+        setExtractedStrings(extractStrings(buf))
+      }
+      
+      // Generate hex data for both file types
+      await generateHexData(buf)
+
+      // save lightly to DB (best-effort)
+      try {
+        const user = await blink.auth.me()
+        if (user) {
+          await blink.db.analysisResults.create({
+            userId: user.id,
+            type: 'image',
+            title: `Image Analysis: ${file.name}`,
+            description: `Image analysis`,
+            timestamp: new Date().toISOString(),
+            status: 'completed',
+            fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+            findings: (res?.layers || []).length,
+            severity: 'low',
+            tags: 'image',
+            resultsData: JSON.stringify(res)
+          })
+        }
+      } catch (e) {
+         
+        console.warn('db save failed')
+      }
+    } catch (err) {
+      console.error('analysis failed', err)
+      alert('Analysis failed – check console')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const navigateImage = (direction: 'prev' | 'next') => {
+    if (imageList.length <= 1) return
+    
+    let newIndex = currentImageIndex
+    if (direction === 'prev') {
+      newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : imageList.length - 1
+    } else {
+      newIndex = currentImageIndex < imageList.length - 1 ? currentImageIndex + 1 : 0
+    }
+    
+    setCurrentImageIndex(newIndex)
+    // consider this a new image load — reset manual-selection flag so auto-extract can run
+    userHasChangedBitplaneRef.current = false
+    setImageUrl(imageList[newIndex])
+  }
+
+  const updateAdjustment = (key: keyof ImageAdjustments, value: number) => {
+    setImageAdjustments(prev => ({ ...prev, [key]: value }))
+    setShowAdjustedImage(true)
+    // Auto-update bitplane preview when forensic processing changes
+    if (bitPlaneUrl) {
+      setTimeout(() => extractBitPlane(), 100) // Small delay to ensure canvas is updated
+    }
+  }
+
+  const resetAdjustments = () => {
+    setImageAdjustments({
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      hue: 0,
+      exposure: 0,
+      shadows: 0,
+      highlights: 0,
+      temperature: 0,
+      vibrance: 0,
+      clarity: 0,
+      vignette: 0
+    })
+    setColorChannel('normal')
+    setShowAdjustedImage(false)
+    setBitPlaneUrl(null)
+    setLsbDepthResult(null)
+  }
+
+  const extractBitPlane = useCallback((plane?: number) => {
+    if (!canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    const currentPlane = plane !== undefined ? plane : bitPlane
+    const planeCanvas = extractBitPlaneFromCanvas(ctx, canvasRef.current.width, canvasRef.current.height, currentPlane)
+    try {
+      const url = planeCanvas.toDataURL('image/png')
+      setBitPlaneUrl(url)
+    } catch (e) {
+      console.error('bitplane export failed', e)
+    }
+  }, [bitPlane])
+
+  const handleImageLoad = useCallback(() => {
+    if (!imageRef.current || !canvasRef.current) return
+    
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const img = imageRef.current
+    
+    if (!ctx) return
+    
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    
+    // Apply color channel effects
+    ctx.drawImage(img, 0, 0)
+    
+    if (colorChannel !== 'normal') {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        
+        switch (colorChannel) {
+          case 'red':
+            data[i + 1] = 0 // green
+            data[i + 2] = 0 // blue
+            break
+          case 'green':
+            data[i] = 0     // red
+            data[i + 2] = 0 // blue
+            break
+          case 'blue':
+            data[i] = 0     // red
+            data[i + 1] = 0 // green
+            break
+          case 'grayscale': {
+            const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+            data[i] = gray
+            data[i + 1] = gray
+            data[i + 2] = gray
+            break
+          }
+          case 'invert':
+            data[i] = 255 - r
+            data[i + 1] = 255 - g
+            data[i + 2] = 255 - b
+            break
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0)
+    }
+
+    // Auto-extract bitplane 0 after canvas is ready
+    // Clear any previously scheduled auto-extract so it doesn't override user actions
+    if (autoExtractTimerRef.current) {
+      clearTimeout(autoExtractTimerRef.current)
+      autoExtractTimerRef.current = null
+    }
+
+    // Only schedule auto-extract if user hasn't manually changed the bitplane
+    if (!userHasChangedBitplaneRef.current) {
+      autoExtractTimerRef.current = window.setTimeout(() => {
+        extractBitPlane(0)
+        autoExtractTimerRef.current = null
+      }, 100)
+    }
+  }, [colorChannel, extractBitPlane])
+
+  // Trigger canvas update when color channel changes
+  const handleColorChannelChange = (newChannel: ColorChannel) => {
+    setColorChannel(newChannel)
+    // Force canvas to show when color channel is applied
+    if (newChannel !== 'normal') {
+      setShowAdjustedImage(true)
+    }
+  }
+
+  useEffect(() => {
+    if (showAdjustedImage || colorChannel !== 'normal' || imageUrl) {
+      handleImageLoad()
+    }
+  }, [colorChannel, showAdjustedImage, imageUrl, handleImageLoad])
+
+  useEffect(() => {
+    // cleanup auto-extract timer on unmount
+    return () => {
+      if (autoExtractTimerRef.current) {
+        clearTimeout(autoExtractTimerRef.current)
+        autoExtractTimerRef.current = null
+      }
+    }
+  }, [])
+
+  // Auto-update bitplane when colorChannelType changes in bitplane tab
+  useEffect(() => {
+    if (canvasRef.current && bitPlaneUrl && userHasChangedBitplaneRef.current) {
+      setTimeout(() => extractBitPlane(), 100)
+    }
+  }, [colorChannelType, extractBitPlane])
+
+
+  const changeBitPlane = (direction: 'prev' | 'next') => {
+    // Mark that user has manually changed bitplane to prevent auto-extract
+    userHasChangedBitplaneRef.current = true
+    
+    // Cancel any pending auto-extract so user selection isn't overridden
+    if (autoExtractTimerRef.current) {
+      clearTimeout(autoExtractTimerRef.current)
+      autoExtractTimerRef.current = null
+    }
+
+    let newPlane = bitPlane
+    if (direction === 'prev' && bitPlane > 0) {
+      newPlane = bitPlane - 1
+    } else if (direction === 'next' && bitPlane < 7) {
+      newPlane = bitPlane + 1
+    }
+    setBitPlane(newPlane)
+    extractBitPlane(newPlane)
+  }
+
+  const exportAllBitPlanes = async () => {
+    if (!canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    try {
+      // Simple export without external dependencies - download each bitplane individually
+      const width = canvasRef.current.width
+      const height = canvasRef.current.height
+      
+      for (let p = 0; p < 8; p++) {
+        const c = extractBitPlaneFromCanvas(ctx, width, height, p)
+        const dataUrl = c.toDataURL('image/png')
+        const a = document.createElement('a')
+        a.href = dataUrl
+        a.download = `${metadata?.filename || 'image'}_bitplane_${p}.png`
+        a.click()
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+    } catch (e) {
+      console.error('export all bitplanes failed', e)
+      alert('Export failed – check console')
+    }
+  }
+
+  const computeLsbDepth = () => {
+    if (!canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    const res = analyzeLSBWithDepth(ctx, canvasRef.current.width, canvasRef.current.height, lsbDepth, 20000)
+    setLsbDepthResult(res)
+  }
+
+  const downloadDataUrl = (url: string | null, filename = 'download.png') => {
+    if (!url) return
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+  }
+
+  const buildChartData = (hist: any) => {
+    if (!hist) return []
+    const data: any[] = []
+    for (let i = 0; i < hist.l.length; i++) {
+      data.push({ bin: String(i), L: hist.l[i] || 0, R: hist.r[i] || 0, G: hist.g[i] || 0, B: hist.b[i] || 0 })
+    }
+    return data
+  }
+
+  const renderExifOrganized = () => {
+    const exif = metadata?.exif || {}
+    const keys = Object.keys(exif)
+    if (keys.length === 0) return <div className="text-sm text-muted-foreground">No EXIF data found</div>
+
+    // Sort keys and display all entries in an organized two-column layout
+    const sorted = keys.sort((a,b)=>a.localeCompare(b))
+    return (
+      <div className="grid grid-cols-1 gap-2 text-sm">
+        {sorted.map(k => (
+          <div key={k} className="flex flex-col md:flex-row md:justify-between md:items-start bg-background/5 p-2 rounded">
+            <div className="text-xs text-muted-foreground md:w-1/3 font-mono">{k}</div>
+            <div className="break-all md:w-2/3 text-sm font-mono">{formatExifValue(exif[k])}</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const scanForEmbeddedFiles = async () => {
+    if (!file) return alert('No file loaded')
+    const existing = structuredResults?.steganography?.embeddedFiles || []
+    if (existing.length > 0) return alert(`Found ${existing.length} embedded file(s)`)
+
+    try {
+      const buf = await file.arrayBuffer()
+      const carved = carveFiles(new Uint8Array(buf), 64)
+      const mapped = carved.map(c => ({ 
+        type: c.type, 
+        offset: c.offset, 
+        size: c.size,
+        id: c.id,
+        filename: c.filename || `extracted_${c.offset.toString(16)}.${c.type.toLowerCase()}`,
+        recovered: c.recovered || true
+      }))
+      setStructuredResults(prev => prev ? ({ 
+        ...prev, 
+        steganography: { 
+          ...prev.steganography, 
+          embeddedFiles: mapped, 
+          detected: (prev.steganography.detected || mapped.length > 0) 
+        } 
+      }) : prev)
+      if (mapped.length === 0) alert('No embedded files found')
+    } catch (e) {
+      console.error('embedded scan failed', e)
+      alert('Embedded file scan failed – check console')
+    }
+  }
+
+  const downloadHiddenFile = async (embeddedFile: any) => {
+    if (!file) return
+    
+    try {
+      const buf = await file.arrayBuffer()
+      const view = new Uint8Array(buf)
+      
+      // Extract the embedded file data
+      const startOffset = embeddedFile.offset
+      const endOffset = Math.min(startOffset + embeddedFile.size, view.length)
+      const extractedData = view.slice(startOffset, endOffset)
+      
+      // Create blob and download
+      const blob = new Blob([extractedData], { 
+        type: getFileTypeForExtension(embeddedFile.type) 
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = embeddedFile.filename || `hidden_file_${embeddedFile.offset.toString(16)}.${getExtensionForType(embeddedFile.type)}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download hidden file:', error)
+      alert('Failed to download hidden file')
+    }
+  }
+
+  const getFileTypeForExtension = (type: string): string => {
+    const types: Record<string, string> = {
+      'JPEG': 'image/jpeg',
+      'PNG': 'image/png', 
+      'GIF': 'image/gif',
+      'PDF': 'application/pdf',
+      'ZIP': 'application/zip',
+      'RAR': 'application/x-rar-compressed',
+      'EXE': 'application/octet-stream',
+      'DOC': 'application/msword'
+    }
+    return types[type] || 'application/octet-stream'
+  }
+
+  const getExtensionForType = (type: string): string => {
+    const extensions: Record<string, string> = {
+      'JPEG': 'jpg',
+      'PNG': 'png',
+      'GIF': 'gif', 
+      'PDF': 'pdf',
+      'ZIP': 'zip',
+      'RAR': 'rar',
+      'EXE': 'exe',
+      'DOC': 'doc'
+    }
+    return extensions[type] || 'bin'
+  }
+
+  const extractLSBData = () => {
+    if (!canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    
+    const lsbData = analyzeLSBWithDepth(ctx, canvasRef.current.width, canvasRef.current.height, lsbDepth, 50000)
+    
+    // Create downloadable files for each channel if they contain meaningful data
+    const channels = ['red', 'green', 'blue'] as const
+    channels.forEach(channel => {
+      const channelData = lsbData[channel[0] as 'r' | 'g' | 'b']
+      if (channelData.ratio > 0.5) {
+        const blob = new Blob([channelData.text], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `lsb_${channel}_channel.txt`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+    })
+    
+    // Also create a composite file
+    const compositeBlob = new Blob([lsbData.composite], { type: 'text/plain' })
+    const compositeUrl = URL.createObjectURL(compositeBlob)
+    const compositeLink = document.createElement('a')
+    compositeLink.href = compositeUrl
+    compositeLink.download = 'lsb_composite_data.txt'
+    document.body.appendChild(compositeLink)
+    compositeLink.click()
+    document.body.removeChild(compositeLink)
+    URL.revokeObjectURL(compositeUrl)
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center space-x-2"><ImageIcon className="w-6 h-6 text-accent" /> <span>Image</span></h1>
+          <p className="text-muted-foreground mt-1">Deep image forensics: metadata, steganography, and embedded file detection</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-lg p-6">
+        <h2 className="text-lg font-semibold mb-4">Upload Image or EVTX File</h2>
+        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
+          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">{file ? file.name : 'Drop your image or EVTX file here or click to browse'}</p>
+          <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 50MB</p>
+          <input ref={fileRef} type="file" accept="image/*,.evtx" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
+        </div>
+
+        {file && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground"><ImageIcon className="w-4 h-4" /><span>{file.name} ({(file.size/1024/1024).toFixed(2)} MB)</span></div>
+            <Button onClick={analyze} disabled={isAnalyzing} className="bg-accent text-background px-4 py-2 rounded-lg">
+              {isAnalyzing ? 'Analyzing…' : 'Analyze Image'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* EVTX File Analysis Display */}
+      {file?.name.toLowerCase().endsWith('.evtx') && metadata && (
+        <div className="bg-card border border-border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center"><FileText className="w-5 h-5 text-accent mr-2"/> EVTX Analysis Results</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <div className="text-2xl font-bold text-accent">{metadata.exif?.['Total Events'] || 0}</div>
+              <div className="text-sm text-muted-foreground">Total Events</div>
+            </div>
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <div className="text-2xl font-bold text-accent">{metadata.exif?.['Parse Status'] || 'Unknown'}</div>
+              <div className="text-sm text-muted-foreground">Parse Status</div>
+            </div>
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <div className="text-2xl font-bold text-accent">{((metadata.fileSize || 0) / 1024 / 1024).toFixed(2)} MB</div>
+              <div className="text-sm text-muted-foreground">File Size</div>
+            </div>
+          </div>
+          
+          <div className="text-sm text-muted-foreground">
+            <p>Use the tabs below to explore extracted strings, metadata, and hex dump from the EVTX file.</p>
+          </div>
+        </div>
+      )}
+
+      {imageUrl && metadata && !file?.name.toLowerCase().endsWith('.evtx') && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center"><Eye className="w-5 h-5 text-accent mr-2"/> Image Preview</h3>
+              {imageList.length > 1 && (
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <span>{currentImageIndex + 1} of {imageList.length}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative group">
+              {/* Enhanced Image Display with Zoom and Pixel Inspector */}
+              <div className="relative overflow-hidden rounded border border-border bg-background/50">
+                <canvas 
+                  ref={canvasRef}
+                  className={`object-contain ${zoomLevel > 1 ? 'cursor-move' : showPixelInfo ? 'cursor-crosshair' : 'cursor-default'}`}
+                  style={{
+                    filter: `brightness(${imageAdjustments.brightness}%) contrast(${imageAdjustments.contrast}%) saturate(${imageAdjustments.saturation}%) hue-rotate(${imageAdjustments.hue}deg) ${imageAdjustments.exposure !== 0 ? `brightness(${100 + imageAdjustments.exposure}%)` : ''} ${imageAdjustments.temperature !== 0 ? `sepia(${Math.abs(imageAdjustments.temperature) / 2}%) ${imageAdjustments.temperature > 0 ? 'hue-rotate(10deg)' : 'hue-rotate(-10deg)'}` : ''} ${imageAdjustments.clarity !== 0 ? `contrast(${100 + imageAdjustments.clarity}%)` : ''} ${imageAdjustments.vignette !== 0 ? `drop-shadow(inset 0 0 ${Math.abs(imageAdjustments.vignette)}px rgba(0,0,0,0.5))` : ''}`,
+                    display: showAdjustedImage ? 'block' : 'none',
+                    transform: `scale(${zoomLevel}) translate(${panPosition.x}px, ${panPosition.y}px)`,
+                    transformOrigin: '0 0',
+                    transition: isPanning ? 'none' : 'transform 0.1s ease',
+                    width: '100%',
+                    height: 'auto',
+                    userSelect: 'none'
+                  }}
+                  draggable={false}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    if (zoomLevel > 1) {
+                      setIsPanning(true)
+                      setLastPanPoint({ x: e.clientX, y: e.clientY })
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    e.preventDefault()
+                    if (isPanning && zoomLevel > 1) {
+                      const dx = (e.clientX - lastPanPoint.x) / zoomLevel
+                      const dy = (e.clientY - lastPanPoint.y) / zoomLevel
+                      setPanPosition(prev => ({ 
+                        x: Math.max(-500, Math.min(500, prev.x + dx)), 
+                        y: Math.max(-500, Math.min(500, prev.y + dy))
+                      }))
+                      setLastPanPoint({ x: e.clientX, y: e.clientY })
+                    } else if (showPixelInfo && canvasRef.current) {
+                      const rect = canvasRef.current.getBoundingClientRect()
+                      const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvasRef.current.width)
+                      const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvasRef.current.height)
+                      
+                      // Get pixel color if available
+                      const ctx = canvasRef.current.getContext('2d')
+                      if (ctx && x >= 0 && y >= 0 && x < canvasRef.current.width && y < canvasRef.current.height) {
+                        const imageData = ctx.getImageData(x, y, 1, 1)
+                        const [r, g, b, a] = imageData.data
+                        setMousePosition({ x, y, color: `rgba(${r}, ${g}, ${b}, ${a/255})` })
+                      }
+                    }
+                  }}
+                  onMouseUp={(e) => {
+                    e.preventDefault()
+                    setIsPanning(false)
+                  }}
+                  onMouseLeave={() => {
+                    setIsPanning(false)
+                    setMousePosition(null)
+                  }}
+                />
+                <img 
+                  ref={imageRef}
+                  src={imageUrl} 
+                  alt="preview" 
+                  className={`object-contain ${zoomLevel > 1 ? 'cursor-move' : showPixelInfo ? 'cursor-crosshair' : 'cursor-default'}`}
+                  style={{ 
+                    display: showAdjustedImage ? 'none' : 'block',
+                    transform: `scale(${zoomLevel}) translate(${panPosition.x}px, ${panPosition.y}px)`,
+                    transformOrigin: '0 0',
+                    transition: isPanning ? 'none' : 'transform 0.1s ease',
+                    width: '100%',
+                    height: 'auto',
+                    userSelect: 'none'
+                  }}
+                  draggable={false}
+                  onLoad={handleImageLoad}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    if (zoomLevel > 1) {
+                      setIsPanning(true)
+                      setLastPanPoint({ x: e.clientX, y: e.clientY })
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    e.preventDefault()
+                    if (isPanning && zoomLevel > 1) {
+                      const dx = (e.clientX - lastPanPoint.x) / zoomLevel
+                      const dy = (e.clientY - lastPanPoint.y) / zoomLevel
+                      setPanPosition(prev => ({ 
+                        x: Math.max(-500, Math.min(500, prev.x + dx)), 
+                        y: Math.max(-500, Math.min(500, prev.y + dy))
+                      }))
+                      setLastPanPoint({ x: e.clientX, y: e.clientY })
+                    } else if (showPixelInfo && imageRef.current && canvasRef.current) {
+                      const rect = imageRef.current.getBoundingClientRect()
+                      const x = Math.floor(((e.clientX - rect.left) / rect.width) * imageRef.current.naturalWidth)
+                      const y = Math.floor(((e.clientY - rect.top) / rect.height) * imageRef.current.naturalHeight)
+                      setMousePosition({ x, y })
+                    }
+                  }}
+                  onMouseUp={(e) => {
+                    e.preventDefault()
+                    setIsPanning(false)
+                  }}
+                  onMouseLeave={() => {
+                    setIsPanning(false)
+                    setMousePosition(null)
+                  }}
+                />
+                
+                {/* Pixel Info Overlay */}
+                {showPixelInfo && mousePosition && (
+                  <div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border border-border rounded px-3 py-2 text-xs font-mono">
+                    <div>X: {mousePosition.x}, Y: {mousePosition.y}</div>
+                    {mousePosition.color && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div 
+                          className="w-4 h-4 rounded border border-border" 
+                          style={{backgroundColor: mousePosition.color}}
+                        />
+                        <span>{mousePosition.color}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+              </div>
+
+              {imageList.length > 1 && (
+                <>
+                  <button
+                    onClick={() => navigateImage('prev')}
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-accent/80 hover:bg-accent text-background p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+                    title="Previous image"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateImage('next')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-accent/80 hover:bg-accent text-background p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+                    title="Next image"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {/* Image Zoom and Pan Controls - Matching Bitplane style */}
+            <div className="mb-4 bg-background/50 p-3 rounded border border-border">
+              <div className="text-xs font-medium text-center text-muted-foreground mb-2">Image Zoom & Pan Controls</div>
+              
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <label className="text-xs text-muted-foreground min-w-max">Zoom:</label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="500"
+                    step="5"
+                    value={zoomLevel * 100}
+                    onChange={(e) => {
+                      const newZoom = Number(e.target.value) / 100
+                      setZoomLevel(newZoom)
+                      if (Math.abs(newZoom - zoomLevel) > 0.5) {
+                        setPanPosition({ x: 0, y: 0 })
+                      }
+                    }}
+                    className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((zoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb ${((zoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb 100%)`
+                    }}
+                  />
+                  <span className="text-xs font-mono text-foreground min-w-max">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setZoomLevel(1)
+                      setPanPosition({ x: 0, y: 0 })
+                    }}
+                    className="px-2 py-1 bg-accent/10 hover:bg-accent text-accent hover:text-background rounded text-xs font-mono transition-colors"
+                  >
+                    Reset
+                  </button>
+                  {zoomLevel > 1 && (
+                    <button
+                      onClick={() => setPanPosition({ x: 0, y: 0 })}
+                      className="px-2 py-1 bg-muted hover:bg-accent text-foreground hover:text-background rounded text-xs font-mono transition-colors"
+                    >
+                      Center
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {zoomLevel > 1 && (
+                <div className="text-xs text-muted-foreground text-center mt-2">
+                  🔍 Click and drag on the image to pan around
+                </div>
+              )}
+            </div>
+
+            {/* Enhanced Professional Image Analysis Tools */}
+            <div className="mt-4 space-y-4">
+              <div className="bg-background/50 p-4 rounded-lg border border-border space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-accent">Forensic Image Processing</h4>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowPixelInfo(!showPixelInfo)}
+                      className={`p-1 text-sm ${showPixelInfo ? 'bg-accent text-background' : ''}`}
+                    >
+                      Pixel Inspector
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowAdjustedImage(!showAdjustedImage)}
+                      className="p-1 text-sm"
+                    >
+                      {showAdjustedImage ? 'Show Original' : 'Show Processed'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={resetAdjustments}
+                      className="p-1 text-sm"
+                    >
+                      Reset All
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Basic Adjustments */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Brightness</span>
+                      <span className="font-mono">{imageAdjustments.brightness}%</span>
+                    </label>
+                    <input type="range" min={25} max={300} value={imageAdjustments.brightness} onChange={e=>updateAdjustment('brightness', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Contrast</span>
+                      <span className="font-mono">{imageAdjustments.contrast}%</span>
+                    </label>
+                    <input type="range" min={25} max={300} value={imageAdjustments.contrast} onChange={e=>updateAdjustment('contrast', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Saturation</span>
+                      <span className="font-mono">{imageAdjustments.saturation}%</span>
+                    </label>
+                    <input type="range" min={0} max={300} value={imageAdjustments.saturation} onChange={e=>updateAdjustment('saturation', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Hue Shift</span>
+                      <span className="font-mono">{imageAdjustments.hue}°</span>
+                    </label>
+                    <input type="range" min={-180} max={180} value={imageAdjustments.hue} onChange={e=>updateAdjustment('hue', Number(e.target.value))} className="w-full" />
+                  </div>
+                </div>
+                
+                {/* Extended Professional Controls */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 border-t pt-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Exposure</span>
+                      <span className="font-mono">{imageAdjustments.exposure > 0 ? '+' : ''}{imageAdjustments.exposure}</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.exposure} onChange={e=>updateAdjustment('exposure', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Shadows</span>
+                      <span className="font-mono">{imageAdjustments.shadows > 0 ? '+' : ''}{imageAdjustments.shadows}</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.shadows} onChange={e=>updateAdjustment('shadows', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Highlights</span>
+                      <span className="font-mono">{imageAdjustments.highlights > 0 ? '+' : ''}{imageAdjustments.highlights}</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.highlights} onChange={e=>updateAdjustment('highlights', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Temperature</span>
+                      <span className="font-mono">{imageAdjustments.temperature > 0 ? '+' : ''}{imageAdjustments.temperature}K</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.temperature} onChange={e=>updateAdjustment('temperature', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Vibrance</span>
+                      <span className="font-mono">{imageAdjustments.vibrance > 0 ? '+' : ''}{imageAdjustments.vibrance}</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.vibrance} onChange={e=>updateAdjustment('vibrance', Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Clarity</span>
+                      <span className="font-mono">{imageAdjustments.clarity > 0 ? '+' : ''}{imageAdjustments.clarity}</span>
+                    </label>
+                    <input type="range" min={-100} max={100} value={imageAdjustments.clarity} onChange={e=>updateAdjustment('clarity', Number(e.target.value))} className="w-full" />
+                  </div>
+                </div>
+                  
+                {/* Enhanced Color Channel Analysis */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Forensic Color Channel Analysis</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      { value: 'normal', label: 'Original' },
+                      { value: 'red', label: 'Red' },
+                      { value: 'green', label: 'Green' },
+                      { value: 'blue', label: 'Blue' },
+                      { value: 'grayscale', label: 'Grayscale' },
+                      { value: 'invert', label: 'Invert' }
+                    ].map((channel) => (
+                      <button
+                        key={channel.value}
+                        onClick={() => handleColorChannelChange(channel.value as ColorChannel)}
+                        className={`p-2 text-xs rounded border transition-colors text-center ${
+                          colorChannel === channel.value
+                            ? 'bg-accent text-background border-accent'
+                            : 'bg-background border-border hover:border-accent/50'
+                        }`}
+                      >
+                        <div className="font-medium">{channel.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Forensic Quick Presets */}
+                <div className="border-t pt-3">
+                  <label className="text-xs text-muted-foreground mb-2 block">Forensic Quick Presets</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setImageAdjustments({...imageAdjustments, brightness: 150, contrast: 200})
+                      setShowAdjustedImage(true)
+                    }}>
+                      Enhance Dark
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setImageAdjustments({...imageAdjustments, brightness: 80, contrast: 150, saturation: 50})
+                      setShowAdjustedImage(true)
+                    }}>
+                      High Contrast
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      handleColorChannelChange('grayscale')
+                      setImageAdjustments({...imageAdjustments, contrast: 180})
+                    }}>
+                      Forensic Gray
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      handleColorChannelChange('invert')
+                      setImageAdjustments({...imageAdjustments, contrast: 120})
+                    }}>
+                      Negative
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Common forensic enhancement presets for revealing hidden details.
+                  </div>
+                </div>
+
+                {/* Advanced Processing Options */}
+                <div className="border-t pt-3">
+                  <label className="text-xs text-muted-foreground mb-2 block">Advanced Forensic Processing</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => applyAdvancedProcessing('edge')}>
+                      Edge Detection
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => applyAdvancedProcessing('noise')}>
+                      Noise Analysis
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => applyAdvancedProcessing('gamma')}>
+                      Auto Gamma
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => applyAdvancedProcessing('histogram')}>
+                      Histogram EQ
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Advanced processing tools for forensic image enhancement and analysis.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            
+            <div className="mt-3 flex items-center justify-between">
+              <div className="font-mono text-xs text-muted-foreground">
+                {metadata.dimensions?.width} x {metadata.dimensions?.height} • {(Number(metadata.fileSize||0)/1024/1024).toFixed(2)} MB
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex space-x-2 border-b border-border pb-3 mb-4">
+              <button onClick={()=>setActiveTab('metadata')} className={`px-3 py-2 ${activeTab==='metadata'?'text-accent border-b-2 border-accent':''}`}>
+                {file?.name.toLowerCase().endsWith('.evtx') ? 'EVTX Info' : 'EXIF Fields'}
+              </button>
+              {!file?.name.toLowerCase().endsWith('.evtx') && (
+                <>
+                  <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
+                  <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
+                </>
+              )}
+              <button onClick={()=>setActiveTab('strings')} className={`px-3 py-2 ${activeTab==='strings'?'text-accent border-b-2 border-accent':''}`}>Strings</button>
+              <button onClick={()=>setActiveTab('hex')} className={`px-3 py-2 ${activeTab==='hex'?'text-accent border-b-2 border-accent':''}`}>Hex</button>
+              {!file?.name.toLowerCase().endsWith('.evtx') && (
+                <button onClick={()=>{setActiveTab('barcode'); if(barcodeResults.length === 0 && !isScanningBarcode) scanBarcodes()}} className={`px-3 py-2 ${activeTab==='barcode'?'text-accent border-b-2 border-accent':''}`}>Barcode</button>
+              )}
+            </div>
+
+            {activeTab==='metadata' && (
+              <div>
+                <h4 className="font-medium mb-2">File Information</h4>
+                <div className="text-sm font-mono space-y-2">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Filename:</span><span>{metadata.filename}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Format:</span><span>{metadata.format}</span></div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="text-sm font-medium">EXIF Data</h5>
+                    {/* Show Raw removed per request - always show organized detailed EXIF */}
+                  </div>
+
+                  {renderExifOrganized()}
+                </div>
+              </div>
+            )}
+
+            {activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium flex items-center">
+                    <Layers className="w-4 h-4 mr-2 text-accent" />
+                    Advanced Steganography Analysis
+                  </h4>
+                  {structuredResults?.steganography?.detected && (
+                    <div className="flex items-center space-x-1 text-xs">
+                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                      <span className="text-yellow-500 font-medium">Suspicious Content Detected</span>
+                    </div>
+                  )}
+                </div>
+                
+                {structuredResults?.steganography ? (
+                  <div className="space-y-4">
+                    {/* Detection Status */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-background rounded-lg border border-border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Detection Status</span>
+                          {structuredResults.steganography.detected ? (
+                            <div className="flex items-center space-x-1 text-red-400">
+                              <XCircle className="w-4 h-4" />
+                              <span className="text-xs font-medium">SUSPICIOUS</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-1 text-green-400">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-xs font-medium">CLEAN</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-background rounded-lg border border-border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Embedded Files</span>
+                          <span className="text-xs font-mono text-accent">
+                            {(structuredResults.steganography.embeddedFiles || []).length} found
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* LSB Channel Breakdown */}
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="p-3 bg-background rounded border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">LSB Channel Ratios</span>
+                          <Button size="sm" variant="outline" onClick={()=>{ navigator.clipboard?.writeText(structuredResults?.steganography?.lsb?.composite || '') }}>Copy Composite</Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs font-mono">
+                          <div className="p-2 rounded bg-card/20">
+                            <div className="text-muted-foreground text-[11px]">Red</div>
+                            <div className="font-medium">{(structuredResults.steganography.lsb.red.ratio||0).toFixed(3)}</div>
+                            <div className="text-[11px] mt-1">Suspicious: {structuredResults.steganography.lsb.red.suspicious ? 'Yes' : 'No'}</div>
+                          </div>
+                          <div className="p-2 rounded bg-card/20">
+                            <div className="text-muted-foreground text-[11px]">Green</div>
+                            <div className="font-medium">{(structuredResults.steganography.lsb.green.ratio||0).toFixed(3)}</div>
+                            <div className="text-[11px] mt-1">Suspicious: {structuredResults.steganography.lsb.green.suspicious ? 'Yes' : 'No'}</div>
+                          </div>
+                          <div className="p-2 rounded bg-card/20">
+                            <div className="text-muted-foreground text-[11px]">Blue</div>
+                            <div className="font-medium">{(structuredResults.steganography.lsb.blue.ratio||0).toFixed(3)}</div>
+                            <div className="text-[11px] mt-1">Suspicious: {structuredResults.steganography.lsb.blue.suspicious ? 'Yes' : 'No'}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Embedded files list */}
+                      <div className="p-3 bg-background rounded border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Embedded Files</span>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={scanForEmbeddedFiles}>Scan</Button>
+                            <Button size="sm" variant="outline" onClick={extractLSBData}>Extract LSB</Button>
+                          </div>
+                        </div>
+                        <div className="text-xs font-mono max-h-40 overflow-auto space-y-1">
+                          {(structuredResults.steganography.embeddedFiles||[]).map((ef, i)=>(
+                            <div key={i} className="p-2 border border-border/20 rounded flex justify-between items-center hover:bg-accent/10">
+                              <div className="flex-1">
+                                <div className="font-medium">{ef.type} @ 0x{ef.offset.toString(16)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {ef.size} bytes • {ef.filename || `extracted_${ef.offset.toString(16)}`}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${ef.recovered ? 'bg-green-400' : 'bg-red-400'}`} 
+                                     title={ef.recovered ? 'Recoverable' : 'Damaged'} />
+                                {ef.recovered && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => downloadHiddenFile(ef)}
+                                    className="h-6 px-2 text-xs"
+                                  >
+                                    Download
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {(structuredResults.steganography.embeddedFiles||[]).length === 0 && (
+                            <div className="text-center text-muted-foreground py-4">
+                              No embedded files found. Click "Scan" to search for hidden files.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className="text-center p-8 border border-dashed border-border rounded-lg">
+                    <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                    <div className="text-sm text-muted-foreground mb-2">No Analysis Available</div>
+                    <div className="text-xs text-muted-foreground">Run image analysis to detect steganography and embedded content</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab==='strings' && (
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">Extracted Strings</h4>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      className="px-3 py-2 border border-border rounded-lg text-sm bg-background focus:border-accent focus:outline-none" 
+                      placeholder="Filter strings..." 
+                      value={stringFilter} 
+                      onChange={e => {
+                        setStringFilter(e.target.value)
+                        // Debounced filtering with 300ms delay
+                        clearTimeout((window as any).stringFilterTimeout)
+                        ;(window as any).stringFilterTimeout = setTimeout(() => {
+                          setDebouncedStringFilter(e.target.value)
+                        }, 300)
+                      }}
+                    />
+                  </div>
+                </div>
+                {extractedStrings ? (
+                  <div className="space-y-4">
+                    {/* Enhanced string statistics */}
+                    {extractedStrings.counts && (
+                      <div className="bg-card border border-border rounded-lg p-4">
+                        <h6 className="text-sm font-medium text-accent mb-3">String Analysis Statistics</h6>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                          <div className="text-center">
+                            <div className="font-mono text-lg">{extractedStrings.counts.total}</div>
+                            <div className="text-muted-foreground">Total</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-mono text-lg">{extractedStrings.counts.unique}</div>
+                            <div className="text-muted-foreground">Unique</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-mono text-lg">{extractedStrings.counts.ascii}</div>
+                            <div className="text-muted-foreground">ASCII</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-mono text-lg">{extractedStrings.counts.unicode}</div>
+                            <div className="text-muted-foreground">Unicode</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All Strings Display Box */}
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h6 className="text-sm font-medium text-accent flex items-center">
+                          <FileText className="w-4 h-4 mr-2"/>
+                          All Strings ({extractedStrings.all.length} total, {extractedStrings.counts?.unique || new Set(extractedStrings.all).size} unique)
+                        </h6>
+                        <ShowFullToggle
+                          isShowingFull={showFullStrings}
+                          onToggle={() => setShowFullStrings(!showFullStrings)}
+                          totalCount={extractedStrings.all.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).length}
+                          displayedCount={500}
+                        />
+                      </div>
+                      <div className="max-h-64 overflow-auto bg-background border border-border rounded-lg">
+                        <div className="font-mono text-sm p-3 space-y-1">
+                          {extractedStrings.all
+                            .filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase()))
+                            .slice(0, showFullStrings ? undefined : 500)
+                            .map((s,i)=>(
+                              <div key={i} className="py-1 break-all hover:bg-accent/10 px-2 rounded cursor-default border-b border-border/20 last:border-b-0">
+                                {s}
+                              </div>
+                            ))
+                          }
+                        </div>
+                        {!showFullStrings && extractedStrings.all.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).length > 500 && (
+                          <div className="p-3 text-center text-muted-foreground text-xs border-t">
+                            Showing first 500 strings. Use "Show Full" to see all {extractedStrings.all.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).length} strings.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <h6 className="text-sm font-medium text-accent mb-3 flex items-center"><Search className="w-4 h-4 mr-2"/>Interesting Strings ({extractedStrings.interesting.length})</h6>
+                      <div className="max-h-40 overflow-auto space-y-2">
+                        {extractedStrings.interesting.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).slice(0,100).map((s,i)=>(<div key={i} className="p-3 bg-background border border-border/50 rounded font-mono text-sm break-all hover:border-accent/50 transition-colors">{s}</div>))}
+                      </div>
+                    </div>
+
+                      {/* Enhanced pattern-based results */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-card border border-border rounded-lg p-4">
+                          <h6 className="text-sm font-medium text-accent mb-3">URLs ({extractedStrings.urls.length})</h6>
+                          <div className="max-h-32 overflow-auto space-y-1 font-mono text-sm">
+                            {extractedStrings.urls.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).map((s,i)=>(<div key={i} className="break-all p-2 bg-background rounded hover:bg-accent/10">{s}</div>))}
+                          </div>
+                        </div>
+
+                        <div className="bg-card border border-border rounded-lg p-4">
+                          <h6 className="text-sm font-medium text-accent mb-3">Email Addresses ({extractedStrings.emails?.length || 0})</h6>
+                          <div className="max-h-32 overflow-auto font-mono text-sm space-y-1">
+                            {extractedStrings.emails?.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).map((s,i)=>(<div key={i} className="break-all p-2 bg-background rounded hover:bg-accent/10">{s}</div>))}
+                          </div>
+                        </div>
+
+                        <div className="bg-card border border-border rounded-lg p-4">
+                          <h6 className="text-sm font-medium text-accent mb-3">IP Addresses ({extractedStrings.ips?.length || 0})</h6>
+                          <div className="max-h-32 overflow-auto font-mono text-sm space-y-1">
+                            {extractedStrings.ips?.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).map((s,i)=>(<div key={i} className="break-all p-2 bg-background rounded hover:bg-accent/10">{s}</div>))}
+                          </div>
+                        </div>
+
+                        <div className="bg-card border border-border rounded-lg p-4">
+                          <h6 className="text-sm font-medium text-accent mb-3">Base64 Candidates ({extractedStrings.base64.length})</h6>
+                          <div className="max-h-32 overflow-auto font-mono text-sm space-y-1">
+                            {extractedStrings.base64.filter(s=>!stringFilter||String(s).toLowerCase().includes(stringFilter.toLowerCase())).map((s,i)=>(<div key={i} className="break-all p-2 bg-background rounded hover:bg-accent/10">{s.length > 50 ? s.substring(0, 50) + '...' : s}</div>))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Additional pattern categories if available */}
+                      {extractedStrings.patterns && Object.keys(extractedStrings.patterns).length > 4 && (
+                        <div className="bg-card border border-border rounded-lg p-4">
+                          <h6 className="text-sm font-medium text-accent mb-3">Additional Patterns</h6>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                            {Object.entries(extractedStrings.patterns)
+                              .filter(([key]) => !['urls', 'emails', 'ipAddresses', 'base64'].includes(key))
+                              .map(([pattern, values]) => (
+                                <div key={pattern} className="bg-background rounded p-2 border border-border/50">
+                                  <div className="font-medium capitalize">{pattern.replace(/([A-Z])/g, ' $1')}</div>
+                                  <div className="text-muted-foreground">{values.length} found</div>
+                                  {values.length > 0 && (
+                                    <div className="mt-1 font-mono text-xs truncate">{values[0]}</div>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Run analysis to extract printable strings</div>
+                )}
+              </div>
+            )}
+
+            {activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">Advanced Bitplane Analysis</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Bit {bitPlane} of 0-7 | LSB Depth: {lsbDepth}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Enhanced Bitplane Controls */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Bitplane Selection */}
+                  <div className="bg-background/50 p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium">Bitplane Selection</label>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={exportAllBitPlanes}>
+                          Export All
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Color Channel Selection */}
+                    <div className="mb-4">
+                      <label className="text-xs text-muted-foreground mb-2 block">Color Channel</label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+                        {[
+                          { value: 'rgb', label: 'RGB' },
+                          { value: 'red', label: 'Red' },
+                          { value: 'green', label: 'Green' },
+                          { value: 'blue', label: 'Blue' },
+                          { value: 'alpha', label: 'Alpha' },
+                          { value: 'grayscale', label: 'Gray' },
+                          { value: 'hsv', label: 'HSV' }
+                        ].map((channel) => (
+                          <button
+                            key={channel.value}
+                            onClick={() => {
+                              setColorChannelType(channel.value as any)
+                              // Auto-update bitplane preview when color channel changes
+                              if (bitPlaneUrl) {
+                                setTimeout(() => extractBitPlane(), 100)
+                              }
+                            }}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              colorChannelType === channel.value
+                                ? 'bg-accent text-background'
+                                : 'bg-background border border-border hover:border-accent/50'
+                            }`}
+                            title={`Extract from ${channel.label} channel`}
+                          >
+                            {channel.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Enhanced Bitplane Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                      {Array.from({length: 8}, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setBitPlane(i)
+                            // Auto-update bitplane preview immediately
+                            setTimeout(() => extractBitPlane(i), 50)
+                            userHasChangedBitplaneRef.current = true
+                          }}
+                          className={`p-2 rounded text-sm font-mono transition-all ${
+                            bitPlane === i 
+                              ? 'bg-accent text-background border-2 border-accent' 
+                              : 'bg-background border border-border hover:border-accent hover:bg-accent/10'
+                          }`}
+                          title={`Extract bitplane ${i} from ${colorChannelType} channel (${i === 0 ? 'LSB' : i === 7 ? 'MSB' : `Bit ${i}`})`}
+                        >
+                          {i === 0 ? 'LSB' : i === 7 ? 'MSB' : i}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Navigation Controls */}
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          changeBitPlane('prev')
+                          // Auto-update after navigation
+                          setTimeout(() => extractBitPlane(), 50)
+                        }}
+                        disabled={bitPlane === 0}
+                        className="px-3 py-1 bg-background border border-border rounded text-sm hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ← Previous
+                      </button>
+                      <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded text-sm font-mono text-accent">
+                        Plane {bitPlane}
+                      </span>
+                      <button
+                        onClick={() => {
+                          changeBitPlane('next')
+                          // Auto-update after navigation
+                          setTimeout(() => extractBitPlane(), 50)
+                        }}
+                        disabled={bitPlane === 7}
+                        className="px-3 py-1 bg-background border border-border rounded text-sm hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* LSB Depth Analysis */}
+                  <div className="bg-background/50 p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium">LSB Depth Analysis</label>
+                      <Button size="sm" variant="outline" onClick={computeLsbDepth}>
+                        Analyze
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground flex justify-between mb-1">
+                          <span>Depth Level</span>
+                          <span className="font-mono">{lsbDepth} bit{lsbDepth !== 1 ? 's' : ''}</span>
+                        </label>
+                        <input 
+                          type="range" 
+                          min={1} 
+                          max={8} 
+                          value={lsbDepth} 
+                          onChange={(e) => {
+                            setLsbDepth(Number(e.target.value))
+                            // Auto-update bitplane preview when LSB depth changes
+                            if (bitPlaneUrl) {
+                              setTimeout(() => extractBitPlane(), 100)
+                            }
+                          }}
+                          className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                          style={{
+                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((lsbDepth - 1) / 7) * 100}%, #e5e7eb ${((lsbDepth - 1) / 7) * 100}%, #e5e7eb 100%)`
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Extract and analyze the {lsbDepth} least significant bit{lsbDepth !== 1 ? 's' : ''} from each color channel for hidden data detection.
+                      </div>
+                      
+                      {/* Quick LSB Presets */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            setLsbDepth(1)
+                            setBitPlane(0)
+                            // Auto-update bitplane preview
+                            setTimeout(() => extractBitPlane(0), 50)
+                          }}
+                          className="px-2 py-1 bg-accent/10 text-accent border border-accent/20 rounded text-xs hover:bg-accent/20"
+                        >
+                          LSB Only
+                        </button>
+                        <button
+                          onClick={() => {
+                            setLsbDepth(4)
+                            computeLsbDepth()
+                          }}
+                          className="px-2 py-1 bg-accent/10 text-accent border border-accent/20 rounded text-xs hover:bg-accent/20"
+                        >
+                          Deep Scan
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bitplane Preview with Zoom and Pan */}
+                {bitPlaneUrl && (
+                  <div className="bg-background/50 p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-sm font-medium">Bitplane {bitPlane} ({colorChannelType.toUpperCase()}) Preview</h5>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => downloadDataUrl(bitPlaneUrl, `${metadata?.filename||'image'}_${colorChannelType}_bitplane_${bitPlane}.png`)}
+                        >
+                          Download
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            // Toggle between all bitplanes quickly
+                            const nextPlane = (bitPlane + 1) % 8
+                            setBitPlane(nextPlane)
+                            // Auto-update bitplane preview
+                            setTimeout(() => extractBitPlane(nextPlane), 50)
+                          }}
+                        >
+                          Next Plane
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Bitplane Zoom and Pan Controls */}
+                    <div className="mb-4 bg-background/50 p-3 rounded border border-border">
+                      <div className="text-xs font-medium text-center text-muted-foreground mb-2">Bitplane Zoom & Pan Controls</div>
+                      
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 flex-1">
+                          <label className="text-xs text-muted-foreground min-w-max">Zoom:</label>
+                          <input
+                            type="range"
+                            min="50"
+                            max="500"
+                            step="5"
+                            value={bitPlaneZoomLevel * 100}
+                            onChange={(e) => {
+                              const newZoom = Number(e.target.value) / 100
+                              setBitPlaneZoomLevel(newZoom)
+                              if (Math.abs(newZoom - bitPlaneZoomLevel) > 0.5) {
+                                setBitPlanePanPosition({ x: 0, y: 0 })
+                              }
+                            }}
+                            className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                            style={{
+                              background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((bitPlaneZoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb ${((bitPlaneZoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb 100%)`
+                            }}
+                          />
+                          <span className="text-xs font-mono text-foreground min-w-max">
+                            {Math.round(bitPlaneZoomLevel * 100)}%
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setBitPlaneZoomLevel(1)
+                              setBitPlanePanPosition({ x: 0, y: 0 })
+                            }}
+                            className="px-2 py-1 bg-accent/10 hover:bg-accent text-accent hover:text-background rounded text-xs font-mono transition-colors"
+                          >
+                            Reset
+                          </button>
+                          {bitPlaneZoomLevel > 1 && (
+                            <button
+                              onClick={() => setBitPlanePanPosition({ x: 0, y: 0 })}
+                              className="px-2 py-1 bg-muted hover:bg-accent text-foreground hover:text-background rounded text-xs font-mono transition-colors"
+                            >
+                              Center
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {bitPlaneZoomLevel > 1 && (
+                        <div className="text-xs text-muted-foreground text-center mt-2">
+                          🔍 Click and drag on the bitplane image to pan around
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="relative group overflow-hidden rounded border border-border bg-background/50">
+                      <img 
+                        src={bitPlaneUrl} 
+                        alt={`Bitplane ${bitPlane} - ${colorChannelType}`} 
+                        className={`w-full ${bitPlaneZoomLevel > 1 ? 'cursor-grab' : 'cursor-default'} ${isBitPlanePanning ? 'cursor-grabbing' : ''}`}
+                        style={{ 
+                          transform: `scale(${bitPlaneZoomLevel}) translate(${bitPlanePanPosition.x}px, ${bitPlanePanPosition.y}px)`,
+                          transformOrigin: '0 0',
+                          transition: isBitPlanePanning ? 'none' : 'transform 0.1s ease',
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          if (bitPlaneZoomLevel > 1) {
+                            setIsBitPlanePanning(true)
+                            setBitPlaneLastPanPoint({ x: e.clientX, y: e.clientY })
+                          }
+                        }}
+                        onMouseMove={(e) => {
+                          e.preventDefault()
+                          if (isBitPlanePanning && bitPlaneZoomLevel > 1) {
+                            const dx = (e.clientX - bitPlaneLastPanPoint.x) / bitPlaneZoomLevel
+                            const dy = (e.clientY - bitPlaneLastPanPoint.y) / bitPlaneZoomLevel
+                            setBitPlanePanPosition(prev => ({ 
+                              x: Math.max(-500, Math.min(500, prev.x + dx)), 
+                              y: Math.max(-500, Math.min(500, prev.y + dy))
+                            }))
+                            setBitPlaneLastPanPoint({ x: e.clientX, y: e.clientY })
+                          }
+                        }}
+                        onMouseUp={(e) => {
+                          e.preventDefault()
+                          setIsBitPlanePanning(false)
+                        }}
+                        onMouseLeave={() => {
+                          setIsBitPlanePanning(false)
+                        }}
+                        draggable={false}
+                      />
+                    </div>
+                    
+                    <div className="mt-2 text-xs text-muted-foreground text-center">
+                      {bitPlane === 0 ? 'LSB' : bitPlane === 7 ? 'MSB' : `Bit ${bitPlane}`} • {colorChannelType.toUpperCase()} Channel • 
+                      {bitPlane <= 2 ? ' High entropy (potential data)' : ' Lower entropy (structural)'}
+                    </div>
+                  </div>
+                )}
+
+                {/* LSB Analysis Results */}
+                {lsbDepthResult && (
+                  <div className="bg-background/50 p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-sm font-medium">LSB Depth Analysis Results</h5>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          const data = JSON.stringify(lsbDepthResult, null, 2)
+                          navigator.clipboard?.writeText(data)
+                        }}
+                      >
+                        Copy Results
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {/* Channel Analysis Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {['red', 'green', 'blue'].map(channel => {
+                          const channelData = lsbDepthResult[channel as keyof typeof lsbDepthResult]
+                          if (!channelData || typeof channelData !== 'object') return null
+                          
+                          return (
+                            <div key={channel} className="p-3 bg-background border border-border rounded">
+                              <div className="text-xs font-medium text-muted-foreground uppercase mb-1">{channel}</div>
+                              <div className="text-sm font-mono">
+                                Ratio: {((channelData as any).ratio || 0).toFixed(3)}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {(channelData as any).ratio > 0.4 ? 'Suspicious' : 'Normal'}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      
+                      {/* Raw Data Preview */}
+                      <details className="border border-border rounded">
+                        <summary className="p-3 text-sm font-medium cursor-pointer hover:bg-accent/5">
+                          View Raw Analysis Data
+                        </summary>
+                        <div className="p-3 border-t bg-background">
+                          <pre className="text-xs font-mono max-h-40 overflow-auto">
+                            {JSON.stringify(lsbDepthResult, null, 2)}
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bitplane Analysis Tips */}
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                  <div className="text-sm font-medium text-accent mb-2">💡 Bitplane Analysis Tips</div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>• <strong>LSB (0):</strong> Most likely to contain hidden data</div>
+                    <div>• <strong>Bits 1-2:</strong> Secondary hiding locations</div>
+                    <div>• <strong>MSB (7):</strong> Contains main image structure</div>
+                    <div>• <strong>High ratios (&gt;0.4):</strong> May indicate steganography</div>
+                    <div>• <strong>Export All:</strong> Download all bitplanes for external analysis</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab==='hex' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Filter hex dump (hex, ASCII, or offset)..."
+                    value={hexFilter}
+                    onChange={(e) => setHexFilter(e.target.value)}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    ({hexData ? hexData.filter(line => {
+                      if (!hexFilter) return true
+                      const searchTerm = hexFilter.toLowerCase()
+                      return line.offset.toLowerCase().includes(searchTerm) ||
+                             line.hex.toLowerCase().includes(searchTerm) ||
+                             line.ascii.toLowerCase().includes(searchTerm)
+                    }).length : 0} lines)
+                  </span>
+                </div>
+
+                <div className="bg-muted/20 rounded-lg p-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium">
+                      Binary Content ({hexData ? hexData.filter(line => {
+                        if (!hexFilter) return true
+                        const searchTerm = hexFilter.toLowerCase()
+                        return line.offset.toLowerCase().includes(searchTerm) ||
+                               line.hex.toLowerCase().includes(searchTerm) ||
+                               line.ascii.toLowerCase().includes(searchTerm)
+                      }).length * 16 : 0} bytes shown)
+                      {hexFilter && ` (filtered)`}
+                    </h4>
+                    <div className="text-xs text-muted-foreground">
+                      First 64KB • Offset | Hex | ASCII
+                    </div>
+                  </div>
+                  {hexData && hexData.length > 0 ? (
+                    <div className="bg-background rounded border max-h-96 overflow-y-auto font-mono text-xs">
+                      <div className="sticky top-0 bg-muted px-3 py-2 border-b flex">
+                        <div className="w-24 text-muted-foreground">Offset</div>
+                        <div className="flex-1 text-muted-foreground ml-4">Hex</div>
+                        <div className="w-32 text-muted-foreground ml-4">ASCII</div>
+                      </div>
+                      <div className="divide-y">
+                        {hexData
+                          .filter(line => {
+                            if (!hexFilter) return true
+                            const searchTerm = hexFilter.toLowerCase()
+                            return line.offset.toLowerCase().includes(searchTerm) ||
+                                   line.hex.toLowerCase().includes(searchTerm) ||
+                                   line.ascii.toLowerCase().includes(searchTerm)
+                          })
+                          .map((line, index) => (
+                            <div key={index} className="px-3 py-1 hover:bg-muted/50 flex items-center">
+                              <div className="w-24 text-accent font-bold">{line.offset}</div>
+                              <div className="flex-1 ml-4 tracking-wider">{line.hex}</div>
+                              <div className="w-32 ml-4 text-muted-foreground bg-muted/30 px-2 rounded">
+                                {line.ascii}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>{hexFilter ? "No hex dump lines match the filter" : "No hex dump available"}</p>
+                      <p className="text-sm mt-2">{hexFilter ? "Try a different search term" : "Upload and analyze an image to see hex dump"}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium flex items-center">
+                    <QrCode className="w-4 h-4 mr-2 text-accent" />
+                    Barcode & QR Code Scanner
+                  </h4>
+                  <div className="flex items-center space-x-2">
+                    {barcodeResults.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const data = JSON.stringify(barcodeResults, null, 2)
+                          const blob = new Blob([data], { type: 'application/json' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = 'barcode_results.json'
+                          a.click()
+                          URL.revokeObjectURL(url)
+                        }}
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Export
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={scanBarcodes}
+                      disabled={isScanningBarcode}
+                    >
+                      {isScanningBarcode ? 'Scanning...' : 'Scan Image'}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Scanner Options */}
+                <div className="bg-muted/20 border border-border rounded-lg p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={barcodeTryHarder}
+                          onChange={(e) => setBarcodeTryHarder(e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        <span className="text-sm font-medium">Try Harder Mode</span>
+                      </label>
+                      <span className="text-xs text-muted-foreground">
+                        {barcodeTryHarder ? 'Slower, more accurate' : 'Faster scan'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Barcode Formats</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                        {['ALL', 'QR_CODE', 'DATA_MATRIX', 'EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128', 'CODE_39'].map(format => (
+                          <label key={format} className="flex items-center space-x-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={barcodeFormats.includes(format)}
+                              onChange={(e) => {
+                                if (format === 'ALL') {
+                                  setBarcodeFormats(e.target.checked ? ['ALL'] : [])
+                                } else {
+                                  if (e.target.checked) {
+                                    setBarcodeFormats(prev => [...prev.filter(f => f !== 'ALL'), format])
+                                  } else {
+                                    setBarcodeFormats(prev => prev.filter(f => f !== format))
+                                  }
+                                }
+                              }}
+                              className="rounded border-border"
+                            />
+                            <span className="text-xs">{format.replace('_', ' ')}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isScanningBarcode && (
+                  <div className="bg-accent/5 border border-accent/20 rounded-lg p-6 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+                      <span className="text-sm text-muted-foreground">Scanning for barcodes and QR codes...</span>
+                    </div>
+                  </div>
+                )}
+
+                {!isScanningBarcode && barcodeResults.length > 0 && (
+                  <div className="space-y-4">
+                    {/* Page Navigation */}
+                    <div className="flex items-center space-x-2 border-b border-border pb-2">
+                      <button
+                        onClick={() => setBarcodeSubPage('original')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+                          barcodeSubPage === 'original'
+                            ? 'bg-accent text-background border-b-2 border-accent'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Original Scan
+                      </button>
+                      <button
+                        onClick={() => setBarcodeSubPage('reconstructed')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+                          barcodeSubPage === 'reconstructed'
+                            ? 'bg-accent text-background border-b-2 border-accent'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Reconstructed Analysis
+                      </button>
+                    </div>
+
+                    {/* Original Scan Page */}
+                    {barcodeSubPage === 'original' && (
+                      <div className="space-y-4">
+                        {/* Visualization Image */}
+                        {barcodeImage && (
+                      <div className="bg-background border border-border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-sm font-medium">Detection Visualization</h5>
+                          <div className="text-xs text-muted-foreground">
+                            Green boxes indicate detected codes
+                          </div>
+                        </div>
+                        <div className="relative bg-muted/10 rounded overflow-hidden">
+                          <img
+                            src={barcodeImage}
+                            alt="Barcode detection visualization"
+                            className="w-full h-auto"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detection Results */}
+                    <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                          <span className="text-sm font-medium text-green-400">
+                            {barcodeResults.length} Code{barcodeResults.length !== 1 ? 's' : ''} Detected
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {barcodeResults.map((result, index) => (
+                          <div key={index} className="bg-background rounded-lg border border-border p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-2">
+                                  <QrCode className="w-4 h-4 text-accent" />
+                                  <span className="text-xs font-medium text-accent">{result.format}</span>
+                                </div>
+                                {result.position && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Position: ({Math.round(result.position.x)}, {Math.round(result.position.y)}) •
+                                    Size: {Math.round(result.position.width)}×{Math.round(result.position.height)}px
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {result.text.match(/^https?:\/\//i) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => window.open(result.text, '_blank')}
+                                    className="h-6 px-2"
+                                  >
+                                    <ExternalLink className="w-3 h-3 mr-1" />
+                                    Open
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(result.text)
+                                    alert('Copied to clipboard!')
+                                  }}
+                                  className="h-6 px-2"
+                                >
+                                  <Copy className="w-3 h-3 mr-1" />
+                                  Copy
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="bg-muted/30 rounded p-3 font-mono text-sm break-all">
+                              {/* Make URLs clickable */}
+                              {result.text.match(/^https?:\/\//i) ? (
+                                <a
+                                  href={result.text}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-accent hover:underline"
+                                >
+                                  {result.text}
+                                </a>
+                              ) : (
+                                result.text
+                              )}
+                            </div>
+
+                            {/* Auto-decoded content */}
+                            {result.decoded && (
+                              <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded">
+                                <div className="text-xs font-medium text-green-400 mb-1">
+                                  🔓 Auto-decoded ({result.decoded.type.toUpperCase()})
+                                </div>
+                                <div className="font-mono text-sm break-all text-green-300">
+                                  {result.decoded.value}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Binary representation */}
+                            {result.binary && (
+                              <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded">
+                                <div className="text-xs font-medium text-blue-400 mb-2">
+                                  🔢 Binary Representation
+                                </div>
+                                <div className="font-mono text-xs break-all text-blue-300 max-h-32 overflow-y-auto">
+                                  {result.binary}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* QR Metadata */}
+                            {result.qrMetadata && (
+                              <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded">
+                                <div className="text-xs font-medium text-purple-400 mb-2">
+                                  📊 QR Code Structure
+                                </div>
+                                <div className="space-y-1 text-xs">
+                                  {result.qrMetadata.version && (
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-muted-foreground flex-shrink-0">Version:</span>
+                                      <span className="font-mono text-purple-300 break-all text-right">{result.qrMetadata.version}</span>
+                                    </div>
+                                  )}
+                                  {result.qrMetadata.errorCorrectionLevel && (
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-muted-foreground flex-shrink-0">Error Correction:</span>
+                                      <span className="font-mono text-purple-300 break-all text-right">{result.qrMetadata.errorCorrectionLevel}</span>
+                                    </div>
+                                  )}
+                                  {result.qrMetadata.maskPattern !== undefined && (
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-muted-foreground flex-shrink-0">Mask Pattern:</span>
+                                      <span className="font-mono text-purple-300 break-all text-right">{result.qrMetadata.maskPattern}</span>
+                                    </div>
+                                  )}
+                                  {result.qrMetadata.encoding && (
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="text-muted-foreground flex-shrink-0">Encoding Mode:</span>
+                                      <span className="font-mono text-purple-300 break-all text-right">{result.qrMetadata.encoding}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{result.text.length} characters</span>
+                              {result.text.length > 0 && (
+                                <span>
+                                  {result.text.match(/^https?:\/\//i) ? '🔗 URL' :
+                                   result.text.match(/^[0-9]+$/) ? '🔢 Numeric' :
+                                   result.text.match(/^[A-Z0-9]+$/) ? '🔤 Alphanumeric' : '📝 Text'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                      </div>
+                    )}
+
+                    {/* Reconstructed Analysis Page */}
+                    {barcodeSubPage === 'reconstructed' && (
+                      <div className="space-y-4">
+                        {barcodeResults.map((result, index) => (
+                          <div key={`reconstructed-${index}`} className="bg-background border border-border rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                              <h5 className="text-sm font-medium text-accent">
+                                Result #{index + 1} - {result.format}
+                              </h5>
+                            </div>
+
+                            {/* Editable Byte String */}
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                                  Edit Byte String
+                                </label>
+                                <textarea
+                                  value={editableBytes[index] !== undefined ? editableBytes[index] : result.text}
+                                  onChange={(e) => {
+                                    setEditableBytes(prev => ({
+                                      ...prev,
+                                      [index]: e.target.value
+                                    }))
+                                  }}
+                                  className="w-full p-3 bg-muted/20 border border-border rounded font-mono text-sm min-h-[100px]"
+                                  placeholder="Enter custom byte string..."
+                                />
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {(editableBytes[index] || result.text).length} characters
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditableBytes(prev => ({
+                                          ...prev,
+                                          [index]: result.text
+                                        }))
+                                      }}
+                                    >
+                                      Reset
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        const customBytes = editableBytes[index] || result.text
+                                        regenerateQRFromBytes(index, customBytes)
+                                      }}
+                                    >
+                                      Regenerate QR
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Reconstructed Image Display */}
+                              {result.reconstructedImage && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm font-medium">Reconstructed QR Code</div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => scanReconstructedQR(result.reconstructedImage!, index)}
+                                    >
+                                      <QrCode className="w-3 h-3 mr-1" />
+                                      Scan
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-xs text-muted-foreground mb-1">Original</div>
+                                      <img
+                                        src={imageUrl || ''}
+                                        alt="Original"
+                                        className="w-full border border-border rounded"
+                                        style={{ imageRendering: 'pixelated' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-muted-foreground mb-1">Reconstructed</div>
+                                      <img
+                                        src={result.reconstructedImage}
+                                        alt="Reconstructed"
+                                        className="w-full border border-border rounded"
+                                        style={{ imageRendering: 'pixelated' }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Scan Results */}
+                                  {reconstructedScanResults[index] && (
+                                    <div className="p-3 bg-green-500/10 border border-green-500/20 rounded">
+                                      <div className="text-xs font-medium text-green-400 mb-2">
+                                        ✅ Scan Result
+                                      </div>
+                                      <div className="space-y-2 text-xs">
+                                        <div className="flex justify-between items-center gap-2">
+                                          <span className="text-muted-foreground flex-shrink-0">Format:</span>
+                                          <span className="font-mono text-green-300">{reconstructedScanResults[index]?.format}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                          <span className="text-muted-foreground">Decoded:</span>
+                                          <div className="font-mono text-green-300 bg-muted/20 p-2 rounded break-all max-h-32 overflow-y-auto">
+                                            {reconstructedScanResults[index]?.text}
+                                          </div>
+                                        </div>
+                                        <div className="pt-2 border-t border-green-500/20">
+                                          <div className="flex items-center gap-2 text-green-400">
+                                            <CheckCircle className="w-4 h-4" />
+                                            <span>
+                                              {reconstructedScanResults[index]?.text === result.text
+                                                ? 'Perfect Match!'
+                                                : reconstructedScanResults[index]?.text === (editableBytes[index] || result.text)
+                                                ? 'Matches Edited Version!'
+                                                : 'Difference Detected'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {reconstructedScanResults[index] === null && (
+                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-center text-xs text-red-400">
+                                      ⚠️ Could not scan reconstructed QR
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+                {!isScanningBarcode && barcodeResults.length === 0 && metadata && (
+                  <div className="bg-muted/10 border border-border rounded-lg p-8 text-center">
+                    <QrCode className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <h5 className="text-lg font-medium mb-2">No Codes Detected</h5>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      No barcodes or QR codes were found in this image.
+                    </p>
+                    <div className="text-xs text-muted-foreground space-y-1 text-left max-w-md mx-auto">
+                      <div className="font-medium mb-2">Supported Formats:</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>• QR Code</div>
+                        <div>• Data Matrix</div>
+                        <div>• EAN-13 / EAN-8</div>
+                        <div>• UPC-A / UPC-E</div>
+                        <div>• Code 128</div>
+                        <div>• Code 39</div>
+                        <div>• Code 93</div>
+                        <div>• ITF</div>
+                        <div>• Codabar</div>
+                        <div>• PDF417</div>
+                        <div>• Aztec</div>
+                        <div>• RSS-14</div>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={scanBarcodes}
+                      className="mt-4"
+                    >
+                      Scan Again
+                    </Button>
+                  </div>
+                )}
+
+                {!isScanningBarcode && !metadata && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <QrCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Upload and analyze an image to scan for barcodes</p>
+                    <p className="text-sm mt-2">Supports QR codes, EAN, UPC, Code 128, and more</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
