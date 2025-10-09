@@ -1296,7 +1296,7 @@ export default function ImageAnalysis() {
         <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
           <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">{file ? file.name : 'Drop your image or EVTX file here or click to browse'}</p>
-          <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 50MB</p>
+          <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 500MB</p>
           <input ref={fileRef} type="file" accept="image/*,.evtx" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
         </div>
 
