@@ -152,9 +152,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Page Content */}
-      <main className="flex-1 overflow-auto" id="main-content">
-        {children}
-        <div className="mt-24">
+      <main className="flex-1 flex flex-col" id="main-content">
+        <div className="flex-1">
+          {children}
+        </div>
+        <div className="mt-auto pt-24">
           <Footer />
         </div>
       </main>

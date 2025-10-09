@@ -1692,13 +1692,6 @@ const WebTools: React.FC = () => {
       payload: "GET / HTTP/1.1\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\nSec-WebSocket-Key: x\\r\\n\\r\\nGET /admin HTTP/1.1\\r\\n",
       description: "Smuggle HTTP request through WebSocket upgrade",
       usage: "Bypass access controls via protocol smuggling"
-    },
-    {
-      name: "WebSocket DoS - Large Message",
-      category: "DoS",
-      payload: "{\"data\":\"" + "A".repeat(10000000) + "\"}",
-      description: "Send extremely large message to exhaust resources",
-      usage: "Test for message size limits and resource exhaustion"
     }
   ]
 
