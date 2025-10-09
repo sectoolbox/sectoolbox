@@ -30,12 +30,12 @@ const Footer: React.FC = () => {
   ]
 
   return (
-    <footer className="bg-slate-900 border-t border-slate-700 py-8 mt-auto" role="contentinfo">
+    <footer className="bg-slate-900 border-t border-slate-700 py-4 mt-auto" role="contentinfo">
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-between items-start gap-8 mb-6">
+        <div className="flex flex-wrap justify-between items-start gap-4 mb-3">
           {/* Report Issues Section - Far Left */}
           <div className="flex flex-col items-center flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-slate-200 mb-4">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">
               Report Issues
             </h3>
             <a
@@ -46,12 +46,12 @@ const Footer: React.FC = () => {
               aria-label={reportIssueLink.alt}
             >
               <div className={`
-                w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all duration-200
+                w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200
                 border-slate-600 bg-slate-600/10 group-hover:border-slate-400 group-hover:bg-slate-600/20
               `}>
-                <Bug className="w-8 h-8 transition-colors duration-200 text-slate-400 group-hover:text-slate-300" />
+                <Bug className="w-5 h-5 transition-colors duration-200 text-slate-400 group-hover:text-slate-300" />
               </div>
-              <span className="text-sm text-slate-300 mt-2 group-hover:text-blue-400 transition-colors duration-200">
+              <span className="text-xs text-slate-300 mt-1 group-hover:text-blue-400 transition-colors duration-200">
                 {reportIssueLink.name}
               </span>
             </a>
@@ -59,10 +59,10 @@ const Footer: React.FC = () => {
 
           {/* Developers Section - Centered */}
           <div className="flex flex-col items-center">
-            <h3 className="text-lg font-semibold text-slate-200 mb-4">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">
               Developers
             </h3>
-            <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0" aria-label="Project developers">
+            <ul className="flex flex-wrap justify-center items-center gap-3 list-none p-0 m-0" aria-label="Project developers">
               {developers.map((dev) => (
                 <li key={dev.name}>
                   <a
@@ -72,7 +72,7 @@ const Footer: React.FC = () => {
                     className="flex flex-col items-center group focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
                     aria-label={`View ${dev.name}'s GitHub profile`}
                   >
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 group-hover:border-blue-400 transition-colors duration-200">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-600 group-hover:border-blue-400 transition-colors duration-200">
                       <img
                         src={dev.img}
                         alt={dev.alt}
@@ -83,7 +83,7 @@ const Footer: React.FC = () => {
                         }}
                       />
                     </div>
-                    <span className="text-sm text-slate-300 mt-2 group-hover:text-blue-400 transition-colors duration-200">
+                    <span className="text-xs text-slate-300 mt-1 group-hover:text-blue-400 transition-colors duration-200">
                       {dev.name}
                     </span>
                   </a>
@@ -94,10 +94,10 @@ const Footer: React.FC = () => {
 
           {/* Community Section - Far Right */}
           <div className="flex flex-col items-center flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-slate-200 mb-4">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">
               Community
             </h3>
-            <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0" aria-label="Community links">
+            <ul className="flex flex-wrap justify-center items-center gap-3 list-none p-0 m-0" aria-label="Community links">
               {communityLinks.map((link) => {
                 const Icon = link.icon
                 return (
@@ -110,21 +110,21 @@ const Footer: React.FC = () => {
                       aria-label={link.alt}
                     >
                       <div className={`
-                        w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all duration-200
+                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200
                         ${link.color === 'indigo'
                           ? 'border-indigo-600 bg-indigo-600/10 group-hover:border-indigo-400 group-hover:bg-indigo-600/20'
                           : 'border-slate-600 bg-slate-600/10 group-hover:border-slate-400 group-hover:bg-slate-600/20'
                         }
                       `}>
                         <Icon className={`
-                          w-8 h-8 transition-colors duration-200
+                          w-5 h-5 transition-colors duration-200
                           ${link.color === 'indigo'
                             ? 'text-indigo-400 group-hover:text-indigo-300'
                             : 'text-slate-400 group-hover:text-slate-300'
                           }
                         `} />
                       </div>
-                      <span className="text-sm text-slate-300 mt-2 group-hover:text-blue-400 transition-colors duration-200">
+                      <span className="text-xs text-slate-300 mt-1 group-hover:text-blue-400 transition-colors duration-200">
                         {link.name}
                       </span>
                     </a>
