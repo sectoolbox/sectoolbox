@@ -1088,6 +1088,19 @@ const DigitalForensics: React.FC = () => {
                   EVTX Analysis
                 </Button>
               )}
+              {(selectedFile.name.toLowerCase().endsWith('.dmp') ||
+                selectedFile.name.toLowerCase().endsWith('.mem') ||
+                selectedFile.name.toLowerCase().endsWith('.raw') ||
+                selectedFile.name.toLowerCase().endsWith('.vmem')) && (
+                <Button
+                  onClick={() => navigate('/memory', { state: { memoryFile: selectedFile } })}
+                  variant="outline"
+                  size="sm"
+                >
+                  <HardDrive className="h-4 w-4 mr-2" />
+                  Memory Forensics
+                </Button>
+              )}
               <Button
                 onClick={() => handleAnalyze()}
                 disabled={isAnalyzing}

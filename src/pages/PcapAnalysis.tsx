@@ -85,7 +85,7 @@ const PcapAnalysis: React.FC = () => {
 
       // Set legacy format for backward compatibility
       if (comprehensiveResults.metadata.format === 'pcapng') {
-        setNotice('PCAPNG detected. Advanced PCAPNG parsing is not implemented in-browser yet.')
+        setNotice('PCAPNG detected. PCAPNG parsing is not implemented in-browser yet.')
         setStats({ totalPackets: 0, linkType: null })
         setPackets([])
       } else if (comprehensiveResults.metadata.format === 'unknown') {
@@ -511,7 +511,7 @@ const PcapAnalysis: React.FC = () => {
           <Network className="w-6 h-6 text-accent" />
           <span>PCAP Analysis</span>
           </h1>
-          <p className="text-muted-foreground mt-1">Advanced network forensics: protocol analysis, threat detection, and traffic intelligence</p>
+          <p className="text-muted-foreground mt-1">Network forensics: protocol analysis, threat detection, and traffic intelligence</p>
         </div>
       </div>
 
@@ -521,7 +521,7 @@ const PcapAnalysis: React.FC = () => {
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={(e)=>e.preventDefault()} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}>
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">Drop your PCAP file here or click to browse</p>
-            <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 500MB. Advanced network forensics and threat detection included.</p>
+            <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 500MB. Network forensics and threat detection included.</p>
             <input ref={fileInputRef} type="file" accept=".pcap,.pcapng" onChange={(e)=>{ const f=e.target.files?.[0]; if(f){ setFile(f); setPackets([]); setStats({ totalPackets:0, linkType:null }); setNotice(null) } }} className="hidden" />
           </div>
         </div>
