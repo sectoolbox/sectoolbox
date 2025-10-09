@@ -1,10 +1,51 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Zap, Home, Network, Image, Lock, Globe, Search, Menu, X, FolderOpen, Headphones, Wifi } from 'lucide-react'
+import {
+  Zap,
+  Home,
+  Network,
+  Image,
+  Lock,
+  Globe,
+  Search as SearchIcon,
+  Menu,
+  X,
+  FolderOpen,
+  Headphones,
+  Wifi,
+  ChevronDown,
+  BarChart3,
+  Shield,
+  Music,
+  FileImage,
+  HardDrive,
+  History,
+  XCircle
+} from 'lucide-react'
 import Footer from './Footer'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 
 interface LayoutProps {
   children: React.ReactNode
+}
+
+interface NavItem {
+  path: string
+  label: string
+  icon: React.ElementType
+  description?: string
+  keywords?: string[]
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -12,6 +53,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<NavItem[]>([])
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   // Update time every second
   useEffect(() => {
@@ -22,27 +67,169 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => clearInterval(timer)
   }, [])
 
-  const navItems = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/pcap', label: 'PCAP', icon: Network },
-    { path: '/image', label: 'Image', icon: Image },
-    { path: '/crypto', label: 'Cryptography', icon: Lock },
-    { path: '/web', label: 'Web', icon: Globe },
-    { path: '/forensics', label: 'Forensics', icon: Search },
-    { path: '/folder-scanner', label: 'Folder', icon: FolderOpen },
-    { path: '/audio', label: 'Audio', icon: Headphones },
-    { path: '/network', label: 'Network', icon: Wifi },
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
+
+  // Close search on ESC key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSearchFocused(false)
+        setSearchQuery('')
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [])
+
+  // Close search when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchFocused(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Navigation groups
+  const analysisTools: NavItem[] = [
+    {
+      path: '/pcap',
+      label: 'PCAP Analysis',
+      icon: BarChart3,
+      description: 'Analyze network packet captures',
+      keywords: ['network', 'packet', 'traffic', 'wireshark', 'tcpdump']
+    },
+    {
+      path: '/image',
+      label: 'Image Analysis',
+      icon: FileImage,
+      description: 'Analyze and extract data from images',
+      keywords: ['steganography', 'metadata', 'exif', 'forensics', 'picture']
+    },
+    {
+      path: '/audio',
+      label: 'Audio Analysis',
+      icon: Music,
+      description: 'Analyze audio files and spectrograms',
+      keywords: ['sound', 'spectrogram', 'waveform', 'frequency']
+    },
+    {
+      path: '/folder-scanner',
+      label: 'Folder Scanner',
+      icon: FolderOpen,
+      description: 'Scan and analyze directory structures',
+      keywords: ['directory', 'files', 'scan', 'bulk']
+    },
   ]
+
+  const securityTools: NavItem[] = [
+    {
+      path: '/crypto',
+      label: 'Cryptography',
+      icon: Lock,
+      description: 'Encryption, decryption, and cipher tools',
+      keywords: ['encryption', 'decryption', 'cipher', 'hash', 'base64', 'rsa', 'aes']
+    },
+    {
+      path: '/web',
+      label: 'Web Tools',
+      icon: Globe,
+      description: 'Web exploitation and payload tools',
+      keywords: ['payload', 'xss', 'sql', 'injection', 'url', 'encode']
+    },
+    {
+      path: '/forensics',
+      label: 'Digital Forensics',
+      icon: HardDrive,
+      description: 'Forensic analysis and data recovery',
+      keywords: ['disk', 'file', 'recovery', 'investigation', 'evidence']
+    },
+  ]
+
+  const standaloneItems: NavItem[] = [
+    {
+      path: '/network',
+      label: 'Network',
+      icon: Wifi,
+      description: 'Network utilities and tools',
+      keywords: ['ping', 'port', 'scan', 'connectivity']
+    },
+    {
+      path: '/results',
+      label: 'Results',
+      icon: History,
+      description: 'View analysis results history',
+      keywords: ['history', 'saved', 'previous']
+    },
+  ]
+
+  const allItems = [...analysisTools, ...securityTools, ...standaloneItems]
+
+  // Search functionality with debouncing
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase()
+        const filtered = allItems.filter(item => {
+          const matchesLabel = item.label.toLowerCase().includes(query)
+          const matchesDescription = item.description?.toLowerCase().includes(query)
+          const matchesKeywords = item.keywords?.some(k => k.toLowerCase().includes(query))
+          return matchesLabel || matchesDescription || matchesKeywords
+        })
+        setSearchResults(filtered)
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
+
+    return () => clearTimeout(debounceTimer)
+  }, [searchQuery])
 
   const handleNavigation = (path: string) => {
     navigate(path)
     setIsMobileMenuOpen(false)
+    setSearchQuery('')
+    setIsSearchFocused(false)
+  }
+
+  const isItemActive = (path: string) => location.pathname === path
+
+  const isGroupActive = (items: NavItem[]) => {
+    return items.some(item => location.pathname === item.path)
+  }
+
+  const getCurrentPageLabel = () => {
+    const currentItem = allItems.find(item => item.path === location.pathname)
+    return currentItem?.label || 'Sectoolbox'
+  }
+
+  const renderDropdownTrigger = (label: string, items: NavItem[]) => {
+    const isActive = isGroupActive(items)
+    return (
+      <button
+        className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-accent/10 text-accent border border-accent/20'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+        }`}
+      >
+        <span>{label}</span>
+        <ChevronDown className="w-3 h-3" />
+      </button>
+    )
   }
 
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Bar */}
-      <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 relative">
+      <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-6 relative z-50">
         {/* Logo - Left Side (Desktop Only) */}
         <div className="hidden lg:flex items-center space-x-2 absolute left-6">
           <Zap className="w-5 h-5 text-accent" />
@@ -51,42 +238,164 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Desktop Navigation - Centered */}
         <nav className="hidden lg:flex items-center space-x-1 mx-auto">
-          {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = location.pathname === item.path
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-accent/10 text-accent border border-accent/20'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{item.label}</span>
-            </button>
-          )
+          {/* Home */}
+          <button
+            onClick={() => navigate('/')}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              location.pathname === '/'
+                ? 'bg-accent/10 text-accent border border-accent/20'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </button>
+
+          {/* Analysis Tools Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {renderDropdownTrigger('Analysis Tools', analysisTools)}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              {analysisTools.map((item) => {
+                const Icon = item.icon
+                const isActive = isItemActive(item.path)
+                return (
+                  <DropdownMenuItem
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
+                    className={`flex items-center space-x-2 cursor-pointer ${
+                      isActive ? 'bg-accent/10 text-accent' : ''
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.label}</span>
+                      <span className="text-xs text-muted-foreground">{item.description}</span>
+                    </div>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Security Tools Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {renderDropdownTrigger('Security Tools', securityTools)}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              {securityTools.map((item) => {
+                const Icon = item.icon
+                const isActive = isItemActive(item.path)
+                return (
+                  <DropdownMenuItem
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
+                    className={`flex items-center space-x-2 cursor-pointer ${
+                      isActive ? 'bg-accent/10 text-accent' : ''
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.label}</span>
+                      <span className="text-xs text-muted-foreground">{item.description}</span>
+                    </div>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Standalone Items */}
+          {standaloneItems.map((item) => {
+            const Icon = item.icon
+            const isActive = isItemActive(item.path)
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-accent/10 text-accent border border-accent/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
+            )
           })}
         </nav>
 
-        {/* Status Indicator - Right Side (Desktop Only) */}
-        <div className="hidden lg:flex items-center space-x-2 lg:space-x-4 absolute right-6">
-          <div className="text-xs font-mono text-muted-foreground hidden sm:block">
+        {/* Search + Status - Right Side (Desktop Only) */}
+        <div className="hidden lg:flex items-center space-x-4 absolute right-6">
+          {/* Search Bar */}
+          <div ref={searchRef} className="relative">
+            <div className="relative">
+              <SearchIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search tools..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                className="pl-9 pr-8 w-48 focus:w-64 transition-all duration-200 h-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSearchResults([])
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {isSearchFocused && searchResults.length > 0 && (
+              <div className="absolute top-full mt-2 w-80 bg-popover border border-border rounded-md shadow-lg overflow-hidden z-50 animate-in slide-in-from-top-2">
+                <div className="max-h-96 overflow-y-auto">
+                  {searchResults.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => handleNavigation(item.path)}
+                        className="w-full flex items-start space-x-3 px-4 py-3 hover:bg-accent/10 transition-colors text-left"
+                      >
+                        <Icon className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{item.label}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {item.description}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="text-xs font-mono text-muted-foreground">
             {currentTime}
           </div>
           <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
         </div>
 
         {/* Mobile Navigation - Hamburger Menu + Centered Title */}
-        <div className="lg:hidden flex items-center space-x-3 ml-auto">
-          <h1 className="absolute left-1/2 transform -translate-x-1/2 lg:static text-lg font-semibold pointer-events-none">
-            {navItems.find(item => item.path === location.pathname)?.label || 'Home'}
+        <div className="lg:hidden flex items-center w-full">
+          <h1 className="absolute left-1/2 transform -translate-x-1/2 text-lg font-semibold pointer-events-none">
+            {getCurrentPageLabel()}
           </h1>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-md hover:bg-muted/50 transition-colors z-50"
+            className="ml-auto p-2 rounded-md hover:bg-muted/50 transition-colors z-50"
             aria-label="Toggle navigation menu"
           >
             {isMobileMenuOpen ? (
@@ -98,7 +407,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Dropdown Menu */}
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <>
           {/* Overlay */}
@@ -107,36 +416,156 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          {/* Dropdown Menu */}
-          <div className="absolute top-16 left-0 right-0 bg-card/95 backdrop-blur-md border-b border-border shadow-2xl z-50 lg:hidden transform transition-all duration-200 ease-out">
-            <nav className="flex flex-col p-4 space-y-2 max-h-[calc(100vh-4rem)] overflow-y-auto" role="menu" aria-label="Mobile navigation">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = location.pathname === item.path
-                return (
+          {/* Slide-in Menu */}
+          <div className="fixed top-16 left-0 right-0 bottom-0 bg-card z-50 lg:hidden transform transition-transform duration-300 ease-out overflow-y-auto">
+            <nav className="flex flex-col p-4 space-y-6" role="menu" aria-label="Mobile navigation">
+              {/* Search Bar */}
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search tools..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
                   <button
-                    key={item.path}
-                    onClick={() => handleNavigation(item.path)}
-                    role="menuitem"
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-left group ${
-                      isActive 
-                        ? 'bg-accent/15 text-accent border border-accent/30 shadow-sm' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-border/50 border border-transparent'
-                    }`}
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                   >
-                    <Icon className={`w-5 h-5 transition-colors ${
-                      isActive ? 'text-accent' : 'group-hover:text-accent/70'
-                    }`} />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 bg-accent rounded-full animate-pulse" />
-                    )}
+                    <XCircle className="w-4 h-4" />
                   </button>
-                )
-              })}
+                )}
+              </div>
 
+              {/* Search Results */}
+              {searchQuery && searchResults.length > 0 && (
+                <div className="space-y-1 pb-4 border-b border-border">
+                  <div className="text-xs text-muted-foreground font-medium px-2 mb-2">
+                    Search Results
+                  </div>
+                  {searchResults.map((item) => {
+                    const Icon = item.icon
+                    const isActive = isItemActive(item.path)
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => handleNavigation(item.path)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                          isActive
+                            ? 'bg-accent/15 text-accent border border-accent/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
-              
+              {/* Home */}
+              {!searchQuery && (
+                <button
+                  onClick={() => handleNavigation('/')}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    location.pathname === '/'
+                      ? 'bg-accent/15 text-accent border border-accent/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                  }`}
+                >
+                  <Home className="w-5 h-5" />
+                  <span>Home</span>
+                </button>
+              )}
+
+              {/* Analysis Tools Section */}
+              {!searchQuery && (
+                <>
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium px-2 mb-2">
+                      Analysis Tools
+                    </div>
+                    <div className="space-y-1">
+                      {analysisTools.map((item) => {
+                        const Icon = item.icon
+                        const isActive = isItemActive(item.path)
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                              isActive
+                                ? 'bg-accent/15 text-accent border border-accent/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span>{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Security Tools Section */}
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium px-2 mb-2">
+                      Security Tools
+                    </div>
+                    <div className="space-y-1">
+                      {securityTools.map((item) => {
+                        const Icon = item.icon
+                        const isActive = isItemActive(item.path)
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                              isActive
+                                ? 'bg-accent/15 text-accent border border-accent/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span>{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Other Section */}
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium px-2 mb-2">
+                      Other
+                    </div>
+                    <div className="space-y-1">
+                      {standaloneItems.map((item) => {
+                        const Icon = item.icon
+                        const isActive = isItemActive(item.path)
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                              isActive
+                                ? 'bg-accent/15 text-accent border border-accent/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-5 h-5" />
+                            <span>{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* Mobile Status */}
               <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground bg-background/50 px-2 py-1 rounded">
@@ -147,7 +576,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <span className="text-xs text-muted-foreground font-medium">Online</span>
                 </div>
               </div>
-              
+
               {/* Mobile Footer */}
               <div className="pt-3 mt-3 border-t border-border/30">
                 <div className="text-xs text-center text-muted-foreground/70">
