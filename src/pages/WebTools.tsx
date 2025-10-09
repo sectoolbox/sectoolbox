@@ -2996,7 +2996,8 @@ const WebTools: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => {
-                    setTestOutput(encodeURIComponent(testInput))
+                    const input = testOutput || testInput
+                    setTestOutput(encodeURIComponent(input))
                     setEncoderChain([...encoderChain, 'URL Encode'])
                   }}
                 >
@@ -3005,7 +3006,8 @@ const WebTools: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => {
-                    setTestOutput(btoa(testInput))
+                    const input = testOutput || testInput
+                    setTestOutput(btoa(input))
                     setEncoderChain([...encoderChain, 'Base64'])
                   }}
                 >
@@ -3014,7 +3016,8 @@ const WebTools: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => {
-                    setTestOutput(testInput.split('').map(c => '&#' + c.charCodeAt(0) + ';').join(''))
+                    const input = testOutput || testInput
+                    setTestOutput(input.split('').map(c => '&#' + c.charCodeAt(0) + ';').join(''))
                     setEncoderChain([...encoderChain, 'HTML Entities'])
                   }}
                 >
@@ -3032,7 +3035,8 @@ const WebTools: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => {
-                    setTestOutput(testInput.split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''))
+                    const input = testOutput || testInput
+                    setTestOutput(input.split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''))
                     setEncoderChain([...encoderChain, 'Hex'])
                   }}
                 >
