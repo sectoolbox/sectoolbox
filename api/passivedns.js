@@ -1,4 +1,4 @@
-// Vercel Serverless Function for Archive.org API
+// Vercel Serverless Function for PassiveDNS API (Mnemonic)
 // This bypasses CORS by making the request server-side
 
 export default async function handler(req, res) {
@@ -20,19 +20,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { url } = req.query
+    const { domain } = req.query
 
-    if (!url) {
-      return res.status(400).json({ error: 'URL parameter is required' })
+    if (!domain) {
+      return res.status(400).json({ error: 'Domain parameter is required' })
     }
 
-    // Make request to Archive.org CDX API (removed limit to fetch ALL results)
-    const archiveUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(url)}*&output=json&fl=original,timestamp&collapse=urlkey`
+    // Make request to Mnemonic PassiveDNS API
+    const apiUrl = `https://api.mnemonic.no/pdns/v3/${encodeURIComponent(domain)}`
 
-    const response = await fetch(archiveUrl)
+    const response = await fetch(apiUrl)
 
     if (!response.ok) {
-      throw new Error(`Archive.org API error: ${response.statusText}`)
+      throw new Error(`PassiveDNS API error: ${response.statusText}`)
     }
 
     const data = await response.json()
@@ -40,9 +40,9 @@ export default async function handler(req, res) {
     // Return the data
     res.status(200).json(data)
   } catch (error) {
-    console.error('Archive API error:', error)
+    console.error('PassiveDNS API error:', error)
     res.status(500).json({
-      error: 'Failed to fetch from Archive.org',
+      error: 'Failed to fetch from PassiveDNS API',
       message: error.message
     })
   }
