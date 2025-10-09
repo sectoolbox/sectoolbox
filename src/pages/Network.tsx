@@ -700,54 +700,52 @@ export default function Network() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="space-y-6">
-        <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-full lg:grid lg:grid-cols-6 gap-2">
-            <TabsTrigger value="ip" className="flex items-center gap-2">
-              <Globe className="w-4 h-4" />
-              IP Analysis
-            </TabsTrigger>
-            <TabsTrigger value="subnet" className="flex items-center gap-2">
-              <Layers className="w-4 h-4" />
-              Subnet Calc
-            </TabsTrigger>
-            <TabsTrigger value="dns" className="flex items-center gap-2">
-              <Server className="w-4 h-4" />
-              DNS Lookup
-            </TabsTrigger>
-            <TabsTrigger value="whois" className="flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              WHOIS
-            </TabsTrigger>
-            <TabsTrigger value="geo" className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Geolocation
-            </TabsTrigger>
-            <TabsTrigger value="headers" className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Headers
-            </TabsTrigger>
-            <TabsTrigger value="shodan" className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              Shodan
-            </TabsTrigger>
-            <TabsTrigger value="archive" className="flex items-center gap-2">
-              <History className="w-4 h-4" />
-              Archive
-            </TabsTrigger>
-            <TabsTrigger value="ipinfo" className="flex items-center gap-2">
-              <Database className="w-4 h-4" />
-              IPInfo
-            </TabsTrigger>
-            <TabsTrigger value="passivedns" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              PassiveDNS
-            </TabsTrigger>
-            <TabsTrigger value="certs" className="flex items-center gap-2">
-              <Lock className="w-4 h-4" />
-              Certificates
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 h-auto">
+          <TabsTrigger value="ip" className="flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            IP Analysis
+          </TabsTrigger>
+          <TabsTrigger value="subnet" className="flex items-center gap-2">
+            <Layers className="w-4 h-4" />
+            Subnet Calc
+          </TabsTrigger>
+          <TabsTrigger value="dns" className="flex items-center gap-2">
+            <Server className="w-4 h-4" />
+            DNS Lookup
+          </TabsTrigger>
+          <TabsTrigger value="whois" className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            WHOIS
+          </TabsTrigger>
+          <TabsTrigger value="geo" className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            Geolocation
+          </TabsTrigger>
+          <TabsTrigger value="headers" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Headers
+          </TabsTrigger>
+          <TabsTrigger value="shodan" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Shodan
+          </TabsTrigger>
+          <TabsTrigger value="archive" className="flex items-center gap-2">
+            <History className="w-4 h-4" />
+            Archive
+          </TabsTrigger>
+          <TabsTrigger value="ipinfo" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            IPInfo
+          </TabsTrigger>
+          <TabsTrigger value="passivedns" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            PassiveDNS
+          </TabsTrigger>
+          <TabsTrigger value="certs" className="flex items-center gap-2">
+            <Lock className="w-4 h-4" />
+            Certificates
+          </TabsTrigger>
+        </TabsList>
 
         {/* IP Analysis Tab */}
         <TabsContent value="ip" className="space-y-4">
