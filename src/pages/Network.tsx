@@ -110,7 +110,6 @@ export default function Network() {
   // DNS Lookup
   const [dnsInput, setDnsInput] = useState('')
   const [dnsRecords, setDnsRecords] = useState<DNSRecord[]>([])
-  const [dnsType, setDnsType] = useState<'A' | 'AAAA' | 'MX' | 'TXT' | 'NS' | 'CNAME'>('A')
 
   // WHOIS Lookup
   const [whoisInput, setWhoisInput] = useState('')
@@ -246,8 +245,8 @@ export default function Network() {
     setError(null)
   }, [])
 
-  // DNS Lookup (Real DNS-over-HTTPS)
-  const performDNSLookup = useCallback(async (domain: string, type: string) => {
+  // DNS Lookup (Real DNS-over-HTTPS) - Fetch all record types
+  const performDNSLookup = useCallback(async (domain: string) => {
     setLoading(true)
     setError(null)
 
@@ -261,23 +260,34 @@ export default function Network() {
         'CNAME': 5
       }
 
-      const response = await fetch(
-        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${typeMap[type]}`,
-        {
-          headers: {
-            'Accept': 'application/dns-json'
+      // Fetch all DNS record types in parallel
+      const promises = Object.entries(typeMap).map(async ([typeName, typeNum]) => {
+        try {
+          const response = await fetch(
+            `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${typeNum}`,
+            {
+              headers: {
+                'Accept': 'application/dns-json'
+              }
+            }
+          )
+
+          if (!response.ok) {
+            return []
           }
+
+          const data = await response.json()
+          return data.Answer || []
+        } catch {
+          return []
         }
-      )
+      })
 
-      if (!response.ok) {
-        throw new Error(`DNS lookup failed: ${response.statusText}`)
-      }
+      const results = await Promise.all(promises)
+      const allRecords = results.flat()
 
-      const data = await response.json()
-
-      if (data.Answer && data.Answer.length > 0) {
-        setDnsRecords(data.Answer)
+      if (allRecords.length > 0) {
+        setDnsRecords(allRecords)
       } else {
         setDnsRecords([])
         setError('No DNS records found')
@@ -296,7 +306,7 @@ export default function Network() {
     setError(null)
 
     try {
-      const response = await fetch(`http://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
+      const response = await fetch(`https://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
 
       if (!response.ok) {
         throw new Error(`WHOIS lookup failed: ${response.statusText}`)
@@ -323,7 +333,7 @@ export default function Network() {
     setError(null)
 
     try {
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
+      const response = await fetch(`https://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
 
       if (!response.ok) {
         throw new Error(`Geolocation lookup failed: ${response.statusText}`)
@@ -700,7 +710,7 @@ export default function Network() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Server className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">DNS Lookup (Real DNS-over-HTTPS)</h2>
+                <h2 className="text-2xl font-bold">DNS Lookup</h2>
               </div>
 
               <div className="flex gap-2">
@@ -708,28 +718,16 @@ export default function Network() {
                   placeholder="Enter domain name (e.g., example.com)"
                   value={dnsInput}
                   onChange={(e) => setDnsInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performDNSLookup(dnsInput, dnsType)}
+                  onKeyDown={(e) => e.key === 'Enter' && performDNSLookup(dnsInput)}
                   className="flex-1"
                 />
-                <select
-                  value={dnsType}
-                  onChange={(e) => setDnsType(e.target.value as any)}
-                  className="px-3 py-2 bg-background border border-border rounded-md"
-                >
-                  <option value="A">A</option>
-                  <option value="AAAA">AAAA</option>
-                  <option value="MX">MX</option>
-                  <option value="TXT">TXT</option>
-                  <option value="NS">NS</option>
-                  <option value="CNAME">CNAME</option>
-                </select>
-                <Button onClick={() => performDNSLookup(dnsInput, dnsType)} disabled={loading}>
+                <Button onClick={() => performDNSLookup(dnsInput)} disabled={loading}>
                   {loading ? (
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Search className="w-4 h-4 mr-2" />
                   )}
-                  Lookup
+                  Lookup All
                 </Button>
               </div>
 
@@ -1056,8 +1054,11 @@ export default function Network() {
                 </Button>
               </div>
 
-              <div className="text-xs text-muted-foreground">
-                Note: Only works with CORS-enabled websites
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-2">
+                <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-500">
+                  <strong>Browser Limitation:</strong> HTTP Headers inspection only works with CORS-enabled websites. Most sites block cross-origin requests for security. If you get a CORS error, the target website doesn't allow this type of inspection from browsers.
+                </div>
               </div>
 
               {error && (
