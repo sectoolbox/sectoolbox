@@ -26,7 +26,7 @@ import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-type TabType = 'ip' | 'subnet' | 'dns' | 'whois' | 'geo' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
+type TabType = 'subnet' | 'dns' | 'whois' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
 
 interface SubnetInfo {
   network: string
@@ -172,7 +172,7 @@ interface CertRecord {
 }
 
 export default function Network() {
-  const [activeTab, setActiveTab] = useState<TabType>('ip')
+  const [activeTab, setActiveTab] = useState<TabType>('subnet')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -397,11 +397,15 @@ export default function Network() {
     }
   }, [])
 
-  // WHOIS Lookup (Real API)
+  // WHOIS Lookup - Temporarily disabled due to rate limiting
+  // WHOIS API temporarily disabled due to rate limiting. Use IPInfo tab for IP information.
   const performWhoisLookup = useCallback(async (target: string) => {
     setLoading(true)
-    setError(null)
+    setError('WHOIS API temporarily disabled due to rate limiting. Use IPInfo tab for IP information.')
+    setWhoisInfo(null)
+    setLoading(false)
 
+    /* Original implementation - commented out due to API rate limiting
     try {
       const response = await fetch(`https://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
 
@@ -422,6 +426,7 @@ export default function Network() {
     } finally {
       setLoading(false)
     }
+    */
   }, [])
 
   // IP Geolocation (Real API)
@@ -701,10 +706,6 @@ export default function Network() {
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="space-y-6">
         <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 h-auto">
-          <TabsTrigger value="ip" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            IP Analysis
-          </TabsTrigger>
           <TabsTrigger value="subnet" className="flex items-center gap-2">
             <Layers className="w-4 h-4" />
             Subnet Calc
@@ -716,10 +717,6 @@ export default function Network() {
           <TabsTrigger value="whois" className="flex items-center gap-2">
             <Search className="w-4 h-4" />
             WHOIS
-          </TabsTrigger>
-          <TabsTrigger value="geo" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Geolocation
           </TabsTrigger>
           <TabsTrigger value="headers" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
@@ -746,124 +743,6 @@ export default function Network() {
             Certificates
           </TabsTrigger>
         </TabsList>
-
-        {/* IP Analysis Tab */}
-        <TabsContent value="ip" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Globe className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">IP Address Analysis</h2>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter IP address (e.g., 192.168.1.1)"
-                  value={ipInput}
-                  onChange={(e) => setIpInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && analyzeIP(ipInput)}
-                  className="flex-1"
-                />
-                <Button onClick={() => analyzeIP(ipInput)}>
-                  <Search className="w-4 h-4 mr-2" />
-                  Analyze
-                </Button>
-              </div>
-
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500">{error}</span>
-                </div>
-              )}
-
-              {ipInfo && (
-                <div className="space-y-4 mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="p-4 space-y-2">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Info className="w-4 h-4 text-accent" />
-                        Basic Information
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">IP Address:</span>
-                          <span className="font-mono">{ipInfo.ip}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Version:</span>
-                          <span>IPv{ipInfo.version}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Private:</span>
-                          <span className="flex items-center gap-1">
-                            {ipInfo.isPrivate ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
-                            {ipInfo.isPrivate ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Loopback:</span>
-                          <span className="flex items-center gap-1">
-                            {ipInfo.isLoopback ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
-                            {ipInfo.isLoopback ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Multicast:</span>
-                          <span className="flex items-center gap-1">
-                            {ipInfo.isMulticast ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
-                            {ipInfo.isMulticast ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-
-                    <Card className="p-4 space-y-2">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Info className="w-4 h-4 text-accent" />
-                        Representations
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Binary:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs">{ipInfo.binary}</span>
-                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ipInfo.binary)}>
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Decimal:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{ipInfo.decimal}</span>
-                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ipInfo.decimal)}>
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Hexadecimal:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{ipInfo.hex}</span>
-                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ipInfo.hex)}>
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-
-                  <Button variant="outline" onClick={() => exportData(ipInfo, 'ip-analysis.json')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Results
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
 
         {/* Subnet Calculator Tab */}
         <TabsContent value="subnet" className="space-y-4">
@@ -1153,141 +1032,6 @@ export default function Network() {
                   </Card>
 
                   <Button variant="outline" onClick={() => exportData(whoisInfo, 'whois-info.json')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Results
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Geolocation Tab */}
-        <TabsContent value="geo" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">IP Geolocation</h2>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter IP address (e.g., 8.8.8.8)"
-                  value={geoInput}
-                  onChange={(e) => setGeoInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performGeolocation(geoInput)}
-                  className="flex-1"
-                />
-                <Button onClick={() => performGeolocation(geoInput)} disabled={loading}>
-                  {loading ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4 mr-2" />
-                  )}
-                  Locate
-                </Button>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Using ip-api.com for real geolocation data
-              </div>
-
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500">{error}</span>
-                </div>
-              )}
-
-              {geoInfo && (
-                <div className="space-y-4 mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="p-4 space-y-2">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-accent" />
-                        Location Information
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">IP Address:</span>
-                          <span className="font-mono">{geoInfo.ip}</span>
-                        </div>
-                        {geoInfo.country && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Country:</span>
-                            <span>{geoInfo.country} ({geoInfo.country_code})</span>
-                          </div>
-                        )}
-                        {geoInfo.region && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Region:</span>
-                            <span>{geoInfo.region}</span>
-                          </div>
-                        )}
-                        {geoInfo.city && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">City:</span>
-                            <span>{geoInfo.city}</span>
-                          </div>
-                        )}
-                        {geoInfo.timezone && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Timezone:</span>
-                            <span>{geoInfo.timezone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-
-                    <Card className="p-4 space-y-2">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-accent" />
-                        Network Information
-                      </h3>
-                      <div className="space-y-1 text-sm">
-                        {geoInfo.latitude && geoInfo.longitude && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Coordinates:</span>
-                            <span className="font-mono text-xs">{geoInfo.latitude}, {geoInfo.longitude}</span>
-                          </div>
-                        )}
-                        {geoInfo.isp && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">ISP:</span>
-                            <span>{geoInfo.isp}</span>
-                          </div>
-                        )}
-                        {geoInfo.org && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Organization:</span>
-                            <span>{geoInfo.org}</span>
-                          </div>
-                        )}
-                        {geoInfo.as && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">AS Number:</span>
-                            <span className="font-mono">{geoInfo.as}</span>
-                          </div>
-                        )}
-                        {geoInfo.latitude && geoInfo.longitude && (
-                          <div className="pt-2">
-                            <a
-                              href={`https://www.google.com/maps?q=${geoInfo.latitude},${geoInfo.longitude}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-accent hover:underline text-sm flex items-center gap-1"
-                            >
-                              View on Google Maps
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  </div>
-
-                  <Button variant="outline" onClick={() => exportData(geoInfo, 'geolocation.json')}>
                     <Download className="w-4 h-4 mr-2" />
                     Export Results
                   </Button>
