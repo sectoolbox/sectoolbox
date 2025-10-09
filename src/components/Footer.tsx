@@ -11,6 +11,23 @@ const Footer: React.FC = () => {
     { name: 'Kimmi', img: '/kimmi.png', href: kimmiGithub, alt: 'Kimmi — frontend engineer' }
   ]
 
+  const communityLinks = [
+    {
+      name: 'Discord',
+      icon: MessageSquare,
+      href: 'https://discord.gg/SvvKKMzE5Q',
+      alt: 'Join our Discord community',
+      color: 'indigo'
+    },
+    {
+      name: 'Report Issue',
+      icon: Bug,
+      href: 'https://github.com/sectoolbox/sectoolbox/issues/new',
+      alt: 'Report an issue on GitHub',
+      color: 'slate'
+    }
+  ]
+
   return (
     <footer className="bg-slate-900 border-t border-slate-700 py-8 mt-auto" role="contentinfo">
       <div className="container mx-auto px-4">
@@ -18,7 +35,7 @@ const Footer: React.FC = () => {
           <h3 className="text-lg font-semibold text-slate-200 mb-4">
             Developers
           </h3>
-          <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0" aria-label="Project developers">
+          <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0 mb-8" aria-label="Project developers">
             {developers.map((dev) => (
               <li key={dev.name}>
                 <a
@@ -48,28 +65,44 @@ const Footer: React.FC = () => {
           </ul>
 
           {/* Community & Support Links */}
-          <div className="mt-6 flex flex-wrap justify-center items-center gap-4">
-            <a
-              href="https://discord.gg/SvvKKMzE5Q"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors duration-200 text-sm font-medium"
-              aria-label="Join our Discord community"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Join Discord
-            </a>
-            <a
-              href="https://github.com/sectoolbox/sectoolbox/issues/new"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition-colors duration-200 text-sm font-medium"
-              aria-label="Report an issue on GitHub"
-            >
-              <Bug className="w-4 h-4" />
-              Report Issue
-            </a>
-          </div>
+          <h3 className="text-lg font-semibold text-slate-200 mb-4">
+            Community
+          </h3>
+          <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0" aria-label="Community links">
+            {communityLinks.map((link) => {
+              const Icon = link.icon
+              return (
+                <li key={link.name}>
+                  <a
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center group focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
+                    aria-label={link.alt}
+                  >
+                    <div className={`
+                      w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all duration-200
+                      ${link.color === 'indigo'
+                        ? 'border-indigo-600 bg-indigo-600/10 group-hover:border-indigo-400 group-hover:bg-indigo-600/20'
+                        : 'border-slate-600 bg-slate-600/10 group-hover:border-slate-400 group-hover:bg-slate-600/20'
+                      }
+                    `}>
+                      <Icon className={`
+                        w-8 h-8 transition-colors duration-200
+                        ${link.color === 'indigo'
+                          ? 'text-indigo-400 group-hover:text-indigo-300'
+                          : 'text-slate-400 group-hover:text-slate-300'
+                        }
+                      `} />
+                    </div>
+                    <span className="text-sm text-slate-300 mt-2 group-hover:text-blue-400 transition-colors duration-200">
+                      {link.name}
+                    </span>
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
 
           <div className="mt-6 text-xs text-slate-400">
             © 2025 {projectName}. All rights reserved.
