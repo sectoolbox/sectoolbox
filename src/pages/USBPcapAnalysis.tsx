@@ -103,9 +103,18 @@ const USBPcapAnalysis: React.FC = () => {
       </div>
 
       {/* File Upload */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {!file ? (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload USB PCAP File</h2>
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">
+              Drop your USB PCAP file here or click to browse
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Supports .pcap, .pcapng, .cap files
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -113,26 +122,34 @@ const USBPcapAnalysis: React.FC = () => {
               onChange={handleFileSelect}
               className="hidden"
             />
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-2" />
-              {file ? 'Change File' : 'Upload USB PCAP'}
-            </Button>
-            {file && (
-              <div className="text-sm">
-                <div className="font-medium">{file.name}</div>
-                <div className="text-muted-foreground">
-                  {(file.size / 1024).toFixed(2)} KB
-                </div>
-              </div>
-            )}
           </div>
-          {result && (
-            <div className="text-sm text-muted-foreground">
-              {result.statistics.totalPackets} packets • {result.statistics.totalKeystrokes} keystrokes • {result.statistics.totalDevices} devices
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Keyboard className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(file.size / 1024).toFixed(2)} KB
+                  {result && ` • ${result.statistics.totalPackets} packets • ${result.statistics.totalKeystrokes} keystrokes`}
+                </p>
+              </div>
             </div>
-          )}
-        </div>
-      </Card>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setFile(null)
+                setResult(null)
+              }}
+            >
+              Remove File
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {isAnalyzing && (
         <Card className="p-8 text-center">

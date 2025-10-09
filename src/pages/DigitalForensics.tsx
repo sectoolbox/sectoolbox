@@ -15,7 +15,8 @@ import {
   Network,
   Layers,
   Binary,
-  FileWarning
+  FileWarning,
+  Bug
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -1088,6 +1089,14 @@ const DigitalForensics: React.FC = () => {
                   EVTX Analysis
                 </Button>
               )}
+              <Button
+                onClick={() => navigate('/malware', { state: { malwareFile: selectedFile } })}
+                variant="outline"
+                size="sm"
+              >
+                <Bug className="h-4 w-4 mr-2" />
+                Malware Analysis
+              </Button>
               <Button
                 onClick={() => handleAnalyze()}
                 disabled={isAnalyzing}
