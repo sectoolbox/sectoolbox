@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   Network as NetworkIcon,
   Globe,
@@ -194,6 +194,52 @@ export default function Network() {
   // Archive.org
   const [archiveInput, setArchiveInput] = useState('')
   const [archiveUrls, setArchiveUrls] = useState<ArchiveURL[]>([])
+  const [archiveFilter, setArchiveFilter] = useState('')
+  const [debouncedArchiveFilter, setDebouncedArchiveFilter] = useState('')
+  const [archiveCurrentPage, setArchiveCurrentPage] = useState(1)
+  const archiveResultsPerPage = 1000
+
+  // Debounce archiveFilter
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedArchiveFilter(archiveFilter)
+      setArchiveCurrentPage(1) // Reset to page 1 when filter changes
+    }, 500) // 500ms delay
+
+    return () => clearTimeout(handler)
+  }, [archiveFilter])
+
+  // Filter and paginate Archive URLs
+  const filteredArchiveUrls = useMemo(() => {
+    if (!debouncedArchiveFilter.trim()) return archiveUrls
+    return archiveUrls.filter(item =>
+      item.url.toLowerCase().includes(debouncedArchiveFilter.toLowerCase())
+    )
+  }, [archiveUrls, debouncedArchiveFilter])
+
+  const paginatedArchiveUrls = useMemo(() => {
+    const start = (archiveCurrentPage - 1) * archiveResultsPerPage
+    const end = start + archiveResultsPerPage
+    return filteredArchiveUrls.slice(start, end)
+  }, [filteredArchiveUrls, archiveCurrentPage, archiveResultsPerPage])
+
+  const totalArchivePages = Math.ceil(filteredArchiveUrls.length / archiveResultsPerPage)
+
+  // Extract unique paths from Archive URLs
+  const uniqueArchivePaths = useMemo(() => {
+    const paths = new Set<string>()
+    filteredArchiveUrls.forEach(item => {
+      try {
+        const url = new URL(item.url.startsWith('http') ? item.url : `http://${item.url}`)
+        if (url.pathname && url.pathname !== '/') {
+          paths.add(url.pathname)
+        }
+      } catch {
+        // Skip invalid URLs
+      }
+    })
+    return Array.from(paths).sort()
+  }, [filteredArchiveUrls])
 
   // IPInfo.io
   const [ipinfoInput, setIpinfoInput] = useState('')
@@ -424,39 +470,24 @@ export default function Network() {
     }
   }, [])
 
-  // HTTP Headers Inspection (Real CORS-permissive requests)
+  // HTTP Headers Inspection (via Vercel serverless function)
   const inspectHeaders = useCallback(async (url: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url
+      // Use Vercel serverless function to bypass CORS
+      const response = await fetch(`/api/headers?url=${encodeURIComponent(url)}`)
+
+      if (!response.ok) {
+        throw new Error(`Headers inspection failed: ${response.statusText}`)
       }
 
-      const startTime = Date.now()
-      const response = await fetch(url, {
-        method: 'HEAD',
-        mode: 'cors'
-      })
-      const endTime = Date.now()
+      const data = await response.json()
 
-      const headers: { [key: string]: string } = {}
-      response.headers.forEach((value, key) => {
-        headers[key] = value
-      })
-
-      setHeaderInfo({
-        url: response.url,
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-        timings: {
-          total: endTime - startTime
-        }
-      })
+      setHeaderInfo(data)
     } catch (err: any) {
-      setError('Unable to fetch headers. The target may not allow CORS requests or may be unreachable.')
+      setError(err.message || 'Headers inspection failed')
       setHeaderInfo(null)
     } finally {
       setLoading(false)
@@ -560,13 +591,14 @@ export default function Network() {
     }
   }, [])
 
-  // PassiveDNS Lookup (Mnemonic)
+  // PassiveDNS Lookup (via Vercel serverless function)
   const performPassiveDNSLookup = useCallback(async (domain: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`https://api.mnemonic.no/pdns/v3/${domain}`)
+      // Use Vercel serverless function to bypass CORS
+      const response = await fetch(`/api/passivedns?domain=${encodeURIComponent(domain)}`)
 
       if (!response.ok) {
         throw new Error(`PassiveDNS lookup failed: ${response.statusText}`)
@@ -912,13 +944,6 @@ export default function Network() {
                 </Button>
               </div>
 
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-blue-500">
-                  <strong>Browser Limitation:</strong> HTTP Headers inspection only works with CORS-enabled websites. Most sites block cross-origin requests for security. If you get a CORS error, the target website doesn't allow this type of inspection from browsers.
-                </div>
-              </div>
-
               {error && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -1154,19 +1179,38 @@ export default function Network() {
 
               {archiveUrls.length > 0 && (
                 <div className="space-y-4 mt-6">
+                  {/* Filter Input */}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Filter URLs... (will filter after 500ms delay)"
+                      value={archiveFilter}
+                      onChange={(e) => setArchiveFilter(e.target.value)}
+                      className="flex-1"
+                    />
+                    {archiveFilter && (
+                      <Button variant="ghost" size="sm" onClick={() => setArchiveFilter('')}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      Found {archiveUrls.length} archived URL(s)
+                      {filteredArchiveUrls.length === archiveUrls.length
+                        ? `Found ${archiveUrls.length} archived URL(s)`
+                        : `Showing ${filteredArchiveUrls.length} of ${archiveUrls.length} archived URL(s)`}
+                      {totalArchivePages > 1 && ` (Page ${archiveCurrentPage} of ${totalArchivePages})`}
                     </div>
                     <Button variant="outline" size="sm" onClick={() => exportData(archiveUrls, 'archive-urls.json')}>
                       <Download className="w-4 h-4 mr-2" />
-                      Export
+                      Export All
                     </Button>
                   </div>
 
+                  {/* URLs List */}
                   <Card className="p-4">
                     <div className="space-y-1 text-sm max-h-96 overflow-y-auto">
-                      {archiveUrls.map((item, idx) => (
+                      {paginatedArchiveUrls.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center border-b border-border/50 py-2 hover:bg-accent/5">
                           <a
                             href={`https://web.archive.org/web/${item.timestamp}/${item.url}`}
@@ -1183,6 +1227,67 @@ export default function Network() {
                       ))}
                     </div>
                   </Card>
+
+                  {/* Pagination Controls */}
+                  {totalArchivePages > 1 && (
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchiveCurrentPage(1)}
+                        disabled={archiveCurrentPage === 1}
+                      >
+                        First
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchiveCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={archiveCurrentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground px-4">
+                        Page {archiveCurrentPage} of {totalArchivePages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchiveCurrentPage(prev => Math.min(totalArchivePages, prev + 1))}
+                        disabled={archiveCurrentPage === totalArchivePages}
+                      >
+                        Next
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchiveCurrentPage(totalArchivePages)}
+                        disabled={archiveCurrentPage === totalArchivePages}
+                      >
+                        Last
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Unique Paths Section */}
+                  {uniqueArchivePaths.length > 0 && (
+                    <Card className="p-4">
+                      <h3 className="font-semibold flex items-center gap-2 mb-3">
+                        <Layers className="w-4 h-4 text-accent" />
+                        Unique Paths Found ({uniqueArchivePaths.length})
+                      </h3>
+                      <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
+                        {uniqueArchivePaths.map((path, idx) => (
+                          <div key={idx} className="flex justify-between items-center border-b border-border/50 py-1 hover:bg-accent/5">
+                            <span className="font-mono text-xs flex-1 truncate">{path}</span>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(path)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
