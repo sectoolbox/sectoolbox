@@ -1,38 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   Network as NetworkIcon,
-  Wifi,
-  Server,
   Globe,
-  Activity,
-  Shield,
-  Zap,
+  Server,
   Search,
-  Terminal,
   Copy,
   Download,
   RefreshCw,
-  AlertTriangle,
   CheckCircle,
   XCircle,
   Info,
   Layers,
-  Radio,
-  Lock,
-  Unlock,
-  Eye,
-  Clock,
-  TrendingUp,
   MapPin,
-  Database,
-  Hash
+  Shield,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-type TabType = 'ip' | 'subnet' | 'ports' | 'dns' | 'trace' | 'mac' | 'packets' | 'protocols'
+type TabType = 'ip' | 'subnet' | 'dns' | 'whois' | 'geo' | 'headers'
 
 interface SubnetInfo {
   network: string
@@ -45,6 +34,7 @@ interface SubnetInfo {
   binarySubnet: string
   ipClass: string
   privateAddress: boolean
+  subnetMask: string
 }
 
 interface IPInfo {
@@ -58,85 +48,89 @@ interface IPInfo {
   decimal: string
   hex: string
   reverseDNS?: string
-  geolocation?: {
-    country?: string
-    region?: string
-    city?: string
-    lat?: number
-    lon?: number
-  }
-}
-
-interface PortInfo {
-  port: number
-  protocol: string
-  service: string
-  description: string
-  status: 'open' | 'closed' | 'filtered'
-  risk: 'low' | 'medium' | 'high'
 }
 
 interface DNSRecord {
-  type: string
-  value: string
-  ttl?: number
+  name: string
+  type: number
+  TTL: number
+  data: string
 }
 
-interface PacketInfo {
-  timestamp: string
-  protocol: string
-  source: string
-  destination: string
-  length: number
-  info: string
-  flags?: string[]
+interface WhoisInfo {
+  ip?: string
+  domain?: string
+  country?: string
+  org?: string
+  isp?: string
+  asn?: string
+  [key: string]: any
+}
+
+interface GeoInfo {
+  ip: string
+  city?: string
+  region?: string
+  country?: string
+  country_code?: string
+  continent?: string
+  latitude?: number
+  longitude?: number
+  timezone?: string
+  isp?: string
+  org?: string
+  as?: string
+  asn?: string
+}
+
+interface HeaderInfo {
+  url: string
+  status: number
+  statusText: string
+  headers: { [key: string]: string }
+  redirects?: string[]
+  timings?: {
+    total: number
+  }
 }
 
 export default function Network() {
   const [activeTab, setActiveTab] = useState<TabType>('ip')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // IP Analysis
   const [ipInput, setIpInput] = useState('')
   const [ipInfo, setIpInfo] = useState<IPInfo | null>(null)
+
+  // Subnet Calculator
   const [subnetInput, setSubnetInput] = useState('')
   const [subnetInfo, setSubnetInfo] = useState<SubnetInfo | null>(null)
-  const [portScanTarget, setPortScanTarget] = useState('')
-  const [portResults, setPortResults] = useState<PortInfo[]>([])
-  const [isScanning, setIsScanning] = useState(false)
+
+  // DNS Lookup
   const [dnsInput, setDnsInput] = useState('')
   const [dnsRecords, setDnsRecords] = useState<DNSRecord[]>([])
-  const [traceInput, setTraceInput] = useState('')
-  const [traceHops, setTraceHops] = useState<any[]>([])
-  const [macInput, setMacInput] = useState('')
-  const [macInfo, setMacInfo] = useState<any>(null)
-  const [packets, setPackets] = useState<PacketInfo[]>([])
-  const [protocolStats, setProtocolStats] = useState<any>(null)
+  const [dnsType, setDnsType] = useState<'A' | 'AAAA' | 'MX' | 'TXT' | 'NS' | 'CNAME'>('A')
 
-  // Common port database
-  const commonPorts: { [key: number]: { service: string, description: string, risk: 'low' | 'medium' | 'high' } } = {
-    21: { service: 'FTP', description: 'File Transfer Protocol', risk: 'high' },
-    22: { service: 'SSH', description: 'Secure Shell', risk: 'medium' },
-    23: { service: 'Telnet', description: 'Telnet (unencrypted)', risk: 'high' },
-    25: { service: 'SMTP', description: 'Simple Mail Transfer Protocol', risk: 'medium' },
-    53: { service: 'DNS', description: 'Domain Name System', risk: 'low' },
-    80: { service: 'HTTP', description: 'Hypertext Transfer Protocol', risk: 'low' },
-    110: { service: 'POP3', description: 'Post Office Protocol v3', risk: 'medium' },
-    143: { service: 'IMAP', description: 'Internet Message Access Protocol', risk: 'medium' },
-    443: { service: 'HTTPS', description: 'HTTP over TLS/SSL', risk: 'low' },
-    445: { service: 'SMB', description: 'Server Message Block', risk: 'high' },
-    3306: { service: 'MySQL', description: 'MySQL Database', risk: 'high' },
-    3389: { service: 'RDP', description: 'Remote Desktop Protocol', risk: 'high' },
-    5432: { service: 'PostgreSQL', description: 'PostgreSQL Database', risk: 'high' },
-    5900: { service: 'VNC', description: 'Virtual Network Computing', risk: 'high' },
-    6379: { service: 'Redis', description: 'Redis Database', risk: 'high' },
-    8080: { service: 'HTTP-ALT', description: 'Alternative HTTP port', risk: 'low' },
-    27017: { service: 'MongoDB', description: 'MongoDB Database', risk: 'high' }
-  }
+  // WHOIS Lookup
+  const [whoisInput, setWhoisInput] = useState('')
+  const [whoisInfo, setWhoisInfo] = useState<WhoisInfo | null>(null)
 
-  // IP Address Analysis
+  // Geolocation
+  const [geoInput, setGeoInput] = useState('')
+  const [geoInfo, setGeoInfo] = useState<GeoInfo | null>(null)
+
+  // Headers
+  const [headerInput, setHeaderInput] = useState('')
+  const [headerInfo, setHeaderInfo] = useState<HeaderInfo | null>(null)
+
+  // IP Address Analysis (Pure JavaScript - No API needed)
   const analyzeIP = useCallback((ip: string) => {
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
     const match = ip.match(ipv4Regex)
 
     if (!match) {
+      setError('Invalid IPv4 address format')
       setIpInfo(null)
       return
     }
@@ -144,6 +138,7 @@ export default function Network() {
     const octets = match.slice(1, 5).map(Number)
 
     if (octets.some(o => o > 255)) {
+      setError('Invalid IPv4 address - octets must be 0-255')
       setIpInfo(null)
       return
     }
@@ -173,20 +168,30 @@ export default function Network() {
       decimal,
       hex
     })
+    setError(null)
   }, [])
 
-  // Subnet Calculator
+  // Subnet Calculator (Pure JavaScript - No API needed)
   const calculateSubnet = useCallback((cidr: string) => {
     const parts = cidr.split('/')
-    if (parts.length !== 2) return
+    if (parts.length !== 2) {
+      setError('Invalid CIDR format. Use IP/prefix (e.g., 192.168.1.0/24)')
+      return
+    }
 
     const ip = parts[0]
     const prefix = parseInt(parts[1])
 
-    if (prefix < 0 || prefix > 32) return
+    if (prefix < 0 || prefix > 32) {
+      setError('Invalid prefix length. Must be 0-32')
+      return
+    }
 
     const ipParts = ip.split('.').map(Number)
-    if (ipParts.length !== 4 || ipParts.some(p => p > 255)) return
+    if (ipParts.length !== 4 || ipParts.some(p => p > 255)) {
+      setError('Invalid IP address in CIDR notation')
+      return
+    }
 
     // Calculate subnet mask
     const mask = []
@@ -233,136 +238,162 @@ export default function Network() {
       totalHosts,
       usableHosts,
       wildcardMask: wildcard.join('.'),
+      subnetMask: mask.join('.'),
       binarySubnet: mask.map(m => m.toString(2).padStart(8, '0')).join('.'),
       ipClass,
       privateAddress
     })
+    setError(null)
   }, [])
 
-  // Port Scanner (Simulated)
-  const simulatePortScan = useCallback(async (target: string) => {
-    setIsScanning(true)
-    setPortResults([])
+  // DNS Lookup (Real DNS-over-HTTPS)
+  const performDNSLookup = useCallback(async (domain: string, type: string) => {
+    setLoading(true)
+    setError(null)
 
-    // Simulate scanning common ports
-    const portsToScan = [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 3306, 3389, 5432, 5900, 6379, 8080, 27017]
-    const results: PortInfo[] = []
+    try {
+      const typeMap: { [key: string]: number } = {
+        'A': 1,
+        'AAAA': 28,
+        'MX': 15,
+        'TXT': 16,
+        'NS': 2,
+        'CNAME': 5
+      }
 
-    for (const port of portsToScan) {
-      // Simulate random port states
-      const rand = Math.random()
-      let status: 'open' | 'closed' | 'filtered' = 'closed'
+      const response = await fetch(
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${typeMap[type]}`,
+        {
+          headers: {
+            'Accept': 'application/dns-json'
+          }
+        }
+      )
 
-      if (rand > 0.7) status = 'open'
-      else if (rand > 0.5) status = 'filtered'
+      if (!response.ok) {
+        throw new Error(`DNS lookup failed: ${response.statusText}`)
+      }
 
-      const portData = commonPorts[port] || { service: 'Unknown', description: 'Unknown service', risk: 'low' }
+      const data = await response.json()
 
-      results.push({
-        port,
-        protocol: 'TCP',
-        service: portData.service,
-        description: portData.description,
-        status,
-        risk: portData.risk
+      if (data.Answer && data.Answer.length > 0) {
+        setDnsRecords(data.Answer)
+      } else {
+        setDnsRecords([])
+        setError('No DNS records found')
+      }
+    } catch (err: any) {
+      setError(err.message || 'DNS lookup failed')
+      setDnsRecords([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // WHOIS Lookup (Real API)
+  const performWhoisLookup = useCallback(async (target: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`http://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
+
+      if (!response.ok) {
+        throw new Error(`WHOIS lookup failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.status === 'fail') {
+        throw new Error(data.message || 'WHOIS lookup failed')
+      }
+
+      setWhoisInfo(data)
+    } catch (err: any) {
+      setError(err.message || 'WHOIS lookup failed')
+      setWhoisInfo(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // IP Geolocation (Real API)
+  const performGeolocation = useCallback(async (ip: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query`)
+
+      if (!response.ok) {
+        throw new Error(`Geolocation lookup failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.status === 'fail') {
+        throw new Error(data.message || 'Geolocation lookup failed')
+      }
+
+      setGeoInfo({
+        ip: data.query,
+        city: data.city,
+        region: data.regionName,
+        country: data.country,
+        country_code: data.countryCode,
+        latitude: data.lat,
+        longitude: data.lon,
+        timezone: data.timezone,
+        isp: data.isp,
+        org: data.org,
+        as: data.as,
+        asn: data.asname
+      })
+    } catch (err: any) {
+      setError(err.message || 'Geolocation lookup failed')
+      setGeoInfo(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // HTTP Headers Inspection (Real CORS-permissive requests)
+  const inspectHeaders = useCallback(async (url: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url
+      }
+
+      const startTime = Date.now()
+      const response = await fetch(url, {
+        method: 'HEAD',
+        mode: 'cors'
+      })
+      const endTime = Date.now()
+
+      const headers: { [key: string]: string } = {}
+      response.headers.forEach((value, key) => {
+        headers[key] = value
       })
 
-      // Update results progressively
-      await new Promise(resolve => setTimeout(resolve, 100))
-      setPortResults([...results])
-    }
-
-    setIsScanning(false)
-  }, [])
-
-  // DNS Lookup (Simulated)
-  const performDNSLookup = useCallback((domain: string) => {
-    // Simulate DNS records
-    const records: DNSRecord[] = [
-      { type: 'A', value: '93.184.216.34', ttl: 3600 },
-      { type: 'AAAA', value: '2606:2800:220:1:248:1893:25c8:1946', ttl: 3600 },
-      { type: 'MX', value: 'mail.example.com', ttl: 3600 },
-      { type: 'NS', value: 'ns1.example.com', ttl: 86400 },
-      { type: 'NS', value: 'ns2.example.com', ttl: 86400 },
-      { type: 'TXT', value: 'v=spf1 include:_spf.example.com ~all', ttl: 3600 },
-      { type: 'CNAME', value: 'www.example.com', ttl: 3600 }
-    ]
-
-    setDnsRecords(records)
-  }, [])
-
-  // Traceroute (Simulated)
-  const performTraceroute = useCallback((target: string) => {
-    // Simulate traceroute hops
-    const hops = []
-    for (let i = 1; i <= 12; i++) {
-      hops.push({
-        hop: i,
-        ip: `192.168.${i}.${Math.floor(Math.random() * 254 + 1)}`,
-        hostname: i === 12 ? target : `hop${i}.router.example.net`,
-        rtt1: Math.floor(Math.random() * 50 + 10),
-        rtt2: Math.floor(Math.random() * 50 + 10),
-        rtt3: Math.floor(Math.random() * 50 + 10),
-        location: `Node ${i}`
+      setHeaderInfo({
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+        timings: {
+          total: endTime - startTime
+        }
       })
+    } catch (err: any) {
+      setError('Unable to fetch headers. The target may not allow CORS requests or may be unreachable.')
+      setHeaderInfo(null)
+    } finally {
+      setLoading(false)
     }
-    setTraceHops(hops)
-  }, [])
-
-  // MAC Address Lookup
-  const lookupMAC = useCallback((mac: string) => {
-    // Common OUI database (partial)
-    const ouiDatabase: { [key: string]: string } = {
-      '00:1A:A0': 'Dell Inc.',
-      '00:50:56': 'VMware, Inc.',
-      '08:00:27': 'Oracle VirtualBox',
-      '00:0C:29': 'VMware, Inc.',
-      '00:1B:63': 'Apple, Inc.',
-      '00:23:32': 'Cisco Systems',
-      '00:24:D7': 'Intel Corporation',
-      '00:0D:3A': 'Microsoft Corporation',
-      '00:15:5D': 'Microsoft Corporation',
-      '52:54:00': 'QEMU Virtual NIC'
-    }
-
-    const oui = mac.substring(0, 8).toUpperCase()
-    const vendor = ouiDatabase[oui] || 'Unknown Vendor'
-
-    setMacInfo({
-      mac: mac.toUpperCase(),
-      oui,
-      vendor,
-      isLocal: parseInt(mac[1], 16) % 2 === 1,
-      isUnicast: parseInt(mac[1], 16) % 2 === 0
-    })
-  }, [])
-
-  // Generate sample packets
-  const generateSamplePackets = useCallback(() => {
-    const protocols = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS', 'DNS', 'SSH', 'FTP']
-    const samplePackets: PacketInfo[] = []
-
-    for (let i = 0; i < 50; i++) {
-      const protocol = protocols[Math.floor(Math.random() * protocols.length)]
-      samplePackets.push({
-        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-        protocol,
-        source: `192.168.1.${Math.floor(Math.random() * 254 + 1)}:${Math.floor(Math.random() * 65535)}`,
-        destination: `10.0.0.${Math.floor(Math.random() * 254 + 1)}:${Math.floor(Math.random() * 65535)}`,
-        length: Math.floor(Math.random() * 1500 + 64),
-        info: `${protocol} packet`,
-        flags: protocol === 'TCP' ? ['SYN', 'ACK'].filter(() => Math.random() > 0.5) : undefined
-      })
-    }
-
-    setPackets(samplePackets)
-
-    // Calculate protocol statistics
-    const stats: any = {}
-    protocols.forEach(p => {
-      stats[p] = samplePackets.filter(pkt => pkt.protocol === p).length
-    })
-    setProtocolStats(stats)
   }, [])
 
   const copyToClipboard = (text: string) => {
@@ -380,6 +411,18 @@ export default function Network() {
     URL.revokeObjectURL(url)
   }
 
+  const getDNSTypeName = (type: number): string => {
+    const types: { [key: number]: string } = {
+      1: 'A',
+      2: 'NS',
+      5: 'CNAME',
+      15: 'MX',
+      16: 'TXT',
+      28: 'AAAA'
+    }
+    return types[type] || `TYPE${type}`
+  }
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Header */}
@@ -391,13 +434,13 @@ export default function Network() {
           </h1>
         </div>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Comprehensive networking tools for CTF competitions and security research
+          Real networking tools for CTF competitions and security research
         </p>
       </div>
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="space-y-6">
-        <TabsList className="grid grid-cols-4 lg:grid-cols-8 gap-2">
+        <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
           <TabsTrigger value="ip" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
             IP Analysis
@@ -406,29 +449,21 @@ export default function Network() {
             <Layers className="w-4 h-4" />
             Subnet Calc
           </TabsTrigger>
-          <TabsTrigger value="ports" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            Port Scanner
-          </TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-2">
             <Server className="w-4 h-4" />
             DNS Lookup
           </TabsTrigger>
-          <TabsTrigger value="trace" className="flex items-center gap-2">
+          <TabsTrigger value="whois" className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            WHOIS
+          </TabsTrigger>
+          <TabsTrigger value="geo" className="flex items-center gap-2">
             <MapPin className="w-4 h-4" />
-            Traceroute
+            Geolocation
           </TabsTrigger>
-          <TabsTrigger value="mac" className="flex items-center gap-2">
-            <Hash className="w-4 h-4" />
-            MAC Lookup
-          </TabsTrigger>
-          <TabsTrigger value="packets" className="flex items-center gap-2">
-            <Database className="w-4 h-4" />
-            Packets
-          </TabsTrigger>
-          <TabsTrigger value="protocols" className="flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            Protocols
+          <TabsTrigger value="headers" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Headers
           </TabsTrigger>
         </TabsList>
 
@@ -454,6 +489,13 @@ export default function Network() {
                   Analyze
                 </Button>
               </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
 
               {ipInfo && (
                 <div className="space-y-4 mt-6">
@@ -486,12 +528,19 @@ export default function Network() {
                             {ipInfo.isLoopback ? 'Yes' : 'No'}
                           </span>
                         </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Multicast:</span>
+                          <span className="flex items-center gap-1">
+                            {ipInfo.isMulticast ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                            {ipInfo.isMulticast ? 'Yes' : 'No'}
+                          </span>
+                        </div>
                       </div>
                     </Card>
 
                     <Card className="p-4 space-y-2">
                       <h3 className="font-semibold flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-accent" />
+                        <Info className="w-4 h-4 text-accent" />
                         Representations
                       </h3>
                       <div className="space-y-1 text-sm">
@@ -526,12 +575,10 @@ export default function Network() {
                     </Card>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => exportData(ipInfo, 'ip-analysis.json')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Results
-                    </Button>
-                  </div>
+                  <Button variant="outline" onClick={() => exportData(ipInfo, 'ip-analysis.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
                 </div>
               )}
             </div>
@@ -561,6 +608,13 @@ export default function Network() {
                 </Button>
               </div>
 
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
               {subnetInfo && (
                 <div className="space-y-4 mt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -573,6 +627,10 @@ export default function Network() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Network Address:</span>
                           <span className="font-mono">{subnetInfo.network}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subnet Mask:</span>
+                          <span className="font-mono">{subnetInfo.subnetMask}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Broadcast Address:</span>
@@ -636,113 +694,13 @@ export default function Network() {
           </Card>
         </TabsContent>
 
-        {/* Port Scanner Tab */}
-        <TabsContent value="ports" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">Port Scanner (Simulated)</h2>
-              </div>
-
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-semibold text-amber-500 mb-1">Educational Tool</p>
-                  <p className="text-muted-foreground">
-                    This is a simulated port scanner for CTF training. Results are randomly generated and do not reflect actual network states.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter target (e.g., 192.168.1.1 or example.com)"
-                  value={portScanTarget}
-                  onChange={(e) => setPortScanTarget(e.target.value)}
-                  disabled={isScanning}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={() => simulatePortScan(portScanTarget)}
-                  disabled={isScanning || !portScanTarget}
-                >
-                  {isScanning ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Scanning...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Scan
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {portResults.length > 0 && (
-                <div className="space-y-4 mt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      Found {portResults.filter(p => p.status === 'open').length} open ports out of {portResults.length} scanned
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => exportData(portResults, 'port-scan.json')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
-                    {portResults.map((port, idx) => (
-                      <Card key={idx} className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${
-                              port.status === 'open' ? 'bg-green-500' :
-                              port.status === 'filtered' ? 'bg-yellow-500' :
-                              'bg-gray-500'
-                            }`} />
-                            <div>
-                              <div className="font-semibold">
-                                Port {port.port}/{port.protocol} - {port.service}
-                              </div>
-                              <div className="text-sm text-muted-foreground">{port.description}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              port.status === 'open' ? 'bg-green-500/20 text-green-500' :
-                              port.status === 'filtered' ? 'bg-yellow-500/20 text-yellow-500' :
-                              'bg-gray-500/20 text-gray-500'
-                            }`}>
-                              {port.status.toUpperCase()}
-                            </span>
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              port.risk === 'high' ? 'bg-red-500/20 text-red-500' :
-                              port.risk === 'medium' ? 'bg-amber-500/20 text-amber-500' :
-                              'bg-blue-500/20 text-blue-500'
-                            }`}>
-                              {port.risk.toUpperCase()} RISK
-                            </span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
-
         {/* DNS Lookup Tab */}
         <TabsContent value="dns" className="space-y-4">
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Server className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">DNS Lookup</h2>
+                <h2 className="text-2xl font-bold">DNS Lookup (Real DNS-over-HTTPS)</h2>
               </div>
 
               <div className="flex gap-2">
@@ -750,20 +708,47 @@ export default function Network() {
                   placeholder="Enter domain name (e.g., example.com)"
                   value={dnsInput}
                   onChange={(e) => setDnsInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performDNSLookup(dnsInput)}
+                  onKeyDown={(e) => e.key === 'Enter' && performDNSLookup(dnsInput, dnsType)}
                   className="flex-1"
                 />
-                <Button onClick={() => performDNSLookup(dnsInput)}>
-                  <Search className="w-4 h-4 mr-2" />
+                <select
+                  value={dnsType}
+                  onChange={(e) => setDnsType(e.target.value as any)}
+                  className="px-3 py-2 bg-background border border-border rounded-md"
+                >
+                  <option value="A">A</option>
+                  <option value="AAAA">AAAA</option>
+                  <option value="MX">MX</option>
+                  <option value="TXT">TXT</option>
+                  <option value="NS">NS</option>
+                  <option value="CNAME">CNAME</option>
+                </select>
+                <Button onClick={() => performDNSLookup(dnsInput, dnsType)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
                   Lookup
                 </Button>
               </div>
+
+              <div className="text-xs text-muted-foreground">
+                Using Cloudflare DNS-over-HTTPS for real DNS queries
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
 
               {dnsRecords.length > 0 && (
                 <div className="space-y-4 mt-6">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
-                      Found {dnsRecords.length} DNS records
+                      Found {dnsRecords.length} DNS record(s)
                     </div>
                     <Button variant="outline" size="sm" onClick={() => exportData(dnsRecords, 'dns-records.json')}>
                       <Download className="w-4 h-4 mr-2" />
@@ -775,19 +760,20 @@ export default function Network() {
                     {dnsRecords.map((record, idx) => (
                       <Card key={idx} className="p-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4 flex-1">
                             <span className="font-mono text-sm font-semibold text-accent min-w-[60px]">
-                              {record.type}
+                              {getDNSTypeName(record.type)}
                             </span>
-                            <span className="font-mono text-sm">{record.value}</span>
+                            <div className="flex-1">
+                              <div className="font-mono text-sm">{record.data}</div>
+                              <div className="text-xs text-muted-foreground">{record.name}</div>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {record.ttl && (
-                              <span className="text-xs text-muted-foreground">
-                                TTL: {record.ttl}s
-                              </span>
-                            )}
-                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(record.value)}>
+                            <span className="text-xs text-muted-foreground">
+                              TTL: {record.TTL}s
+                            </span>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(record.data)}>
                               <Copy className="w-3 h-3" />
                             </Button>
                           </div>
@@ -801,233 +787,341 @@ export default function Network() {
           </Card>
         </TabsContent>
 
-        {/* Traceroute Tab */}
-        <TabsContent value="trace" className="space-y-4">
+        {/* WHOIS Tab */}
+        <TabsContent value="whois" className="space-y-4">
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">Traceroute (Simulated)</h2>
+                <Search className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">WHOIS / IP Information</h2>
               </div>
 
               <div className="flex gap-2">
                 <Input
-                  placeholder="Enter target (e.g., example.com)"
-                  value={traceInput}
-                  onChange={(e) => setTraceInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performTraceroute(traceInput)}
+                  placeholder="Enter IP or domain (e.g., 8.8.8.8 or google.com)"
+                  value={whoisInput}
+                  onChange={(e) => setWhoisInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performWhoisLookup(whoisInput)}
                   className="flex-1"
                 />
-                <Button onClick={() => performTraceroute(traceInput)}>
-                  <Search className="w-4 h-4 mr-2" />
-                  Trace
-                </Button>
-              </div>
-
-              {traceHops.length > 0 && (
-                <div className="space-y-4 mt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      {traceHops.length} hops to destination
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => exportData(traceHops, 'traceroute.json')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {traceHops.map((hop, idx) => (
-                      <Card key={idx} className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono text-sm font-semibold text-accent min-w-[30px]">
-                              {hop.hop}
-                            </span>
-                            <div>
-                              <div className="font-mono text-sm">{hop.ip}</div>
-                              <div className="text-xs text-muted-foreground">{hop.hostname}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>{hop.rtt1}ms</span>
-                            <span>{hop.rtt2}ms</span>
-                            <span>{hop.rtt3}ms</span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* MAC Lookup Tab */}
-        <TabsContent value="mac" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Hash className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">MAC Address Lookup</h2>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter MAC address (e.g., 00:1A:A0:12:34:56)"
-                  value={macInput}
-                  onChange={(e) => setMacInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && lookupMAC(macInput)}
-                  className="flex-1"
-                />
-                <Button onClick={() => lookupMAC(macInput)}>
-                  <Search className="w-4 h-4 mr-2" />
+                <Button onClick={() => performWhoisLookup(whoisInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
                   Lookup
                 </Button>
               </div>
 
-              {macInfo && (
+              <div className="text-xs text-muted-foreground">
+                Using ip-api.com for real WHOIS data
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {whoisInfo && (
                 <div className="space-y-4 mt-6">
                   <Card className="p-4 space-y-2">
                     <h3 className="font-semibold flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-accent" />
-                      MAC Address Information
+                      <Info className="w-4 h-4 text-accent" />
+                      WHOIS Information
                     </h3>
                     <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">MAC Address:</span>
-                        <span className="font-mono">{macInfo.mac}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">OUI:</span>
-                        <span className="font-mono">{macInfo.oui}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Vendor:</span>
-                        <span>{macInfo.vendor}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Address Type:</span>
-                        <span>{macInfo.isUnicast ? 'Unicast' : 'Multicast'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Administration:</span>
-                        <span>{macInfo.isLocal ? 'Locally Administered' : 'Globally Unique'}</span>
-                      </div>
+                      {whoisInfo.query && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">IP/Domain:</span>
+                          <span className="font-mono">{whoisInfo.query}</span>
+                        </div>
+                      )}
+                      {whoisInfo.country && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Country:</span>
+                          <span>{whoisInfo.country} ({whoisInfo.countryCode})</span>
+                        </div>
+                      )}
+                      {whoisInfo.regionName && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Region:</span>
+                          <span>{whoisInfo.regionName}</span>
+                        </div>
+                      )}
+                      {whoisInfo.city && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">City:</span>
+                          <span>{whoisInfo.city}</span>
+                        </div>
+                      )}
+                      {whoisInfo.isp && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">ISP:</span>
+                          <span>{whoisInfo.isp}</span>
+                        </div>
+                      )}
+                      {whoisInfo.org && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Organization:</span>
+                          <span>{whoisInfo.org}</span>
+                        </div>
+                      )}
+                      {whoisInfo.as && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">AS Number:</span>
+                          <span className="font-mono">{whoisInfo.as}</span>
+                        </div>
+                      )}
+                      {whoisInfo.asname && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">AS Name:</span>
+                          <span>{whoisInfo.asname}</span>
+                        </div>
+                      )}
                     </div>
                   </Card>
+
+                  <Button variant="outline" onClick={() => exportData(whoisInfo, 'whois-info.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
                 </div>
               )}
             </div>
           </Card>
         </TabsContent>
 
-        {/* Packets Tab */}
-        <TabsContent value="packets" className="space-y-4">
+        {/* Geolocation Tab */}
+        <TabsContent value="geo" className="space-y-4">
           <Card className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Database className="w-5 h-5 text-accent" />
-                  <h2 className="text-2xl font-bold">Packet Analysis</h2>
-                </div>
-                <Button onClick={generateSamplePackets}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Generate Sample Packets
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">IP Geolocation</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter IP address (e.g., 8.8.8.8)"
+                  value={geoInput}
+                  onChange={(e) => setGeoInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performGeolocation(geoInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performGeolocation(geoInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Locate
                 </Button>
               </div>
 
-              {packets.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      {packets.length} packets captured
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => exportData(packets, 'packets.json')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
+              <div className="text-xs text-muted-foreground">
+                Using ip-api.com for real geolocation data
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {geoInfo && (
+                <div className="space-y-4 mt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-accent" />
+                        Location Information
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">IP Address:</span>
+                          <span className="font-mono">{geoInfo.ip}</span>
+                        </div>
+                        {geoInfo.country && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Country:</span>
+                            <span>{geoInfo.country} ({geoInfo.country_code})</span>
+                          </div>
+                        )}
+                        {geoInfo.region && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Region:</span>
+                            <span>{geoInfo.region}</span>
+                          </div>
+                        )}
+                        {geoInfo.city && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">City:</span>
+                            <span>{geoInfo.city}</span>
+                          </div>
+                        )}
+                        {geoInfo.timezone && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Timezone:</span>
+                            <span>{geoInfo.timezone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-accent" />
+                        Network Information
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        {geoInfo.latitude && geoInfo.longitude && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Coordinates:</span>
+                            <span className="font-mono text-xs">{geoInfo.latitude}, {geoInfo.longitude}</span>
+                          </div>
+                        )}
+                        {geoInfo.isp && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">ISP:</span>
+                            <span>{geoInfo.isp}</span>
+                          </div>
+                        )}
+                        {geoInfo.org && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Organization:</span>
+                            <span>{geoInfo.org}</span>
+                          </div>
+                        )}
+                        {geoInfo.as && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">AS Number:</span>
+                            <span className="font-mono">{geoInfo.as}</span>
+                          </div>
+                        )}
+                        {geoInfo.latitude && geoInfo.longitude && (
+                          <div className="pt-2">
+                            <a
+                              href={`https://www.google.com/maps?q=${geoInfo.latitude},${geoInfo.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent hover:underline text-sm flex items-center gap-1"
+                            >
+                              View on Google Maps
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
                   </div>
 
-                  <div className="space-y-1 max-h-96 overflow-y-auto font-mono text-xs">
-                    {packets.map((pkt, idx) => (
-                      <div key={idx} className="p-2 hover:bg-muted/50 rounded border border-border">
-                        <div className="grid grid-cols-6 gap-2">
-                          <span className="text-muted-foreground">{idx + 1}</span>
-                          <span className="text-accent font-semibold">{pkt.protocol}</span>
-                          <span className="col-span-2">{pkt.source}</span>
-                          <span className="col-span-2">{pkt.destination}</span>
-                        </div>
-                        <div className="text-muted-foreground pl-4 mt-1">
-                          {pkt.info} ({pkt.length} bytes)
-                          {pkt.flags && ` [${pkt.flags.join(', ')}]`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <Button variant="outline" onClick={() => exportData(geoInfo, 'geolocation.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
                 </div>
               )}
             </div>
           </Card>
         </TabsContent>
 
-        {/* Protocols Tab */}
-        <TabsContent value="protocols" className="space-y-4">
+        {/* Headers Tab */}
+        <TabsContent value="headers" className="space-y-4">
           <Card className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-accent" />
-                  <h2 className="text-2xl font-bold">Protocol Statistics</h2>
-                </div>
-                {!protocolStats && (
-                  <Button onClick={generateSamplePackets}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Generate Data
-                  </Button>
-                )}
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">HTTP Headers Inspector</h2>
               </div>
 
-              {protocolStats && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(protocolStats).map(([protocol, count]: [string, any]) => (
-                      <Card key={protocol} className="p-4">
-                        <div className="text-center space-y-2">
-                          <div className="text-2xl font-bold text-accent">{count}</div>
-                          <div className="text-sm text-muted-foreground">{protocol}</div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter URL (e.g., https://example.com)"
+                  value={headerInput}
+                  onChange={(e) => setHeaderInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && inspectHeaders(headerInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => inspectHeaders(headerInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Inspect
+                </Button>
+              </div>
 
-                  <Card className="p-4">
-                    <h3 className="font-semibold mb-4">Protocol Distribution</h3>
-                    <div className="space-y-2">
-                      {Object.entries(protocolStats)
-                        .sort((a: any, b: any) => b[1] - a[1])
-                        .map(([protocol, count]: [string, any]) => {
-                          const total = Object.values(protocolStats).reduce((sum: number, val: any) => sum + val, 0)
-                          const percentage = ((count / total) * 100).toFixed(1)
-                          return (
-                            <div key={protocol}>
-                              <div className="flex justify-between text-sm mb-1">
-                                <span>{protocol}</span>
-                                <span className="text-muted-foreground">{count} ({percentage}%)</span>
-                              </div>
-                              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-accent transition-all duration-300"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </div>
-                          )
-                        })}
+              <div className="text-xs text-muted-foreground">
+                Note: Only works with CORS-enabled websites
+              </div>
+
+              {error && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-amber-500">{error}</span>
+                </div>
+              )}
+
+              {headerInfo && (
+                <div className="space-y-4 mt-6">
+                  <Card className="p-4 space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Info className="w-4 h-4 text-accent" />
+                      Response Information
+                    </h3>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">URL:</span>
+                        <span className="font-mono text-xs truncate max-w-md">{headerInfo.url}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <span className={`font-semibold ${
+                          headerInfo.status >= 200 && headerInfo.status < 300 ? 'text-green-500' :
+                          headerInfo.status >= 300 && headerInfo.status < 400 ? 'text-blue-500' :
+                          'text-red-500'
+                        }`}>
+                          {headerInfo.status} {headerInfo.statusText}
+                        </span>
+                      </div>
+                      {headerInfo.timings && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Response Time:</span>
+                          <span>{headerInfo.timings.total}ms</span>
+                        </div>
+                      )}
                     </div>
                   </Card>
+
+                  <Card className="p-4 space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-accent" />
+                      HTTP Headers
+                    </h3>
+                    <div className="space-y-1 text-sm max-h-96 overflow-y-auto">
+                      {Object.entries(headerInfo.headers).map(([key, value]) => (
+                        <div key={key} className="flex justify-between border-b border-border/50 py-1">
+                          <span className="text-muted-foreground font-mono text-xs">{key}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs max-w-md truncate">{value}</span>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(value)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  <Button variant="outline" onClick={() => exportData(headerInfo, 'http-headers.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
                 </div>
               )}
             </div>
