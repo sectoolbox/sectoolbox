@@ -19,7 +19,6 @@ import {
   Music,
   FileImage,
   HardDrive,
-  History,
   XCircle
 } from 'lucide-react'
 import Footer from './Footer'
@@ -30,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { searchTools, Tool } from '@/lib/toolsDatabase'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -54,7 +54,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString())
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<NavItem[]>([])
+  const [searchResults, setSearchResults] = useState<Tool[]>([])
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
@@ -161,29 +161,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       description: 'Network utilities and tools',
       keywords: ['ping', 'port', 'scan', 'connectivity']
     },
-    {
-      path: '/results',
-      label: 'Results',
-      icon: History,
-      description: 'View analysis results history',
-      keywords: ['history', 'saved', 'previous']
-    },
   ]
 
   const allItems = [...analysisTools, ...securityTools, ...standaloneItems]
 
-  // Search functionality with debouncing
+  // Search functionality with debouncing - using comprehensive toolsDatabase
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase()
-        const filtered = allItems.filter(item => {
-          const matchesLabel = item.label.toLowerCase().includes(query)
-          const matchesDescription = item.description?.toLowerCase().includes(query)
-          const matchesKeywords = item.keywords?.some(k => k.toLowerCase().includes(query))
-          return matchesLabel || matchesDescription || matchesKeywords
-        })
-        setSearchResults(filtered)
+        const results = searchTools(searchQuery)
+        // Limit to top 10 results
+        setSearchResults(results.slice(0, 10))
       } else {
         setSearchResults([])
       }
@@ -333,14 +321,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* Search Bar */}
           <div ref={searchRef} className="relative">
             <div className="relative">
-              <SearchIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search tools..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
-                className="pl-9 pr-8 w-48 focus:w-64 transition-all duration-200 h-9"
+                className="pl-8 pr-7 w-40 focus:w-56 transition-all duration-200 h-8 text-sm"
               />
               {searchQuery && (
                 <button
@@ -348,31 +336,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     setSearchQuery('')
                     setSearchResults([])
                   }}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1.5 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  <XCircle className="w-4 h-4" />
+                  <XCircle className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
             {/* Search Results Dropdown */}
             {isSearchFocused && searchResults.length > 0 && (
-              <div className="absolute top-full mt-2 w-80 bg-popover border border-border rounded-md shadow-lg overflow-hidden z-50 animate-in slide-in-from-top-2">
+              <div className="absolute top-full mt-2 w-96 bg-popover border border-border rounded-md shadow-lg overflow-hidden z-50 animate-in slide-in-from-top-2">
                 <div className="max-h-96 overflow-y-auto">
-                  {searchResults.map((item) => {
-                    const Icon = item.icon
+                  {searchResults.map((tool) => {
                     return (
                       <button
-                        key={item.path}
-                        onClick={() => handleNavigation(item.path)}
-                        className="w-full flex items-start space-x-3 px-4 py-3 hover:bg-accent/10 transition-colors text-left"
+                        key={tool.id}
+                        onClick={() => handleNavigation(tool.path)}
+                        className="w-full flex items-start space-x-3 px-4 py-3 hover:bg-accent/10 transition-colors text-left border-b border-border/50 last:border-0"
                       >
-                        <Icon className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm">{item.label}</div>
-                          <div className="text-xs text-muted-foreground line-clamp-2">
-                            {item.description}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-sm">{tool.name}</span>
+                            <span className="px-2 py-0.5 bg-accent/20 text-accent rounded text-xs font-medium">
+                              {tool.category}
+                            </span>
                           </div>
+                          <div className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                            {tool.description}
+                          </div>
+                          {tool.operations.length > 0 && (
+                            <div className="flex gap-1 flex-wrap">
+                              {tool.operations.slice(0, 3).map((op) => (
+                                <span key={op} className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                                  {op}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </button>
                     )
@@ -443,23 +443,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {searchQuery && searchResults.length > 0 && (
                 <div className="space-y-1 pb-4 border-b border-border">
                   <div className="text-xs text-muted-foreground font-medium px-2 mb-2">
-                    Search Results
+                    Search Results ({searchResults.length})
                   </div>
-                  {searchResults.map((item) => {
-                    const Icon = item.icon
-                    const isActive = isItemActive(item.path)
+                  {searchResults.map((tool) => {
                     return (
                       <button
-                        key={item.path}
-                        onClick={() => handleNavigation(item.path)}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
-                          isActive
-                            ? 'bg-accent/15 text-accent border border-accent/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent'
-                        }`}
+                        key={tool.id}
+                        onClick={() => handleNavigation(tool.path)}
+                        className="w-full flex flex-col items-start px-4 py-3 rounded-lg text-sm transition-all text-left bg-muted/30 hover:bg-accent/10 border border-border"
                       >
-                        <Icon className="w-5 h-5" />
-                        <span>{item.label}</span>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold">{tool.name}</span>
+                          <span className="px-2 py-0.5 bg-accent/20 text-accent rounded text-xs font-medium">
+                            {tool.category}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground line-clamp-2">
+                          {tool.description}
+                        </div>
                       </button>
                     )
                   })}

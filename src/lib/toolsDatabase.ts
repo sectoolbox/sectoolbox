@@ -129,6 +129,42 @@ export const toolsDatabase: Tool[] = [
     operations: ['encrypt', 'decrypt', 'transform']
   },
   {
+    id: 'vigenere-cipher',
+    name: 'Vigenere Cipher',
+    description: 'Encrypt/decrypt using Vigenere cipher with key',
+    category: 'Cryptography',
+    path: '/crypto',
+    keywords: ['vigenere', 'cipher', 'polyalphabetic', 'key'],
+    operations: ['encrypt', 'decrypt', 'crack']
+  },
+  {
+    id: 'base32-encode-decode',
+    name: 'Base32 Encode/Decode',
+    description: 'Encode and decode Base32 format',
+    category: 'Cryptography',
+    path: '/crypto',
+    keywords: ['base32', 'encoding', 'decode', 'encode'],
+    operations: ['encode', 'decode', 'convert']
+  },
+  {
+    id: 'ascii-hex-binary',
+    name: 'ASCII/Hex/Binary Converter',
+    description: 'Convert between ASCII, hexadecimal, and binary',
+    category: 'Cryptography',
+    path: '/crypto',
+    keywords: ['ascii', 'hex', 'binary', 'convert', 'transform'],
+    operations: ['convert', 'encode', 'decode']
+  },
+  {
+    id: 'morse-code',
+    name: 'Morse Code',
+    description: 'Encode/decode Morse code',
+    category: 'Cryptography',
+    path: '/crypto',
+    keywords: ['morse', 'code', 'encode', 'decode', 'telegraph'],
+    operations: ['encode', 'decode', 'morse']
+  },
+  {
     id: 'magic-decode',
     name: 'Magic Decode',
     description: 'Intelligent multi-layer decoding',
@@ -146,43 +182,200 @@ export const toolsDatabase: Tool[] = [
     keywords: ['analysis', 'entropy', 'detect', 'encoding'],
     operations: ['analyze', 'detect', 'calculate']
   },
+  {
+    id: 'frequency-analysis',
+    name: 'Frequency Analysis',
+    description: 'Analyze character frequency for cipher breaking',
+    category: 'Cryptography',
+    path: '/crypto',
+    keywords: ['frequency', 'analysis', 'cipher', 'break', 'cryptanalysis'],
+    operations: ['analyze', 'frequency', 'break']
+  },
 
-  // Web Security Tools
+  // Web Security Tools - SQL Injection Payloads
   {
-    id: 'sql-injection',
-    name: 'SQL Injection Tester',
-    description: 'Test for SQL injection vulnerabilities',
-    category: 'Web Security',
+    id: 'sql-injection-union',
+    name: 'SQL Injection - Union Select',
+    description: 'Basic union select payloads to identify injectable columns',
+    category: 'Web Tools',
     path: '/web',
-    keywords: ['sql', 'injection', 'sqli', 'database', 'vulnerability'],
-    operations: ['test', 'scan', 'exploit']
+    keywords: ['sql', 'injection', 'sqli', 'union', 'select', 'database'],
+    operations: ['union', 'select', 'exploit']
   },
   {
-    id: 'xss-tester',
-    name: 'XSS Tester',
-    description: 'Test for Cross-Site Scripting vulnerabilities',
-    category: 'Web Security',
+    id: 'sql-injection-blind',
+    name: 'SQL Injection - Blind',
+    description: 'Boolean and time-based blind SQL injection techniques',
+    category: 'Web Tools',
     path: '/web',
-    keywords: ['xss', 'cross-site', 'scripting', 'javascript', 'vulnerability'],
-    operations: ['test', 'scan', 'exploit']
+    keywords: ['sql', 'injection', 'blind', 'boolean', 'time-based'],
+    operations: ['blind', 'test', 'exploit']
   },
   {
-    id: 'header-analyzer',
-    name: 'Security Headers Analyzer',
-    description: 'Analyze HTTP security headers',
-    category: 'Web Security',
+    id: 'sql-injection-error',
+    name: 'SQL Injection - Error Based',
+    description: 'Error-based SQL injection for information disclosure',
+    category: 'Web Tools',
     path: '/web',
-    keywords: ['headers', 'http', 'security', 'analyze', 'csp'],
-    operations: ['analyze', 'scan', 'check']
+    keywords: ['sql', 'injection', 'error', 'mssql', 'oracle'],
+    operations: ['error', 'exploit', 'extract']
   },
   {
-    id: 'directory-fuzzer',
-    name: 'Directory Fuzzer',
-    description: 'Discover hidden directories and files',
-    category: 'Web Security',
+    id: 'sql-injection-auth-bypass',
+    name: 'SQL Injection - Auth Bypass',
+    description: 'Authentication bypass using SQL injection',
+    category: 'Web Tools',
     path: '/web',
-    keywords: ['directory', 'fuzzer', 'brute', 'force', 'discover'],
-    operations: ['fuzz', 'scan', 'discover', 'brute-force']
+    keywords: ['sql', 'injection', 'auth', 'bypass', 'login'],
+    operations: ['bypass', 'authenticate', 'exploit']
+  },
+  {
+    id: 'sql-injection-file-ops',
+    name: 'SQL Injection - File Operations',
+    description: 'Read/write files using SQL injection (LOAD_FILE, INTO OUTFILE)',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['sql', 'injection', 'file', 'load_file', 'outfile', 'rce'],
+    operations: ['file', 'read', 'write', 'exploit']
+  },
+  {
+    id: 'sql-injection-waf-bypass',
+    name: 'SQL Injection - WAF Bypass',
+    description: 'WAF bypass techniques using encoding and comments',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['sql', 'injection', 'waf', 'bypass', 'encoding'],
+    operations: ['bypass', 'waf', 'evade']
+  },
+
+  // XSS Payloads
+  {
+    id: 'xss-basic',
+    name: 'XSS - Basic Payloads',
+    description: 'Basic Cross-Site Scripting test payloads',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xss', 'cross-site', 'scripting', 'javascript', 'alert'],
+    operations: ['test', 'exploit', 'inject']
+  },
+  {
+    id: 'xss-cookie-stealer',
+    name: 'XSS - Cookie Stealing',
+    description: 'Steal cookies and session tokens via XSS',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xss', 'cookie', 'session', 'steal', 'exfiltrate'],
+    operations: ['steal', 'exfiltrate', 'cookie']
+  },
+  {
+    id: 'xss-dom',
+    name: 'XSS - DOM Based',
+    description: 'DOM-based XSS exploitation techniques',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xss', 'dom', 'javascript', 'client-side'],
+    operations: ['dom', 'exploit', 'inject']
+  },
+  {
+    id: 'xss-polyglot',
+    name: 'XSS - Polyglot Payloads',
+    description: 'Multi-context XSS payloads that work in various scenarios',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xss', 'polyglot', 'multi-context', 'bypass'],
+    operations: ['polyglot', 'bypass', 'exploit']
+  },
+  {
+    id: 'xss-filter-bypass',
+    name: 'XSS - Filter Bypass',
+    description: 'Bypass XSS filters using encoding and obfuscation',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xss', 'filter', 'bypass', 'encoding', 'obfuscation'],
+    operations: ['bypass', 'filter', 'evade']
+  },
+
+  // Other Web Exploitation
+  {
+    id: 'rce-payloads',
+    name: 'RCE - Remote Code Execution',
+    description: 'Remote code execution payloads for various languages',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['rce', 'remote', 'code', 'execution', 'shell', 'command'],
+    operations: ['execute', 'exploit', 'shell']
+  },
+  {
+    id: 'lfi-payloads',
+    name: 'LFI - Local File Inclusion',
+    description: 'Local file inclusion and path traversal payloads',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['lfi', 'local', 'file', 'inclusion', 'path', 'traversal'],
+    operations: ['include', 'traverse', 'read']
+  },
+  {
+    id: 'ssti-payloads',
+    name: 'SSTI - Server-Side Template Injection',
+    description: 'Template injection payloads for Jinja2, Twig, etc.',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['ssti', 'template', 'injection', 'jinja', 'twig'],
+    operations: ['inject', 'template', 'exploit']
+  },
+  {
+    id: 'xxe-payloads',
+    name: 'XXE - XML External Entity',
+    description: 'XML external entity injection payloads',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['xxe', 'xml', 'external', 'entity', 'injection'],
+    operations: ['inject', 'xml', 'exploit']
+  },
+  {
+    id: 'csrf-payloads',
+    name: 'CSRF - Cross-Site Request Forgery',
+    description: 'CSRF attack payloads and PoC generation',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['csrf', 'cross-site', 'request', 'forgery', 'token'],
+    operations: ['forge', 'exploit', 'bypass']
+  },
+  {
+    id: 'ssrf-payloads',
+    name: 'SSRF - Server-Side Request Forgery',
+    description: 'SSRF payloads to access internal resources',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['ssrf', 'server-side', 'request', 'forgery', 'internal'],
+    operations: ['forge', 'access', 'exploit']
+  },
+  {
+    id: 'nosql-injection',
+    name: 'NoSQL Injection',
+    description: 'NoSQL injection payloads for MongoDB, etc.',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['nosql', 'injection', 'mongodb', 'database'],
+    operations: ['inject', 'exploit', 'bypass']
+  },
+  {
+    id: 'graphql-injection',
+    name: 'GraphQL Injection',
+    description: 'GraphQL injection and introspection techniques',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['graphql', 'injection', 'introspection', 'api'],
+    operations: ['inject', 'introspect', 'exploit']
+  },
+  {
+    id: 'jwt-manipulation',
+    name: 'JWT Manipulation',
+    description: 'JWT token manipulation and cracking',
+    category: 'Web Tools',
+    path: '/web',
+    keywords: ['jwt', 'json', 'web', 'token', 'crack', 'manipulate'],
+    operations: ['crack', 'manipulate', 'forge']
   },
 
   // Image Analysis Tools
@@ -333,6 +526,98 @@ export const toolsDatabase: Tool[] = [
     path: '/audio',
     keywords: ['audio', 'sound', 'mp3', 'wav', 'morse', 'dtmf', 'steganography', 'spectrogram', 'frequency', 'hidden', 'message'],
     operations: ['analyze', 'detect', 'decode', 'extract', 'spectrogram']
+  },
+
+  // Network Analysis Tools
+  {
+    id: 'subnet-calculator',
+    name: 'Subnet Calculator',
+    description: 'Calculate subnet information from CIDR notation',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['subnet', 'cidr', 'network', 'mask', 'ip', 'calculator'],
+    operations: ['calculate', 'subnet', 'network']
+  },
+  {
+    id: 'dns-lookup',
+    name: 'DNS Lookup',
+    description: 'Perform DNS queries for A, AAAA, MX, TXT, NS, CNAME records',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['dns', 'lookup', 'domain', 'nameserver', 'records', 'query'],
+    operations: ['lookup', 'query', 'resolve']
+  },
+  {
+    id: 'whois-lookup',
+    name: 'WHOIS Lookup',
+    description: 'Domain and IP WHOIS information lookup',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['whois', 'domain', 'ip', 'registration', 'info'],
+    operations: ['lookup', 'query', 'whois']
+  },
+  {
+    id: 'http-headers',
+    name: 'HTTP Headers Inspector',
+    description: 'Inspect HTTP response headers and security headers',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['http', 'headers', 'response', 'security', 'csp', 'hsts'],
+    operations: ['inspect', 'analyze', 'headers']
+  },
+  {
+    id: 'shodan-lookup',
+    name: 'Shodan InternetDB',
+    description: 'Lookup IP information from Shodan InternetDB',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['shodan', 'ip', 'ports', 'vulnerabilities', 'internet', 'scan'],
+    operations: ['lookup', 'scan', 'shodan']
+  },
+  {
+    id: 'archive-search',
+    name: 'Archive.org Wayback',
+    description: 'Search historical URLs from Wayback Machine',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['archive', 'wayback', 'historical', 'urls', 'snapshot'],
+    operations: ['search', 'archive', 'historical']
+  },
+  {
+    id: 'ipinfo-lookup',
+    name: 'IPInfo.io Lookup',
+    description: 'Detailed IP geolocation and ASN information',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['ip', 'geolocation', 'asn', 'location', 'city', 'country'],
+    operations: ['lookup', 'geolocation', 'info']
+  },
+  {
+    id: 'passive-dns',
+    name: 'Passive DNS',
+    description: 'Historical DNS records and changes over time',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['passive', 'dns', 'historical', 'records', 'mnemonic'],
+    operations: ['lookup', 'historical', 'dns']
+  },
+  {
+    id: 'certificate-transparency',
+    name: 'Certificate Transparency',
+    description: 'Find subdomains via SSL certificate logs',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['certificate', 'ssl', 'tls', 'subdomain', 'crt.sh', 'transparency'],
+    operations: ['search', 'subdomain', 'certificate']
+  },
+  {
+    id: 'port-scanner',
+    name: 'Port Scanner',
+    description: 'Scan for open ports and services',
+    category: 'Network Analysis',
+    path: '/network',
+    keywords: ['port', 'scan', 'service', 'open', 'nmap'],
+    operations: ['scan', 'port', 'service']
   }
 ]
 
