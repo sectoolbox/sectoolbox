@@ -489,39 +489,55 @@ const AudioAnalysis: React.FC = () => {
       </div>
 
       {/* Upload Section */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Upload Audio File</h2>
-        <div
-          className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">
-            {file ? file.name : 'Drop your audio file here or click to browse'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            MP3, WAV, OGG, M4A, FLAC - All audio formats supported
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              const selectedFile = e.target.files?.[0]
-              if (selectedFile) handleFileSelect(selectedFile)
-            }}
-            className="hidden"
-          />
-        </div>
-        {file && (
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <FileAudio className="w-4 h-4" />
-              <span>{file.name} ({formatFileSize(file.size)})</span>
-            </div>
+      {!file ? (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload Audio File</h2>
+          <div
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">
+              Drop your audio file here or click to browse
+            </p>
+            <p className="text-sm text-muted-foreground">
+              MP3, WAV, OGG, M4A, FLAC - All audio formats supported
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={(e) => {
+                const selectedFile = e.target.files?.[0]
+                if (selectedFile) handleFileSelect(selectedFile)
+              }}
+              className="hidden"
+            />
           </div>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileAudio className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
+              </div>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setFile(null)
+                resetAnalysis()
+              }}
+            >
+              Remove File
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {!file && (
         <div className="invisible">

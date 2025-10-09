@@ -1291,24 +1291,53 @@ export default function ImageAnalysis() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">Upload Image or EVTX File</h2>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">{file ? file.name : 'Drop your image or EVTX file here or click to browse'}</p>
-          <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 500MB</p>
-          <input ref={fileRef} type="file" accept="image/*,.evtx" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
-        </div>
-
-        {file && (
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground"><ImageIcon className="w-4 h-4" /><span>{file.name} ({(file.size/1024/1024).toFixed(2)} MB)</span></div>
-            <Button onClick={analyze} disabled={isAnalyzing} className="bg-accent text-background px-4 py-2 rounded-lg">
-              {isAnalyzing ? 'Analyzing…' : 'Analyze Image'}
-            </Button>
+      {!file ? (
+        <div className="bg-card border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload Image or EVTX File</h2>
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Drop your image or EVTX file here or click to browse</p>
+            <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 500MB</p>
+            <input ref={fileRef} type="file" accept="image/*,.evtx" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <ImageIcon className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">{(file.size/1024/1024).toFixed(2)} MB</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button onClick={analyze} disabled={isAnalyzing} size="sm">
+                {isAnalyzing ? 'Analyzing…' : 'Analyze'}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setFile(null)
+                  setImageUrl(null)
+                  setMetadata(null)
+                  setStructuredResults(null)
+                  setExtractedStrings(null)
+                  setBitPlaneUrl(null)
+                  setLsbDepthResult(null)
+                  setHexData(null)
+                  setNoiseAnalysisResult(null)
+                  setAdvancedProcessingResult(null)
+                  setBarcodeResults([])
+                }}
+              >
+                Remove File
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EVTX File Analysis Display */}
       {file?.name.toLowerCase().endsWith('.evtx') && metadata && (
