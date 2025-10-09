@@ -10,7 +10,6 @@ const CryptoTools = lazy(() => import('./pages/CryptoTools'))
 const WebTools = lazy(() => import('./pages/WebTools'))
 const DigitalForensics = lazy(() => import('./pages/DigitalForensics'))
 const EVTXAnalysis = lazy(() => import('./pages/EVTXAnalysis'))
-const MalwareAnalysis = lazy(() => import('./pages/MalwareAnalysis'))
 const FolderScanner = lazy(() => import('./pages/FolderScanner'))
 const AudioAnalysis = lazy(() => import('./pages/AudioAnalysis'))
 const ResultsHistory = lazy(() => import('./pages/ResultsHistory'))
@@ -31,7 +30,6 @@ function App() {
               <Route path="/web" element={<WebTools />} />
               <Route path="/forensics" element={<DigitalForensics />} />
               <Route path="/forensics-evtx" element={<EVTXAnalysis />} />
-              <Route path="/malware" element={<MalwareAnalysis />} />
               <Route path="/folder-scanner" element={<FolderScanner />} />
               <Route path="/audio" element={<AudioAnalysis />} />
               <Route path="/network" element={<Network />} />
