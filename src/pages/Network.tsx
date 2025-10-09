@@ -496,28 +496,15 @@ export default function Network() {
     }
   }, [])
 
-  // Archive.org CDX Search (via proxy to bypass CORS)
+  // Archive.org CDX Search (via Vercel serverless function to bypass CORS)
   const performArchiveSearch = useCallback(async (domain: string) => {
     setLoading(true)
     setError(null)
     setArchiveUrls([]) // Clear previous results
 
     try {
-      // Try proxy server first (better for CORS), fallback to direct if proxy unavailable
-      const proxyUrl = `http://localhost:3001/api/archive/search?url=${encodeURIComponent(domain)}`
-      const directUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}*&output=json&fl=original,timestamp&collapse=urlkey&limit=1000`
-
-      let response
-      let useProxy = true
-
-      try {
-        response = await fetch(proxyUrl)
-        if (!response.ok) throw new Error('Proxy unavailable')
-      } catch {
-        // Fallback to direct Archive.org API
-        useProxy = false
-        response = await fetch(directUrl)
-      }
+      // Use Vercel serverless function to bypass CORS
+      const response = await fetch(`/api/archive?url=${encodeURIComponent(domain)}`)
 
       if (!response.ok) {
         throw new Error(`Archive search failed: ${response.statusText}`)
@@ -539,7 +526,7 @@ export default function Network() {
 
       setArchiveUrls(urls)
     } catch (err: any) {
-      setError(err.message || 'Archive search failed. Try starting the proxy server.')
+      setError(err.message || 'Archive search failed')
       setArchiveUrls([])
     } finally {
       setLoading(false)
