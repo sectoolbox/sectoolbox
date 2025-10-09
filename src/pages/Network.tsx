@@ -14,14 +14,19 @@ import {
   MapPin,
   Shield,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Database,
+  History,
+  Lock,
+  FileText
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-type TabType = 'ip' | 'subnet' | 'dns' | 'whois' | 'geo' | 'headers'
+type TabType = 'ip' | 'subnet' | 'dns' | 'whois' | 'geo' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
 
 interface SubnetInfo {
   network: string
@@ -94,6 +99,78 @@ interface HeaderInfo {
   }
 }
 
+interface ShodanInfo {
+  ip: string
+  ports: number[]
+  vulns: string[]
+  tags: string[]
+  cpes: string[]
+  hostnames: string[]
+}
+
+interface ArchiveURL {
+  url: string
+  timestamp?: string
+}
+
+interface IPInfoData {
+  ip: string
+  hostname?: string
+  city?: string
+  region?: string
+  country?: string
+  loc?: string
+  org?: string
+  postal?: string
+  timezone?: string
+  asn?: {
+    asn: string
+    name: string
+    domain: string
+    route: string
+    type: string
+  }
+  company?: {
+    name: string
+    domain: string
+    type: string
+  }
+  privacy?: {
+    vpn: boolean
+    proxy: boolean
+    tor: boolean
+    relay: boolean
+    hosting: boolean
+  }
+  abuse?: {
+    address: string
+    country: string
+    email: string
+    name: string
+    network: string
+    phone: string
+  }
+}
+
+interface PassiveDNSRecord {
+  rrname: string
+  rrtype: string
+  rdata: string
+  firstSeenTimestamp: number
+  lastSeenTimestamp: number
+  count: number
+}
+
+interface CertRecord {
+  issuer_ca_id: number
+  issuer_name: string
+  name_value: string
+  id: number
+  entry_timestamp: string
+  not_before: string
+  not_after: string
+}
+
 export default function Network() {
   const [activeTab, setActiveTab] = useState<TabType>('ip')
   const [loading, setLoading] = useState(false)
@@ -122,6 +199,26 @@ export default function Network() {
   // Headers
   const [headerInput, setHeaderInput] = useState('')
   const [headerInfo, setHeaderInfo] = useState<HeaderInfo | null>(null)
+
+  // Shodan InternetDB
+  const [shodanInput, setShodanInput] = useState('')
+  const [shodanInfo, setShodanInfo] = useState<ShodanInfo | null>(null)
+
+  // Archive.org
+  const [archiveInput, setArchiveInput] = useState('')
+  const [archiveUrls, setArchiveUrls] = useState<ArchiveURL[]>([])
+
+  // IPInfo.io
+  const [ipinfoInput, setIpinfoInput] = useState('')
+  const [ipinfoData, setIpinfoData] = useState<IPInfoData | null>(null)
+
+  // PassiveDNS
+  const [passiveDnsInput, setPassiveDnsInput] = useState('')
+  const [passiveDnsRecords, setPassiveDnsRecords] = useState<PassiveDNSRecord[]>([])
+
+  // Certificate Transparency
+  const [certInput, setCertInput] = useState('')
+  const [certRecords, setCertRecords] = useState<CertRecord[]>([])
 
   // IP Address Analysis (Pure JavaScript - No API needed)
   const analyzeIP = useCallback((ip: string) => {
@@ -406,6 +503,159 @@ export default function Network() {
     }
   }, [])
 
+  // Shodan InternetDB Lookup
+  const performShodanLookup = useCallback(async (ip: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`https://internetdb.shodan.io/${ip}`)
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('No information available for this IP')
+        }
+        throw new Error(`Shodan lookup failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      setShodanInfo({
+        ip: ip,
+        ports: data.ports || [],
+        vulns: data.vulns || [],
+        tags: data.tags || [],
+        cpes: data.cpes || [],
+        hostnames: data.hostnames || []
+      })
+    } catch (err: any) {
+      setError(err.message || 'Shodan lookup failed')
+      setShodanInfo(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Archive.org CDX Search
+  const performArchiveSearch = useCallback(async (domain: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(
+        `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}*&output=json&fl=original,timestamp&collapse=urlkey&limit=1000`
+      )
+
+      if (!response.ok) {
+        throw new Error(`Archive search failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.length <= 1) {
+        setArchiveUrls([])
+        setError('No archived URLs found')
+        return
+      }
+
+      // Skip the first row (header)
+      const urls = data.slice(1).map((row: string[]) => ({
+        url: row[0],
+        timestamp: row[1]
+      }))
+
+      setArchiveUrls(urls)
+    } catch (err: any) {
+      setError(err.message || 'Archive search failed')
+      setArchiveUrls([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // IPInfo.io Lookup
+  const performIPInfoLookup = useCallback(async (ip: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`https://ipinfo.io/${ip}/json`)
+
+      if (!response.ok) {
+        throw new Error(`IPInfo lookup failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error.message || 'IPInfo lookup failed')
+      }
+
+      setIpinfoData(data)
+    } catch (err: any) {
+      setError(err.message || 'IPInfo lookup failed')
+      setIpinfoData(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // PassiveDNS Lookup (Mnemonic)
+  const performPassiveDNSLookup = useCallback(async (domain: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`https://api.mnemonic.no/pdns/v3/${domain}`)
+
+      if (!response.ok) {
+        throw new Error(`PassiveDNS lookup failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.data && data.data.length > 0) {
+        setPassiveDnsRecords(data.data.slice(0, 100)) // Limit to 100 records
+      } else {
+        setPassiveDnsRecords([])
+        setError('No historical DNS records found')
+      }
+    } catch (err: any) {
+      setError(err.message || 'PassiveDNS lookup failed')
+      setPassiveDnsRecords([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Certificate Transparency Search (crt.sh)
+  const performCertSearch = useCallback(async (domain: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`)
+
+      if (!response.ok) {
+        throw new Error(`Certificate search failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.length > 0) {
+        setCertRecords(data.slice(0, 100)) // Limit to 100 records
+      } else {
+        setCertRecords([])
+        setError('No certificates found')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Certificate search failed')
+      setCertRecords([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
   }
@@ -450,32 +700,54 @@ export default function Network() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="space-y-6">
-        <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-          <TabsTrigger value="ip" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            IP Analysis
-          </TabsTrigger>
-          <TabsTrigger value="subnet" className="flex items-center gap-2">
-            <Layers className="w-4 h-4" />
-            Subnet Calc
-          </TabsTrigger>
-          <TabsTrigger value="dns" className="flex items-center gap-2">
-            <Server className="w-4 h-4" />
-            DNS Lookup
-          </TabsTrigger>
-          <TabsTrigger value="whois" className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            WHOIS
-          </TabsTrigger>
-          <TabsTrigger value="geo" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Geolocation
-          </TabsTrigger>
-          <TabsTrigger value="headers" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            Headers
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-full lg:grid lg:grid-cols-6 gap-2">
+            <TabsTrigger value="ip" className="flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              IP Analysis
+            </TabsTrigger>
+            <TabsTrigger value="subnet" className="flex items-center gap-2">
+              <Layers className="w-4 h-4" />
+              Subnet Calc
+            </TabsTrigger>
+            <TabsTrigger value="dns" className="flex items-center gap-2">
+              <Server className="w-4 h-4" />
+              DNS Lookup
+            </TabsTrigger>
+            <TabsTrigger value="whois" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              WHOIS
+            </TabsTrigger>
+            <TabsTrigger value="geo" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Geolocation
+            </TabsTrigger>
+            <TabsTrigger value="headers" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Headers
+            </TabsTrigger>
+            <TabsTrigger value="shodan" className="flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              Shodan
+            </TabsTrigger>
+            <TabsTrigger value="archive" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Archive
+            </TabsTrigger>
+            <TabsTrigger value="ipinfo" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              IPInfo
+            </TabsTrigger>
+            <TabsTrigger value="passivedns" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              PassiveDNS
+            </TabsTrigger>
+            <TabsTrigger value="certs" className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Certificates
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* IP Analysis Tab */}
         <TabsContent value="ip" className="space-y-4">
@@ -1123,6 +1395,490 @@ export default function Network() {
                     <Download className="w-4 h-4 mr-2" />
                     Export Results
                   </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Shodan InternetDB Tab */}
+        <TabsContent value="shodan" className="space-y-4">
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Eye className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">Shodan InternetDB</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter IP address (e.g., 8.8.8.8)"
+                  value={shodanInput}
+                  onChange={(e) => setShodanInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performShodanLookup(shodanInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performShodanLookup(shodanInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Lookup
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Free Shodan InternetDB - shows open ports, vulnerabilities, and tags
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {shodanInfo && (
+                <div className="space-y-4 mt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Info className="w-4 h-4 text-accent" />
+                        Open Ports
+                      </h3>
+                      <div className="space-y-2">
+                        {shodanInfo.ports.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {shodanInfo.ports.map((port, idx) => (
+                              <span key={idx} className="px-2 py-1 bg-accent/20 text-accent rounded text-sm font-mono">
+                                {port}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No open ports found</span>
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        Vulnerabilities
+                      </h3>
+                      <div className="space-y-1">
+                        {shodanInfo.vulns.length > 0 ? (
+                          shodanInfo.vulns.map((vuln, idx) => (
+                            <div key={idx} className="text-sm font-mono text-red-500">
+                              {vuln}
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No vulnerabilities found</span>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <Card className="p-4 space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Info className="w-4 h-4 text-accent" />
+                      Additional Information
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Tags: </span>
+                        {shodanInfo.tags.length > 0 ? (
+                          <span>{shodanInfo.tags.join(', ')}</span>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Hostnames: </span>
+                        {shodanInfo.hostnames.length > 0 ? (
+                          <span className="font-mono">{shodanInfo.hostnames.join(', ')}</span>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">CPEs: </span>
+                        {shodanInfo.cpes.length > 0 ? (
+                          <div className="mt-1 space-y-1">
+                            {shodanInfo.cpes.map((cpe, idx) => (
+                              <div key={idx} className="font-mono text-xs">{cpe}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Button variant="outline" onClick={() => exportData(shodanInfo, 'shodan-info.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Archive.org Tab */}
+        <TabsContent value="archive" className="space-y-4">
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <History className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">Archive.org URL Search</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter domain (e.g., example.com)"
+                  value={archiveInput}
+                  onChange={(e) => setArchiveInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performArchiveSearch(archiveInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performArchiveSearch(archiveInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Search
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Find historical URLs from Wayback Machine - great for finding hidden endpoints
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {archiveUrls.length > 0 && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Found {archiveUrls.length} archived URL(s)
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => exportData(archiveUrls, 'archive-urls.json')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+
+                  <Card className="p-4">
+                    <div className="space-y-1 text-sm max-h-96 overflow-y-auto">
+                      {archiveUrls.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center border-b border-border/50 py-2 hover:bg-accent/5">
+                          <a
+                            href={`https://web.archive.org/web/${item.timestamp}/${item.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-accent hover:underline flex-1 truncate"
+                          >
+                            {item.url}
+                          </a>
+                          <Button size="sm" variant="ghost" onClick={() => copyToClipboard(item.url)}>
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* IPInfo.io Tab */}
+        <TabsContent value="ipinfo" className="space-y-4">
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Database className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">IPInfo.io Lookup</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter IP address (e.g., 8.8.8.8)"
+                  value={ipinfoInput}
+                  onChange={(e) => setIpinfoInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performIPInfoLookup(ipinfoInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performIPInfoLookup(ipinfoInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Lookup
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Detailed IP information from IPInfo.io
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {ipinfoData && (
+                <div className="space-y-4 mt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-accent" />
+                        Location Details
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">IP:</span>
+                          <span className="font-mono">{ipinfoData.ip}</span>
+                        </div>
+                        {ipinfoData.hostname && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Hostname:</span>
+                            <span className="font-mono text-xs">{ipinfoData.hostname}</span>
+                          </div>
+                        )}
+                        {ipinfoData.city && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">City:</span>
+                            <span>{ipinfoData.city}</span>
+                          </div>
+                        )}
+                        {ipinfoData.region && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Region:</span>
+                            <span>{ipinfoData.region}</span>
+                          </div>
+                        )}
+                        {ipinfoData.country && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Country:</span>
+                            <span>{ipinfoData.country}</span>
+                          </div>
+                        )}
+                        {ipinfoData.loc && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Coordinates:</span>
+                            <span className="font-mono text-xs">{ipinfoData.loc}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+
+                    <Card className="p-4 space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Info className="w-4 h-4 text-accent" />
+                        Network Details
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        {ipinfoData.org && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Organization:</span>
+                            <span className="text-xs">{ipinfoData.org}</span>
+                          </div>
+                        )}
+                        {ipinfoData.postal && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Postal:</span>
+                            <span>{ipinfoData.postal}</span>
+                          </div>
+                        )}
+                        {ipinfoData.timezone && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Timezone:</span>
+                            <span>{ipinfoData.timezone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <Button variant="outline" onClick={() => exportData(ipinfoData, 'ipinfo-data.json')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Results
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* PassiveDNS Tab */}
+        <TabsContent value="passivedns" className="space-y-4">
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">PassiveDNS (Mnemonic)</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter domain (e.g., example.com)"
+                  value={passiveDnsInput}
+                  onChange={(e) => setPassiveDnsInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performPassiveDNSLookup(passiveDnsInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performPassiveDNSLookup(passiveDnsInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Search
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Historical DNS records - track DNS changes over time
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {passiveDnsRecords.length > 0 && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Found {passiveDnsRecords.length} historical DNS record(s)
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => exportData(passiveDnsRecords, 'passivedns.json')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {passiveDnsRecords.map((record, idx) => (
+                      <Card key={idx} className="p-3">
+                        <div className="grid grid-cols-1 gap-2 text-sm">
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono text-xs font-semibold text-accent min-w-[60px]">
+                              {record.rrtype}
+                            </span>
+                            <div className="flex-1">
+                              <div className="font-mono text-xs">{record.rdata}</div>
+                              <div className="text-xs text-muted-foreground">{record.rrname}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>First: {new Date(record.firstSeenTimestamp).toLocaleDateString()}</span>
+                            <span>Last: {new Date(record.lastSeenTimestamp).toLocaleDateString()}</span>
+                            <span>Count: {record.count}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Certificate Transparency Tab */}
+        <TabsContent value="certs" className="space-y-4">
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Lock className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">Certificate Transparency (crt.sh)</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter domain (e.g., example.com)"
+                  value={certInput}
+                  onChange={(e) => setCertInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performCertSearch(certInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performCertSearch(certInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Search
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Find subdomains via SSL certificate transparency logs
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {certRecords.length > 0 && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Found {certRecords.length} certificate(s)
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => exportData(certRecords, 'certificates.json')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {certRecords.map((cert, idx) => (
+                      <Card key={idx} className="p-3">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-xs font-semibold text-accent">
+                              {cert.name_value}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(cert.name_value)}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                            <span>Issuer: {cert.issuer_name}</span>
+                            <span>ID: {cert.id}</span>
+                            <span>Not Before: {new Date(cert.not_before).toLocaleDateString()}</span>
+                            <span>Not After: {new Date(cert.not_after).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
