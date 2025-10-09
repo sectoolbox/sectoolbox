@@ -18,7 +18,6 @@ import {
   Globe
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 interface CryptoResult {
   input: string
@@ -1559,21 +1558,28 @@ const CryptoTools: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 h-auto">
-            {tabs.map(tab => {
+        <div className="bg-card border border-border rounded-lg">
+          <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
+            {tabs.map((tab) => {
               const Icon = tab.icon
               return (
-                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+                    activeTab === tab.id
+                      ? 'text-accent border-b-2 border-accent bg-accent/5'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+                  }`}
+                >
                   <Icon className="w-4 h-4" />
                   <span>{tab.name}</span>
-                </TabsTrigger>
+                </button>
               )
             })}
-          </TabsList>
+          </div>
 
-          <TabsContent value={activeTab} className="space-y-4">
-            <div className="bg-card border border-border rounded-lg p-6">
+          <div className="p-6 space-y-4">
             {/* Recursive Mode Toggle */}
             {activeTab !== 'analysis' && activeTab !== 'magic' && (
               <div className="mb-4 p-4 bg-accent/5 border border-accent/20 rounded-lg">
@@ -1766,9 +1772,8 @@ const CryptoTools: React.FC = () => {
               </div>
             </div>
             )}
-            </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
 
         {/* Results History */}
         <div className="bg-card border border-border rounded-lg">

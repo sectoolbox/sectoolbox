@@ -2230,124 +2230,120 @@ const WebTools: React.FC = () => {
       </Card>
 
       {/* Main Content Tabs */}
-      {/* Main Content Tabs */}
-      <div className="bg-card border border-border rounded-lg">
-        <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 overflow-x-auto">
-          <button onClick={() => setActiveTab('sqli')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'sqli' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-4">
+        <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-2">
+          <TabsTrigger value="sqli" className="flex items-center gap-1 px-3 py-2">
             <Database className="h-4 w-4" />
             <span className="text-xs">SQL</span>
-          </button>
-          <button onClick={() => setActiveTab('xss')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'xss' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="xss" className="flex items-center gap-1 px-3 py-2">
             <Code className="h-4 w-4" />
             <span className="text-xs">XSS</span>
-          </button>
-          <button onClick={() => setActiveTab('rce')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'rce' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="rce" className="flex items-center gap-1 px-3 py-2">
             <Terminal className="h-4 w-4" />
             <span className="text-xs">RCE</span>
-          </button>
-          <button onClick={() => setActiveTab('lfi')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'lfi' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="lfi" className="flex items-center gap-1 px-3 py-2">
             <FileCode className="h-4 w-4" />
             <span className="text-xs">LFI</span>
-          </button>
-          <button onClick={() => setActiveTab('ssti')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'ssti' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="ssti" className="flex items-center gap-1 px-3 py-2">
             <Zap className="h-4 w-4" />
             <span className="text-xs">SSTI</span>
-          </button>
-          <button onClick={() => setActiveTab('xxe')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'xxe' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="xxe" className="flex items-center gap-1 px-3 py-2">
             <Bug className="h-4 w-4" />
             <span className="text-xs">XXE</span>
-          </button>
-          <button onClick={() => setActiveTab('csrf')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'csrf' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="csrf" className="flex items-center gap-1 px-3 py-2">
             <Shield className="h-4 w-4" />
             <span className="text-xs">CSRF</span>
-          </button>
-          <button onClick={() => setActiveTab('ssrf')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'ssrf' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="ssrf" className="flex items-center gap-1 px-3 py-2">
             <Server className="h-4 w-4" />
             <span className="text-xs">SSRF</span>
-          </button>
-          <button onClick={() => setActiveTab('nosql')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'nosql' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="nosql" className="flex items-center gap-1 px-3 py-2">
             <Database className="h-4 w-4" />
             <span className="text-xs">NoSQL</span>
-          </button>
-          <button onClick={() => setActiveTab('graphql')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'graphql' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="graphql" className="flex items-center gap-1 px-3 py-2">
             <Code className="h-4 w-4" />
             <span className="text-xs">GraphQL</span>
-          </button>
-          <button onClick={() => setActiveTab('jwt')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'jwt' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="jwt" className="flex items-center gap-1 px-3 py-2">
             <Lock className="h-4 w-4" />
             <span className="text-xs">JWT</span>
-          </button>
-          <button onClick={() => setActiveTab('directory')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'directory' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="directory" className="flex items-center gap-1 px-3 py-2">
             <FolderOpen className="h-4 w-4" />
             <span className="text-xs">Dir Enum</span>
-          </button>
-          <button onClick={() => setActiveTab('fingerprint')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'fingerprint' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="fingerprint" className="flex items-center gap-1 px-3 py-2">
             <Search className="h-4 w-4" />
             <span className="text-xs">Fingerprint</span>
-          </button>
-          <button onClick={() => setActiveTab('cms')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'cms' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="cms" className="flex items-center gap-1 px-3 py-2">
             <Globe className="h-4 w-4" />
             <span className="text-xs">CMS</span>
-          </button>
-          <button onClick={() => setActiveTab('api')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'api' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="api" className="flex items-center gap-1 px-3 py-2">
             <Server className="h-4 w-4" />
             <span className="text-xs">API</span>
-          </button>
-          <button onClick={() => setActiveTab('waf')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'waf' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="waf" className="flex items-center gap-1 px-3 py-2">
             <Shield className="h-4 w-4" />
             <span className="text-xs">WAF Bypass</span>
-          </button>
-          <button onClick={() => setActiveTab('polyglot')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'polyglot' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="polyglot" className="flex items-center gap-1 px-3 py-2">
             <Zap className="h-4 w-4" />
             <span className="text-xs">Polyglot</span>
-          </button>
-          <button onClick={() => setActiveTab('encoding')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'encoding' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="encoding" className="flex items-center gap-1 px-3 py-2">
             <Code className="h-4 w-4" />
             <span className="text-xs">Encode</span>
-          </button>
-          <button onClick={() => setActiveTab('techniques')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'techniques' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="techniques" className="flex items-center gap-1 px-3 py-2">
             <Eye className="h-4 w-4" />
             <span className="text-xs">Guide</span>
-          </button>
-          <button onClick={() => setActiveTab('deserialization')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'deserialization' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="deserialization" className="flex items-center gap-1 px-3 py-2">
             <FileJson className="h-4 w-4" />
             <span className="text-xs">Deserialization</span>
-          </button>
-          <button onClick={() => setActiveTab('smuggling')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'smuggling' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="smuggling" className="flex items-center gap-1 px-3 py-2">
             <GitBranch className="h-4 w-4" />
             <span className="text-xs">Smuggling</span>
-          </button>
-          <button onClick={() => setActiveTab('oauth')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'oauth' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="oauth" className="flex items-center gap-1 px-3 py-2">
             <Key className="h-4 w-4" />
             <span className="text-xs">OAuth/SAML</span>
-          </button>
-          <button onClick={() => setActiveTab('websocket')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'websocket' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="websocket" className="flex items-center gap-1 px-3 py-2">
             <Radio className="h-4 w-4" />
             <span className="text-xs">WebSocket</span>
-          </button>
-          <button onClick={() => setActiveTab('prototype')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'prototype' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="prototype" className="flex items-center gap-1 px-3 py-2">
             <Boxes className="h-4 w-4" />
             <span className="text-xs">Prototype</span>
-          </button>
-          <button onClick={() => setActiveTab('cache')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'cache' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="cache" className="flex items-center gap-1 px-3 py-2">
             <Cloud className="h-4 w-4" />
             <span className="text-xs">Cache</span>
-          </button>
-          <button onClick={() => setActiveTab('race')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'race' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="race" className="flex items-center gap-1 px-3 py-2">
             <Zap className="h-4 w-4" />
             <span className="text-xs">Race</span>
-          </button>
-          <button onClick={() => setActiveTab('interactive')} className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg transition-colors ${activeTab === 'interactive' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}>
+          </TabsTrigger>
+          <TabsTrigger value="interactive" className="flex items-center gap-1 px-3 py-2">
             <Wrench className="h-4 w-4" />
             <span className="text-xs">Tools</span>
-          </button>
-        </div>
-
-        <div className="p-4 space-y-4">
+          </TabsTrigger>
+        </TabsList>
 
         {/* SQL Injection Payloads */}
-        {activeTab === 'sqli' && (
-          <div>
+        <TabsContent value="sqli" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Database className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">SQL Injection Payloads</h2>
@@ -2358,12 +2354,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(sqlPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* XSS Payloads */}
-        {activeTab === 'xss' && (
-          <div>
+        <TabsContent value="xss" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Code className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Cross-Site Scripting (XSS)</h2>
@@ -2374,12 +2368,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(xssPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* RCE Payloads */}
-        {activeTab === 'rce' && (
-          <div>
+        <TabsContent value="rce" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Terminal className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Remote Code Execution (RCE)</h2>
@@ -2390,12 +2382,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(rcePayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* LFI Payloads */}
-        {activeTab === 'lfi' && (
-          <div>
+        <TabsContent value="lfi" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <FileCode className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Local File Inclusion (LFI)</h2>
@@ -2406,12 +2396,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(lfiPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* SSTI Payloads */}
-        {activeTab === 'ssti' && (
-          <div>
+        <TabsContent value="ssti" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Zap className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Server-Side Template Injection (SSTI)</h2>
@@ -2422,12 +2410,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(sstiPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* XXE Payloads */}
-        {activeTab === 'xxe' && (
-          <div>
+        <TabsContent value="xxe" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Bug className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">XML External Entity (XXE)</h2>
@@ -2438,12 +2424,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(xxePayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* CSRF Payloads */}
-        {activeTab === 'csrf' && (
-          <div>
+        <TabsContent value="csrf" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Shield className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Cross-Site Request Forgery (CSRF)</h2>
@@ -2454,12 +2438,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(csrfPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* SSRF Payloads */}
-        {activeTab === 'ssrf' && (
-          <div>
+        <TabsContent value="ssrf" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Server className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Server-Side Request Forgery (SSRF)</h2>
@@ -2470,12 +2452,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(ssrfPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* NoSQL Injection */}
-        {activeTab === 'nosql' && (
-          <div>
+        <TabsContent value="nosql" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Database className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">NoSQL Injection</h2>
@@ -2486,12 +2466,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(nosqlPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* GraphQL Payloads */}
-        {activeTab === 'graphql' && (
-          <div>
+        <TabsContent value="graphql" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Code className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">GraphQL Attacks</h2>
@@ -2502,12 +2480,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(graphqlPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* JWT Manipulation Payloads */}
-        {activeTab === 'jwt' && (
-          <div>
+        <TabsContent value="jwt" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Lock className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">JWT Manipulation</h2>
@@ -2518,12 +2494,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(jwtPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Directory Enumeration */}
-        {activeTab === 'directory' && (
-          <div>
+        <TabsContent value="directory" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <FolderOpen className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Directory Enumeration</h2>
@@ -2534,12 +2508,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(directoryWordlists).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Technology Fingerprinting */}
-        {activeTab === 'fingerprint' && (
-          <div>
+        <TabsContent value="fingerprint" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Search className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Technology Fingerprinting</h2>
@@ -2550,12 +2522,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(fingerprintingTechniques).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* CMS Detection */}
-        {activeTab === 'cms' && (
-          <div>
+        <TabsContent value="cms" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Globe className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">CMS Detection & Exploitation</h2>
@@ -2566,12 +2536,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(cmsPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* API Discovery */}
-        {activeTab === 'api' && (
-          <div>
+        <TabsContent value="api" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Server className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">API Discovery</h2>
@@ -2582,12 +2550,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(apiDiscoveryPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* WAF Bypass */}
-        {activeTab === 'waf' && (
-          <div>
+        <TabsContent value="waf" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Shield className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">WAF Bypass Techniques</h2>
@@ -2598,12 +2564,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(wafBypassPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Polyglot Payloads */}
-        {activeTab === 'polyglot' && (
-          <div>
+        <TabsContent value="polyglot" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Zap className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Polyglot Payloads</h2>
@@ -2614,17 +2578,15 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filterPayloads(polyglotPayloads).map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Interactive Encoding & Obfuscation Tools */}
-        {activeTab === 'encoding' && (
-          <div>
+        <TabsContent value="encoding" className="space-y-6">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Code className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Interactive Encoding & Obfuscation Tools</h2>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Input Section */}
             <Card className="p-4 space-y-4">
@@ -2762,12 +2724,10 @@ const WebTools: React.FC = () => {
               {filterPayloads(polyglotPayloads).map(renderPayloadCard)}
             </div>
           </Card>
-          </div>
-        )}
+        </TabsContent>
 
         {/* CTF Techniques */}
-        {activeTab === 'techniques' && (
-          <div>
+        <TabsContent value="techniques" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Eye className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">CTF Techniques & Methodologies</h2>
@@ -2821,12 +2781,10 @@ const WebTools: React.FC = () => {
                 </Card>
               ))}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Deserialization Attacks */}
-        {activeTab === 'deserialization' && (
-          <div>
+        <TabsContent value="deserialization" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <FileJson className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Deserialization Attack Payloads</h2>
@@ -2837,12 +2795,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* HTTP Request Smuggling */}
-        {activeTab === 'smuggling' && (
-          <div>
+        <TabsContent value="smuggling" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <GitBranch className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">HTTP Request Smuggling Payloads</h2>
@@ -2853,12 +2809,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* OAuth & SAML Attacks */}
-        {activeTab === 'oauth' && (
-          <div>
+        <TabsContent value="oauth" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Key className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">OAuth & SAML Attack Payloads</h2>
@@ -2869,12 +2823,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* WebSocket Attacks */}
-        {activeTab === 'websocket' && (
-          <div>
+        <TabsContent value="websocket" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Radio className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">WebSocket Attack Payloads</h2>
@@ -2885,12 +2837,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Prototype Pollution */}
-        {activeTab === 'prototype' && (
-          <div>
+        <TabsContent value="prototype" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Boxes className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Prototype Pollution Payloads</h2>
@@ -2901,12 +2851,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Web Cache Poisoning */}
-        {activeTab === 'cache' && (
-          <div>
+        <TabsContent value="cache" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Cloud className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Web Cache Poisoning Payloads</h2>
@@ -2917,12 +2865,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Race Conditions */}
-        {activeTab === 'race' && (
-          <div>
+        <TabsContent value="race" className="space-y-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Zap className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Race Condition Payloads</h2>
@@ -2933,12 +2879,10 @@ const WebTools: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {getCurrentPayloads().map(renderPayloadCard)}
           </div>
-          </div>
-        )}
+        </TabsContent>
 
         {/* Interactive Testing Tools & Payload Management */}
-        {activeTab === 'interactive' && (
-          <div>
+        <TabsContent value="interactive" className="space-y-6">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Wrench className="h-6 w-6 text-accent" />
             <h2 className="text-2xl font-bold text-foreground">Interactive Tools & History</h2>
@@ -3248,10 +3192,8 @@ const WebTools: React.FC = () => {
               </div>
             </div>
           </Card>
-          </div>
-        )}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
