@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Zap, Home, Network, Image, Lock, Globe, Search, Menu, X, FolderOpen, Headphones } from 'lucide-react'
 import Footer from './Footer'
@@ -11,6 +11,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString())
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -63,7 +73,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Status Indicator - Right Side (Desktop Only) */}
         <div className="hidden lg:flex items-center space-x-2 lg:space-x-4 absolute right-6">
           <div className="text-xs font-mono text-muted-foreground hidden sm:block">
-            {new Date().toLocaleTimeString()}
+            {currentTime}
           </div>
           <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
         </div>
@@ -129,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Mobile Status */}
               <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground bg-background/50 px-2 py-1 rounded">
-                  {new Date().toLocaleTimeString()}
+                  {currentTime}
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm"></div>
