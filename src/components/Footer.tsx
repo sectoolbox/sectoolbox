@@ -15,7 +15,7 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-slate-200 mb-4">
-            {projectName} Developers
+            Developers
           </h3>
           <ul className="flex flex-wrap justify-center items-center gap-6 list-none p-0 m-0" aria-label="Project developers">
             {developers.map((dev) => (
@@ -46,7 +46,7 @@ const Footer: React.FC = () => {
             ))}
           </ul>
           <div className="mt-6 text-xs text-slate-400">
-            © 2025 {projectName}
+            © 2025 {projectName}. All rights reserved.
           </div>
         </div>
       </div>
