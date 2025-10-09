@@ -520,7 +520,7 @@ const PcapAnalysis: React.FC = () => {
         <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={(e)=>e.preventDefault()} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}>
           <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">{file ? file.name : 'Drop your PCAP file here or click to browse'}</p>
-          <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 100MB. Advanced network forensics and threat detection included.</p>
+          <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 500MB. Advanced network forensics and threat detection included.</p>
           <input ref={fileInputRef} type="file" accept=".pcap,.pcapng" onChange={(e)=>{ const f=e.target.files?.[0]; if(f){ setFile(f); setPackets([]); setStats({ totalPackets:0, linkType:null }); setNotice(null) } }} className="hidden" />
         </div>
 
