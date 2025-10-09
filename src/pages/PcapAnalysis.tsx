@@ -515,36 +515,61 @@ const PcapAnalysis: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">Upload PCAP File</h2>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={(e)=>e.preventDefault()} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}>
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">{file ? file.name : 'Drop your PCAP file here or click to browse'}</p>
-          <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 500MB. Advanced network forensics and threat detection included.</p>
-          <input ref={fileInputRef} type="file" accept=".pcap,.pcapng" onChange={(e)=>{ const f=e.target.files?.[0]; if(f){ setFile(f); setPackets([]); setStats({ totalPackets:0, linkType:null }); setNotice(null) } }} className="hidden" />
+      {!file ? (
+        <div className="bg-card border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold mb-4">Upload PCAP File</h2>
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={(e)=>e.preventDefault()} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Drop your PCAP file here or click to browse</p>
+            <p className="text-sm text-muted-foreground">Supports .pcap (classic libpcap) files up to 500MB. Advanced network forensics and threat detection included.</p>
+            <input ref={fileInputRef} type="file" accept=".pcap,.pcapng" onChange={(e)=>{ const f=e.target.files?.[0]; if(f){ setFile(f); setPackets([]); setStats({ totalPackets:0, linkType:null }); setNotice(null) } }} className="hidden" />
+          </div>
         </div>
-
-        {file && (
-          <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <FileText className="w-4 h-4" />
-            <span>{file.name} ({(file.size/1024/1024).toFixed(2)} MB)</span>
+      ) : (
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Network className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">{(file.size/1024/1024).toFixed(2)} MB</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
+                variant="outline"
+                size="sm"
+              >
+                <Keyboard className="w-4 h-4 mr-2" />
+                USB Analysis
+              </Button>
+              <Button onClick={() => analyzePcap()} disabled={isAnalyzing} size="sm">
+                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>Analyze</span></>)}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setFile(null)
+                  setPackets([])
+                  setStats({ totalPackets:0, linkType:null })
+                  setStructuredResults(null)
+                  setExtractedStrings(null)
+                  setNetworkStats(null)
+                  setConversations([])
+                  setSuspiciousActivity([])
+                  setTrafficOverTime([])
+                  setHttpSessions([])
+                  setHexData(null)
+                }}
+              >
+                Remove File
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
-              className="flex items-center space-x-2 bg-purple-500/20 text-purple-400 border border-purple-400/30 px-4 py-2 rounded-lg hover:bg-purple-500/30 transition-colors"
-            >
-              <Keyboard className="w-4 h-4" />
-              <span>USB Analysis</span>
-            </button>
-            <button onClick={() => analyzePcap()} disabled={isAnalyzing} className="flex items-center space-x-2 bg-accent text-background px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50">
-              {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4" /><span>Analyze PCAP</span></>)}
-            </button>
-          </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {notice && (
         <div className="bg-card border border-border rounded-lg p-4">

@@ -277,39 +277,65 @@ const FolderScanner: React.FC = () => {
       </div>
 
       {/* Upload Section */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Select Folder to Scan</h2>
-        <div
-          className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">
-            {scanResult ? `Scanned folder with ${scanResult.totalFiles} files` : 'Click to select a folder'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            All files including hidden files (starting with .) will be scanned and analyzed
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            /* @ts-ignore - webkitdirectory is not in types but works */
-            webkitdirectory=""
-            directory=""
-            multiple
-            onChange={handleFolderSelect}
-            className="hidden"
-          />
-        </div>
-        {(isScanning || isAnalyzing) && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-accent">
-            <Activity className="w-4 h-4 animate-spin" />
-            <span>
-              {isScanning ? 'Scanning folder...' : `Analyzing ${analysisProgress.current}/${analysisProgress.total} files...`}
-            </span>
+      {!scanResult ? (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Select Folder to Scan</h2>
+          <div
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">
+              Click to select a folder
+            </p>
+            <p className="text-sm text-muted-foreground">
+              All files including hidden files (starting with .) will be scanned and analyzed
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              /* @ts-ignore - webkitdirectory is not in types but works */
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={handleFolderSelect}
+              className="hidden"
+            />
           </div>
-        )}
-      </Card>
+          {(isScanning || isAnalyzing) && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-accent">
+              <Activity className="w-4 h-4 animate-spin" />
+              <span>
+                {isScanning ? 'Scanning folder...' : `Analyzing ${analysisProgress.current}/${analysisProgress.total} files...`}
+              </span>
+            </div>
+          )}
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FolderOpen className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">Scanned folder with {scanResult.totalFiles} files</p>
+                <p className="text-sm text-muted-foreground">{formatFileSize(scanResult.totalSize)}</p>
+              </div>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setScanResult(null)
+                setAnalyzedFiles([])
+                setFilteredFiles([])
+                setSelectedFile(null)
+              }}
+            >
+              Clear Folder
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {!scanResult && (
         <div className="invisible">

@@ -1008,98 +1008,108 @@ const DigitalForensics: React.FC = () => {
       </div>
 
       {/* File Upload */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Upload className="h-5 w-5 text-accent" />
-            File Upload
-          </h2>
-          
-          <div
-            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
-            onDragOver={e => {
-              try {
-                e.preventDefault()
-              } catch (error) {
-                console.warn('Drag over handling failed:', error)
-              }
-            }}
-            onDrop={handleDrop}
-            onClick={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.onchange = (e) => {
-                try {
-                  const files = (e.target as HTMLInputElement).files
-                  if (!files || files.length === 0) return
-                  
-                  const file = files[0]
-                  if (!file) return
-                  
-                  // Basic file validation
-                  if (file.size === 0) {
-                    console.warn('Selected file is empty')
-                    return
-                  }
-                  
-                  const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB limit
-                  if (file.size > MAX_FILE_SIZE) {
-                    console.warn(`Selected file too large: ${formatFileSize(file.size)}`)
-                    return
-                  }
-                  
-                  handleFileSelect(file)
-                } catch (error) {
-                  console.error('File selection handling failed:', error)
-                }
-              }
-              input.click()
-            }}
-          >
-            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">
-              {selectedFile ? selectedFile.name : 'Drop file here or click to browse'}
-            </h3>
-            <p className="text-muted-foreground">
-              {selectedFile 
-                ? `${formatFileSize(selectedFile.size)} • ${selectedFile.type || 'Unknown type'}`
-                : 'Supports EVTX files, memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 500MB)'
-              }
-            </p>
-          </div>
+      {!selectedFile ? (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Upload className="h-5 w-5 text-accent" />
+              File Upload
+            </h2>
 
-          {selectedFile && (
-            <div className="flex gap-2 justify-center">
+            <div
+              className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+              onDragOver={e => {
+                try {
+                  e.preventDefault()
+                } catch (error) {
+                  console.warn('Drag over handling failed:', error)
+                }
+              }}
+              onDrop={handleDrop}
+              onClick={() => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.onchange = (e) => {
+                  try {
+                    const files = (e.target as HTMLInputElement).files
+                    if (!files || files.length === 0) return
+
+                    const file = files[0]
+                    if (!file) return
+
+                    // Basic file validation
+                    if (file.size === 0) {
+                      console.warn('Selected file is empty')
+                      return
+                    }
+
+                    const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB limit
+                    if (file.size > MAX_FILE_SIZE) {
+                      console.warn(`Selected file too large: ${formatFileSize(file.size)}`)
+                      return
+                    }
+
+                    handleFileSelect(file)
+                  } catch (error) {
+                    console.error('File selection handling failed:', error)
+                  }
+                }
+                input.click()
+              }}
+            >
+              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">
+                Drop file here or click to browse
+              </h3>
+              <p className="text-muted-foreground">
+                Supports EVTX files, memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 500MB)
+              </p>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileText className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium">{selectedFile.name}</p>
+                <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)} • {selectedFile.type || 'Unknown type'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               {selectedFile.name.toLowerCase().endsWith('.evtx') && (
                 <Button
                   onClick={() => navigate('/forensics-evtx', { state: { evtxFile: selectedFile } })}
-                  className="flex items-center gap-2 bg-purple-500/20 text-purple-400 border border-purple-400/30 hover:bg-purple-500/30"
+                  variant="outline"
+                  size="sm"
                 >
-                  <FileWarning className="h-4 w-4" />
+                  <FileWarning className="h-4 w-4 mr-2" />
                   EVTX Analysis
                 </Button>
               )}
               <Button
                 onClick={() => handleAnalyze()}
                 disabled={isAnalyzing}
-                className="flex items-center gap-2"
+                size="sm"
               >
-                <Search className="h-4 w-4" />
-                {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
+                <Search className="h-4 w-4 mr-2" />
+                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
               </Button>
               <Button
-                variant="outline"
+                variant="destructive"
+                size="sm"
                 onClick={() => {
                   setSelectedFile(null)
                   setAnalysisResults(null)
                 }}
               >
-                Clear
+                Remove File
               </Button>
             </div>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      )}
 
       {/* Analysis Results */}
       {analysisResults && (
