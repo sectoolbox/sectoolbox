@@ -31,8 +31,11 @@ const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 border-t border-slate-700 py-8 mt-auto" role="contentinfo">
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-center items-start gap-16 mb-6">
-          {/* Developers Section */}
+        <div className="flex flex-wrap justify-between items-start gap-8 mb-6">
+          {/* Left spacer for layout */}
+          <div className="flex-1 min-w-0"></div>
+
+          {/* Developers Section - Centered */}
           <div className="flex flex-col items-center">
             <h3 className="text-lg font-semibold text-slate-200 mb-4">
               Developers
@@ -67,8 +70,8 @@ const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Community Section */}
-          <div className="flex flex-col items-center">
+          {/* Community Section - Far Right */}
+          <div className="flex flex-col items-center flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-slate-200 mb-4">
               Community
             </h3>

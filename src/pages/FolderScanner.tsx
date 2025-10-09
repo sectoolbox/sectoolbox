@@ -100,14 +100,35 @@ const FolderScanner: React.FC = () => {
       const result = await scanFolder(files)
       setScanResult(result)
       setFilteredFiles(result.files)
+      setIsScanning(false)
 
       // Auto-analyze after scan completes
-      handleAnalyzeAll()
+      await analyzeFilesAfterScan(result)
     } catch (error) {
       console.error('Folder scan error:', error)
       alert('Failed to scan folder')
-    } finally {
       setIsScanning(false)
+    }
+  }
+
+  const analyzeFilesAfterScan = async (result: FolderScanResult) => {
+    setIsAnalyzing(true)
+    setAnalysisProgress({ current: 0, total: result.files.length })
+
+    try {
+      const analyzed = await batchAnalyzeFiles(
+        result.files,
+        (current, total) => {
+          setAnalysisProgress({ current, total })
+        }
+      )
+      setAnalyzedFiles(analyzed)
+      setScanResult({ ...result, scannedFiles: analyzed.length })
+    } catch (error) {
+      console.error('Analysis error:', error)
+      alert('Failed to analyze files')
+    } finally {
+      setIsAnalyzing(false)
     }
   }
 

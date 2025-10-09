@@ -1559,7 +1559,7 @@ const CryptoTools: React.FC = () => {
 
         {/* Tabs */}
         <div className="bg-card border border-border rounded-lg">
-          <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
