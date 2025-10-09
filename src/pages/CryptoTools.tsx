@@ -18,6 +18,7 @@ import {
   Globe
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 interface CryptoResult {
   input: string
@@ -1557,30 +1558,22 @@ const CryptoTools: React.FC = () => {
           </p>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="flex flex-wrap border-b border-border">
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 h-auto">
             {tabs.map(tab => {
               const Icon = tab.icon
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center space-x-2 ${
-                    activeTab === tab.id
-                      ? 'text-accent border-b-2 border-accent bg-accent/5'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
-                  }`}
-                >
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
                   <Icon className="w-4 h-4" />
                   <span>{tab.name}</span>
-                </button>
+                </TabsTrigger>
               )
             })}
-          </div>
+          </TabsList>
 
-          {/* Main Content */}
-          <div className="p-6">
+          <TabsContent value={activeTab} className="space-y-4">
+            <div className="bg-card border border-border rounded-lg p-6">
             {/* Recursive Mode Toggle */}
             {activeTab !== 'analysis' && activeTab !== 'magic' && (
               <div className="mb-4 p-4 bg-accent/5 border border-accent/20 rounded-lg">
@@ -1773,8 +1766,9 @@ const CryptoTools: React.FC = () => {
               </div>
             </div>
             )}
-          </div>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Results History */}
         <div className="bg-card border border-border rounded-lg">
