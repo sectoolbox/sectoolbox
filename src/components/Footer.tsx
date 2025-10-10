@@ -48,13 +48,13 @@ const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 border-t border-slate-700 py-4 mt-auto" role="contentinfo">
       <div>
-        <div className="flex flex-wrap justify-between items-start gap-4 mb-3">
+        <div className="flex flex-wrap justify-between items-start mb-3">
           {/* GitHub Links Section - Far Left */}
-          <div className="flex flex-col items-center flex-1 min-w-0">
+          <div className="flex flex-col items-start flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-slate-200 mb-2">
               GitHub
             </h3>
-            <ul className="flex flex-wrap justify-center items-center gap-3 list-none p-0 m-0" aria-label="GitHub links">
+            <ul className="flex flex-wrap justify-start items-center gap-3 list-none p-0 m-0" aria-label="GitHub links">
               {reportIssueLinks.map((link) => {
                 const Icon = link.icon
                 return (
@@ -135,11 +135,11 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Community Section - Far Right */}
-          <div className="flex flex-col items-center flex-1 min-w-0">
+          <div className="flex flex-col items-end flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-slate-200 mb-2">
               Community
             </h3>
-            <ul className="flex flex-wrap justify-center items-center gap-3 list-none p-0 m-0" aria-label="Community links">
+            <ul className="flex flex-wrap justify-end items-center gap-3 list-none p-0 m-0" aria-label="Community links">
               {communityLinks.map((link) => {
                 const Icon = link.icon
                 return (
