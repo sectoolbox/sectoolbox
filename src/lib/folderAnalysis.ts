@@ -35,6 +35,8 @@ export interface FileAnalysisResult {
     base64: string[]
     hexStrings: string[]
   }
+  hexDump?: string // Hex dump of first 1KB for binary files
+  rawPreview?: string // Raw bytes preview
   metadata?: Record<string, any>
 }
 
@@ -167,6 +169,14 @@ export async function analyzeFile(entry: FileEntry): Promise<FileAnalysisResult>
     hashes.sha256 = await calculateSHA256(buffer)
   }
 
+  // Generate hex dump for first 1KB (useful for binary files)
+  const hexDump = generateHexDump(bytes, 1024)
+
+  // Generate raw preview (first 512 bytes as hex)
+  const rawPreview = Array.from(bytes.slice(0, 512))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join(' ')
+
   return {
     isEmpty,
     hasStrings,
@@ -177,6 +187,8 @@ export async function analyzeFile(entry: FileEntry): Promise<FileAnalysisResult>
     detectedType,
     printableStrings: strings.slice(0, 100), // Limit to first 100 strings
     interestingPatterns: patterns,
+    hexDump,
+    rawPreview,
     metadata: {}
   }
 }
@@ -404,6 +416,29 @@ export function exportToCSV(files: FileEntry[]): string {
 // Helper: Extract printable strings from buffer
 function extractStrings(buffer: ArrayBuffer, minLength = 4): string[] {
   const bytes = new Uint8Array(buffer)
+  const allStrings: Set<string> = new Set()
+
+  // Extract ASCII strings (original method)
+  const asciiStrings = extractASCIIStrings(bytes, minLength)
+  asciiStrings.forEach(s => allStrings.add(s))
+
+  // Extract UTF-8 strings
+  const utf8Strings = extractUTF8Strings(bytes, minLength)
+  utf8Strings.forEach(s => allStrings.add(s))
+
+  // Extract UTF-16 LE strings (Windows binaries)
+  const utf16LEStrings = extractUTF16LEStrings(bytes, minLength)
+  utf16LEStrings.forEach(s => allStrings.add(s))
+
+  // Extract UTF-16 BE strings
+  const utf16BEStrings = extractUTF16BEStrings(bytes, minLength)
+  utf16BEStrings.forEach(s => allStrings.add(s))
+
+  return Array.from(allStrings)
+}
+
+// Extract ASCII printable strings
+function extractASCIIStrings(bytes: Uint8Array, minLength = 4): string[] {
   const strings: string[] = []
   let current: number[] = []
 
@@ -421,6 +456,117 @@ function extractStrings(buffer: ArrayBuffer, minLength = 4): string[] {
 
   if (current.length >= minLength) {
     strings.push(String.fromCharCode(...current))
+  }
+
+  return strings
+}
+
+// Extract UTF-8 strings
+function extractUTF8Strings(bytes: Uint8Array, minLength = 4): string[] {
+  const strings: string[] = []
+  const decoder = new TextDecoder('utf-8', { fatal: false })
+
+  // Try to decode the entire buffer as UTF-8
+  try {
+    const fullText = decoder.decode(bytes)
+    // Split on non-printable characters and filter by length
+    const parts = fullText.split(/[\x00-\x1F\x7F-\x9F]+/)
+    for (const part of parts) {
+      const trimmed = part.trim()
+      if (trimmed.length >= minLength) {
+        strings.push(trimmed)
+      }
+    }
+  } catch (e) {
+    // Ignore decoding errors
+  }
+
+  return strings
+}
+
+// Extract UTF-16 Little Endian strings (common in Windows)
+function extractUTF16LEStrings(bytes: Uint8Array, minLength = 4): string[] {
+  const strings: string[] = []
+  let current: number[] = []
+
+  for (let i = 0; i < bytes.length - 1; i += 2) {
+    const char = bytes[i] | (bytes[i + 1] << 8)
+
+    // Check if it's a printable character
+    if ((char >= 32 && char <= 126) || (char >= 0xA0 && char <= 0xFFFF)) {
+      current.push(char)
+    } else if (char === 0) {
+      // Null terminator
+      if (current.length >= minLength) {
+        try {
+          strings.push(String.fromCharCode(...current))
+        } catch (e) {
+          // Skip invalid sequences
+        }
+      }
+      current = []
+    } else {
+      if (current.length >= minLength) {
+        try {
+          strings.push(String.fromCharCode(...current))
+        } catch (e) {
+          // Skip invalid sequences
+        }
+      }
+      current = []
+    }
+  }
+
+  if (current.length >= minLength) {
+    try {
+      strings.push(String.fromCharCode(...current))
+    } catch (e) {
+      // Skip invalid sequences
+    }
+  }
+
+  return strings
+}
+
+// Extract UTF-16 Big Endian strings
+function extractUTF16BEStrings(bytes: Uint8Array, minLength = 4): string[] {
+  const strings: string[] = []
+  let current: number[] = []
+
+  for (let i = 0; i < bytes.length - 1; i += 2) {
+    const char = (bytes[i] << 8) | bytes[i + 1]
+
+    // Check if it's a printable character
+    if ((char >= 32 && char <= 126) || (char >= 0xA0 && char <= 0xFFFF)) {
+      current.push(char)
+    } else if (char === 0) {
+      // Null terminator
+      if (current.length >= minLength) {
+        try {
+          strings.push(String.fromCharCode(...current))
+        } catch (e) {
+          // Skip invalid sequences
+        }
+      }
+      current = []
+    } else {
+      if (current.length >= minLength) {
+        try {
+          strings.push(String.fromCharCode(...current))
+        } catch (e) {
+          // Skip invalid sequences
+        }
+      }
+      current = []
+    }
+  }
+
+  if (current.length >= minLength) {
+    try {
+      strings.push(String.fromCharCode(...current))
+    } catch (e) {
+      // Skip invalid sequences
+    }
   }
 
   return strings
@@ -511,4 +657,43 @@ export function getEntropyColor(entropy: number): string {
   if (entropy < 6) return 'text-yellow-400' // Medium entropy
   if (entropy < 7.5) return 'text-orange-400' // High entropy (compressed)
   return 'text-red-400' // Very high entropy (encrypted)
+}
+
+// Generate formatted hex dump with ASCII sidebar
+function generateHexDump(bytes: Uint8Array, maxBytes = 1024): string {
+  const lines: string[] = []
+  const limit = Math.min(bytes.length, maxBytes)
+
+  for (let i = 0; i < limit; i += 16) {
+    // Offset
+    const offset = i.toString(16).padStart(8, '0')
+
+    // Hex bytes
+    const hexPart: string[] = []
+    const asciiPart: string[] = []
+
+    for (let j = 0; j < 16; j++) {
+      if (i + j < limit) {
+        const byte = bytes[i + j]
+        hexPart.push(byte.toString(16).padStart(2, '0'))
+
+        // ASCII representation
+        if (byte >= 32 && byte <= 126) {
+          asciiPart.push(String.fromCharCode(byte))
+        } else {
+          asciiPart.push('.')
+        }
+      } else {
+        hexPart.push('  ')
+        asciiPart.push(' ')
+      }
+    }
+
+    // Format: offset | hex bytes | ASCII
+    const hexStr = hexPart.join(' ')
+    const asciiStr = asciiPart.join('')
+    lines.push(`${offset}  ${hexStr}  |${asciiStr}|`)
+  }
+
+  return lines.join('\n')
 }
