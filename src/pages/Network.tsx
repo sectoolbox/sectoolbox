@@ -25,7 +25,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 
-type TabType = 'subnet' | 'dns' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs'
+type TabType = 'subnet' | 'dns' | 'headers' | 'shodan' | 'archive' | 'ipinfo' | 'passivedns' | 'certs' | 'nmap'
 
 interface SubnetInfo {
   network: string
@@ -175,6 +175,21 @@ interface CertRecord {
   result_count?: number
 }
 
+interface NmapResult {
+  raw: string
+  target: string
+  ports: Array<{
+    port: number
+    protocol: string
+    state: string
+    service: string
+  }>
+  quota?: {
+    remaining?: string
+    used?: string
+  }
+}
+
 export default function Network() {
   const [activeTab, setActiveTab] = useState<TabType>('subnet')
   const [loading, setLoading] = useState(false)
@@ -291,6 +306,10 @@ export default function Network() {
   const [certInput, setCertInput] = useState('')
   const [certRecords, setCertRecords] = useState<CertRecord[]>([])
   const [certShowUniqueOnly, setCertShowUniqueOnly] = useState(false)
+
+  // Nmap
+  const [nmapInput, setNmapInput] = useState('')
+  const [nmapResult, setNmapResult] = useState<NmapResult | null>(null)
 
   // Filter unique certificates by name_value
   const filteredCertRecords = useMemo(() => {
@@ -700,6 +719,30 @@ export default function Network() {
     }
   }, [])
 
+  // Nmap Scan (via HackerTarget API)
+  const performNmapScan = useCallback(async (target: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/nmap?target=${encodeURIComponent(target)}`)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Nmap scan failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      setNmapResult(data)
+    } catch (err: any) {
+      setError(err.message || 'Nmap scan failed')
+      setNmapResult(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
   }
@@ -832,6 +875,17 @@ export default function Network() {
           >
             <Lock className="w-4 h-4" />
             <span>Certificates</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('nmap')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
+              activeTab === 'nmap'
+                ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Nmap</span>
           </button>
         </div>
 
@@ -1829,6 +1883,117 @@ export default function Network() {
                       </Card>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Nmap Tab */}
+        {activeTab === 'nmap' && (
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-accent" />
+                <h2 className="text-2xl font-bold">Nmap Port Scanner</h2>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter IP or domain (e.g., 8.8.8.8 or example.com)"
+                  value={nmapInput}
+                  onChange={(e) => setNmapInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performNmapScan(nmapInput)}
+                  className="flex-1"
+                />
+                <Button onClick={() => performNmapScan(nmapInput)} disabled={loading}>
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 mr-2" />
+                  )}
+                  Scan
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Using HackerTarget Nmap API - 50 free requests per day
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-500">{error}</span>
+                </div>
+              )}
+
+              {nmapResult && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Found {nmapResult.ports.length} port(s) on {nmapResult.target}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => exportData(nmapResult, 'nmap-scan.json')}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+
+                  {nmapResult.ports.length > 0 ? (
+                    <Card className="p-4">
+                      <h3 className="font-semibold flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-accent" />
+                        Open Ports
+                      </h3>
+                      <div className="space-y-2">
+                        {nmapResult.ports.map((port, idx) => (
+                          <div key={idx} className="flex items-center justify-between border-b border-border/50 py-2">
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono text-sm font-semibold text-accent min-w-[80px]">
+                                Port {port.port}
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                port.state === 'open' ? 'bg-green-500/20 text-green-400' :
+                                port.state === 'closed' ? 'bg-red-500/20 text-red-400' :
+                                'bg-amber-500/20 text-amber-400'
+                              }`}>
+                                {port.state}
+                              </span>
+                              <span className="text-sm">{port.service}</span>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(`${port.port}/${port.protocol}`)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  ) : (
+                    <Card className="p-4">
+                      <div className="text-center text-muted-foreground py-4">
+                        <Info className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>No open ports found</p>
+                      </div>
+                    </Card>
+                  )}
+
+                  {nmapResult.raw && (
+                    <Card className="p-4">
+                      <h3 className="font-semibold flex items-center gap-2 mb-3">
+                        <FileText className="w-4 h-4 text-accent" />
+                        Raw Nmap Output
+                      </h3>
+                      <pre className="text-xs font-mono bg-black/20 rounded p-3 overflow-x-auto whitespace-pre-wrap">
+                        {nmapResult.raw}
+                      </pre>
+                    </Card>
+                  )}
+
+                  {nmapResult.quota && (
+                    <div className="text-xs text-muted-foreground">
+                      API Quota: {nmapResult.quota.used || 'N/A'} used {nmapResult.quota.remaining && `/ ${nmapResult.quota.remaining} remaining`}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
