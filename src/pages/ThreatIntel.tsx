@@ -16,7 +16,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 
-type TabType = 'virustotal' | 'hibp' | 'urlhaus' | 'phishstats' | 'cloudflare' | 'abuseipdb' | 'greynoise' | 'alienvault'
+type TabType = 'virustotal' | 'hibp' | 'phishstats' | 'cloudflare' | 'abuseipdb' | 'greynoise' | 'alienvault'
 
 // Check which APIs have keys configured
 const checkApiKeys = async () => {
@@ -40,7 +40,6 @@ export default function ThreatIntel() {
   const [tabResults, setTabResults] = useState<Record<TabType, any>>({
     virustotal: null,
     hibp: null,
-    urlhaus: null,
     phishstats: null,
     cloudflare: null,
     abuseipdb: null,
@@ -93,9 +92,6 @@ export default function ThreatIntel() {
         case 'hibp':
           url = `/api/threat-intel?service=hibp&type=breach&query=${encodeURIComponent(query)}`
           break
-        case 'urlhaus':
-          url = `/api/threat-intel?service=urlhaus&type=url&query=${encodeURIComponent(query)}`
-          break
         case 'phishstats':
           url = `/api/threat-intel?service=phishstats&type=domain&query=${encodeURIComponent(query)}`
           break
@@ -118,11 +114,6 @@ export default function ThreatIntel() {
 
       if (!response.ok) {
         throw new Error(data.error || 'API request failed')
-      }
-
-      // Check for URLhaus-specific error responses
-      if (tab === 'urlhaus' && data.query_status && data.query_status !== 'ok') {
-        throw new Error(data.query_status || 'URLhaus API error')
       }
 
       // Store results for this specific tab
@@ -174,17 +165,6 @@ export default function ThreatIntel() {
           >
             <Lock className="w-4 h-4" />
             <span>HIBP</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('urlhaus')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
-              activeTab === 'urlhaus'
-                ? 'text-accent border-b-2 border-accent bg-accent/5'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
-            }`}
-          >
-            <Database className="w-4 h-4" />
-            <span>URLhaus</span>
           </button>
           <button
             onClick={() => setActiveTab('phishstats')}
@@ -255,7 +235,6 @@ export default function ThreatIntel() {
               <div className="flex items-center gap-2 mb-4">
                 {activeTab === 'virustotal' && <Shield className="w-5 h-5 text-accent" />}
                 {activeTab === 'hibp' && <Lock className="w-5 h-5 text-accent" />}
-                {activeTab === 'urlhaus' && <Database className="w-5 h-5 text-accent" />}
                 {activeTab === 'phishstats' && <Eye className="w-5 h-5 text-accent" />}
                 {activeTab === 'cloudflare' && <Globe className="w-5 h-5 text-accent" />}
                 {activeTab === 'abuseipdb' && <AlertCircle className="w-5 h-5 text-accent" />}
@@ -264,7 +243,6 @@ export default function ThreatIntel() {
                 <h2 className="text-2xl font-bold">
                   {activeTab === 'virustotal' && 'VirusTotal'}
                   {activeTab === 'hibp' && 'Have I Been Pwned'}
-                  {activeTab === 'urlhaus' && 'URLhaus Malware Database'}
                   {activeTab === 'phishstats' && 'PhishStats'}
                   {activeTab === 'cloudflare' && 'Cloudflare Trace'}
                   {activeTab === 'abuseipdb' && 'AbuseIPDB'}
@@ -280,11 +258,10 @@ export default function ThreatIntel() {
                       placeholder={
                         activeTab === 'virustotal' ? 'Enter domain, IP, or file hash' :
                         activeTab === 'hibp' ? 'Enter email address' :
-                        activeTab === 'urlhaus' ? 'Enter URL or domain' :
                         activeTab === 'phishstats' ? 'Enter domain or URL' :
                         activeTab === 'abuseipdb' ? 'Enter IP address' :
                         activeTab === 'greynoise' ? 'Enter IP address' :
-                        activeTab === 'alienvault' ? 'Enter IP, domain, or hash' :
+                        activeTab === 'alienvault' ? 'Enter IP address' :
                         'Enter query'
                       }
                       value={input}
@@ -320,7 +297,6 @@ export default function ThreatIntel() {
               <div className="text-xs text-muted-foreground">
                 {activeTab === 'virustotal' && 'Scan files, URLs, domains, and IPs for malware'}
                 {activeTab === 'hibp' && 'Check if email addresses have been in data breaches'}
-                {activeTab === 'urlhaus' && 'Check URLs against malware database'}
                 {activeTab === 'phishstats' && 'Search phishing URL database'}
                 {activeTab === 'cloudflare' && 'Get your IP info via Cloudflare'}
                 {activeTab === 'abuseipdb' && 'Check IP reputation and abuse reports'}
