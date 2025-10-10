@@ -1,74 +1,85 @@
 [
   {
+    "date": "2025-10-10",
+    "version": "v1.2.0",
+    "title": "Navigation Overhaul & UI Refinements",
+    "description": "Complete navigation redesign with dropdown menus, comprehensive search, and multiple UI improvements.",
+    "changes": [
+      "Dropdown navigation with organized Analysis and Security Tools categories",
+      "Global search functionality across all 60+ tools with keyword matching",
+      "Mobile-responsive hamburger menu with organized sections",
+      "Footer alignment fixes and padding adjustments",
+      "Button label clarification across PCAP and Forensics pages",
+      "Standardized button styling for consistency"
+    ]
+  },
+  {
+    "date": "2025-10-09",
+    "version": "v1.1.0",
+    "title": "Network Analysis & Memory Forensics",
+    "description": "Added comprehensive network intelligence tools and advanced memory dump analysis capabilities.",
+    "changes": [
+      "Network analysis page with Shodan, IPInfo, PassiveDNS, crt.sh integration",
+      "Archive.org CDX API with pagination, filtering, and injection point detection",
+      "Memory Forensics module with process, DLL, network, and handle analysis",
+      "Vercel serverless functions for CORS-free API access",
+      "Quick upload cards for all major analysis types on Dashboard",
+      "Folder Scanner auto-analyze functionality",
+      "Web Tools favorites filter fix"
+    ]
+  },
+  {
     "date": "2025-10-08",
     "version": "v1.0.0",
     "title": "Initial Release - Sectoolbox Launch",
     "description": "Professional cybersecurity toolkit for CTF competitions and security research now available.",
     "changes": [
-      "🚀 Initial public release",
-      "🔧 Complete toolkit suite implementation",
-      "🌐 Vercel deployment ready",
-      "📱 Modern responsive UI design"
-    ]
-  },
-  {
-    "date": "2025-10-08",
-    "version": "v1.0.0-beta",
-    "title": "PCAP Analysis Module",
-    "description": "Advanced network packet analysis capabilities for deep packet inspection.",
-    "changes": [
-      "📊 Real-time packet parsing and analysis",
-      "🔍 Protocol detection and filtering",
-      "📈 Traffic visualization charts",
-      "💾 Export analysis results"
-    ]
-  },
-  {
-    "date": "2025-10-08",
-    "version": "v1.0.0-beta",
-    "title": "Image Analysis & Steganography",
-    "description": "Comprehensive image forensics and steganography detection tools.",
-    "changes": [
-      "🖼️ EXIF metadata extraction",
-      "🔐 Hidden data detection",
-      "🎨 Image manipulation analysis",
-      "📋 Detailed forensic reports"
-    ]
-  },
-  {
-    "date": "2025-10-08",
-    "version": "v1.0.0-beta",
-    "title": "Cryptography Toolkit",
-    "description": "Extensive collection of encoding, decoding, and cryptographic analysis tools.",
-    "changes": [
-      "🔤 Base64, Hex, URL encoding/decoding",
-      "🔒 Hash analysis (MD5, SHA family)",
-      "🗝️ Caesar cipher and ROT variants",
-      "🧮 Frequency analysis tools"
-    ]
-  },
-  {
-    "date": "2025-10-08",
-    "version": "v1.0.0-beta",
-    "title": "Web Security Scanner",
-    "description": "Web application security testing and vulnerability assessment tools.",
-    "changes": [
-      "🌐 URL analysis and parsing",
-      "🛡️ Security header analysis",
-      "🔍 Directory enumeration",
-      "⚡ XSS and injection testing"
+      "Initial public release with complete toolkit suite",
+      "Modern responsive UI design with dark mode",
+      "Vercel deployment ready",
+      "Complete documentation and usage guides"
     ]
   },
   {
     "date": "2025-10-08",
     "version": "v1.0.0-beta",
     "title": "Digital Forensics Suite",
-    "description": "File analysis and digital evidence examination capabilities.",
+    "description": "Comprehensive file analysis and digital evidence examination capabilities.",
     "changes": [
-      "📁 File signature analysis",
-      "🔬 Hex dump examination",
-      "📊 Entropy and statistical analysis",
-      "🗃️ EVTX log file parsing"
+      "PCAP Analysis with network packet inspection and protocol analysis",
+      "USB PCAP Analysis for USB traffic forensics",
+      "EVTX Analysis for Windows Event Log parsing",
+      "File signature and hex dump examination",
+      "Entropy and statistical analysis",
+      "Export functionality for all analysis types"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Image & Audio Analysis",
+    "description": "Advanced media forensics tools for image and audio file investigation.",
+    "changes": [
+      "EXIF metadata extraction with GPS data",
+      "Steganography detection and hidden data extraction",
+      "Bit plane analysis and QR code scanning",
+      "Spectral analysis for audio files",
+      "DTMF detection and waveform visualization",
+      "LSB analysis for hidden audio data"
+    ]
+  },
+  {
+    "date": "2025-10-08",
+    "version": "v1.0.0-beta",
+    "title": "Web Security & Cryptography",
+    "description": "Extensive web exploitation payloads and cryptographic analysis tools.",
+    "changes": [
+      "240+ attack payloads across 26 categories",
+      "SQL Injection, XSS, RCE, LFI/RFI, SSTI payloads",
+      "Encoding/decoding tools (Base64, Hex, URL, Binary)",
+      "Hash analysis and identification (MD5, SHA family)",
+      "Classical ciphers (Caesar, Vigenere, ROT13, Atbash)",
+      "Frequency analysis for cryptanalysis"
     ]
   },
   {
@@ -77,10 +88,12 @@
     "title": "Core Platform Development",
     "description": "Foundation development with modern React architecture and security focus.",
     "changes": [
-      "⚛️ React 19 + TypeScript foundation",
-      "🎨 Tailwind CSS + Shadcn/ui components",
-      "🚀 Vite build system optimization",
-      "📱 Responsive design implementation"
+      "React 19 + TypeScript 5.8 foundation",
+      "Tailwind CSS + Shadcn/ui components",
+      "Vite 7 build system optimization",
+      "React Router 7 for navigation",
+      "Responsive design implementation",
+      "Dark mode interface"
     ]
   },
   {
@@ -89,10 +102,10 @@
     "title": "Project Initialization",
     "description": "Initial project setup and architecture planning for professional cybersecurity toolkit.",
     "changes": [
-      "📋 Project structure and planning",
-      "🏗️ Development environment setup",
-      "🔧 Build and deployment configuration",
-      "📝 Documentation and guidelines"
+      "Project structure and planning",
+      "Development environment setup",
+      "Build and deployment configuration",
+      "Documentation and contribution guidelines"
     ]
   }
 ]

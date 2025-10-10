@@ -1,5 +1,5 @@
-// EVTX WASM Parser Loader
-// Handles loading and interfacing with the WASM-based EVTX parser
+// EVTX Parser
+// Handles EVTX file parsing using JavaScript implementation
 
 import type { EventRecord } from './forensics'
 
@@ -15,69 +15,23 @@ export interface ParsedEvtxResult {
 }
 
 /**
- * Parse EVTX file using WASM parser with JavaScript fallback
- * This implementation prioritizes functionality and always provides results
+ * Parse EVTX file using JavaScript implementation
  */
 export async function parseEvtxWithWasm(buffer: ArrayBuffer): Promise<ParsedEvtxResult> {
   const startTime = performance.now()
-  
-  try {
-    // Check if WASM files are available
-    const wasmAvailable = await checkWasmAvailability()
-    
-    if (wasmAvailable) {
-      console.log('WASM parser files detected, attempting to load...')
-      
-      // For now, since we have a mock WASM setup, we use JavaScript implementation
-      // with WASM-style processing to maintain the same interface
-      const result = await parseWithJavaScriptFallback(buffer, startTime, true)
-      console.log('EVTX parsed with WASM-compatible JavaScript implementation')
-      return result
-    } else {
-      console.log('WASM parser not available, using JavaScript implementation')
-      return parseWithJavaScriptFallback(buffer, startTime, false)
-    }
-    
-  } catch (error) {
-    console.error('Error in WASM parser, falling back to JavaScript:', error)
-    return parseWithJavaScriptFallback(buffer, startTime, false)
-  }
-}
 
-/**
- * Check if WASM files are available
- */
-async function checkWasmAvailability(): Promise<boolean> {
   try {
-    const wasmResponse = await fetch('/vendor/evtx/evtx-parser.wasm')
-    const glueResponse = await fetch('/vendor/evtx/evtx-parser.js')
-    
-    return wasmResponse.ok && glueResponse.ok
-  } catch {
-    return false
-  }
-}
+    console.log(`Parsing EVTX file (${buffer.byteLength} bytes) using JavaScript parser...`)
 
-/**
- * Parse using JavaScript implementation (fallback)
- */
-async function parseWithJavaScriptFallback(
-  buffer: ArrayBuffer, 
-  startTime: number, 
-  wasmMode: boolean = false
-): Promise<ParsedEvtxResult> {
-  try {
-    console.log(`Parsing EVTX file (${buffer.byteLength} bytes) using ${wasmMode ? 'WASM-compatible' : 'JavaScript'} parser...`)
-    
     // Dynamic import to avoid circular dependencies
     const { EvtxAnalyzer } = await import('./forensics')
-    
-    // Use the JavaScript EVTX parser stub (attempts real parsing)
+
+    // Use the JavaScript EVTX parser
     const events = EvtxAnalyzer.extractEventsStub(buffer)
     const parseTime = performance.now() - startTime
-    
+
     console.log(`Successfully parsed ${events.length} events in ${parseTime.toFixed(2)}ms`)
-    
+
     return {
       success: true,
       events,
@@ -87,11 +41,11 @@ async function parseWithJavaScriptFallback(
         parseTime
       }
     }
-    
+
   } catch (error) {
     const parseTime = performance.now() - startTime
     console.error('EVTX parsing failed:', error)
-    
+
     return {
       success: false,
       events: [],
@@ -106,30 +60,24 @@ async function parseWithJavaScriptFallback(
 }
 
 /**
- * Check if WASM EVTX parser is available
+ * Check if WASM EVTX parser is available (always returns false as we use JS implementation)
  */
 export async function isWasmParserAvailable(): Promise<boolean> {
-  return checkWasmAvailability()
+  return false
 }
 
 /**
- * Initialize WASM parser (optional - will auto-load on first use)
+ * Initialize WASM parser (not used, kept for compatibility)
  */
 export async function initializeWasmParser(): Promise<boolean> {
-  const available = await checkWasmAvailability()
-  if (available) {
-    console.log('WASM parser initialized successfully (JavaScript fallback active)')
-  } else {
-    console.log('WASM parser not available, JavaScript fallback ready')
-  }
-  return available
+  console.log('Using JavaScript EVTX parser')
+  return false
 }
 
 /**
  * Get any loading errors
  */
 export function getWasmParserError(): string | null {
-  // Since we always have JavaScript fallback, no critical errors
   return null
 }
 
