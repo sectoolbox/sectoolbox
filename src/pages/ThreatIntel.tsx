@@ -404,9 +404,10 @@ export default function ThreatIntel() {
                               <div className="flex items-center gap-2 mt-2 border-t border-border/50 pt-3">
                                 <span className="text-xs text-muted-foreground">Breach Logo:</span>
                                 <img
-                                  src={`https://haveibeenpwned.com${breach.LogoPath}`}
+                                  src={breach.LogoPath.startsWith('http') ? breach.LogoPath : `https://haveibeenpwned.com${breach.LogoPath}`}
                                   alt={breach.Name}
                                   className="h-12 max-w-[200px] object-contain bg-white/10 rounded px-3 py-2"
+                                  loading="lazy"
                                   onError={(e) => {
                                     const target = e.currentTarget as HTMLImageElement
                                     target.style.display = 'none'
