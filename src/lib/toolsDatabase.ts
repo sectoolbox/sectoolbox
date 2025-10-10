@@ -618,6 +618,80 @@ export const toolsDatabase: Tool[] = [
     path: '/network',
     keywords: ['port', 'scan', 'service', 'open', 'nmap'],
     operations: ['scan', 'port', 'service']
+  },
+
+  // Threat Intelligence Tools
+  {
+    id: 'virustotal',
+    name: 'VirusTotal',
+    description: 'Scan files, URLs, domains, and IPs for malware using VirusTotal',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['virustotal', 'malware', 'virus', 'scan', 'hash', 'file', 'url', 'domain', 'ip', 'antivirus'],
+    operations: ['scan', 'analyze', 'detect', 'malware']
+  },
+  {
+    id: 'haveibeenpwned',
+    name: 'Have I Been Pwned',
+    description: 'Check if email addresses or passwords have been in data breaches',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['hibp', 'haveibeenpwned', 'breach', 'password', 'email', 'pwned', 'leak', 'compromise'],
+    operations: ['check', 'breach', 'lookup', 'verify']
+  },
+  {
+    id: 'urlhaus',
+    name: 'URLhaus',
+    description: 'Check URLs against malware database from abuse.ch',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['urlhaus', 'malware', 'url', 'malicious', 'abuse', 'payload', 'hash'],
+    operations: ['check', 'lookup', 'analyze', 'malware']
+  },
+  {
+    id: 'phishstats',
+    name: 'PhishStats',
+    description: 'Search phishing URL database for malicious sites',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['phishstats', 'phishing', 'url', 'malicious', 'domain', 'scam'],
+    operations: ['search', 'check', 'lookup', 'phishing']
+  },
+  {
+    id: 'cloudflare-trace',
+    name: 'Cloudflare Trace',
+    description: 'Get your IP information via Cloudflare',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['cloudflare', 'ip', 'trace', 'location', 'user-agent', 'info'],
+    operations: ['lookup', 'trace', 'info', 'geolocation']
+  },
+  {
+    id: 'abuseipdb',
+    name: 'AbuseIPDB',
+    description: 'Check IP reputation and abuse reports',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['abuseipdb', 'ip', 'abuse', 'reputation', 'blacklist', 'malicious'],
+    operations: ['check', 'lookup', 'reputation', 'abuse']
+  },
+  {
+    id: 'greynoise',
+    name: 'GreyNoise',
+    description: 'Identify internet scanners vs targeted attacks',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['greynoise', 'ip', 'scanner', 'noise', 'benign', 'malicious', 'context'],
+    operations: ['check', 'lookup', 'classify', 'analyze']
+  },
+  {
+    id: 'alienvault',
+    name: 'AlienVault OTX',
+    description: 'Threat intelligence from AlienVault Open Threat Exchange',
+    category: 'Threat Intelligence',
+    path: '/threat-intel',
+    keywords: ['alienvault', 'otx', 'threat', 'intelligence', 'ip', 'domain', 'hash', 'ioc', 'indicator'],
+    operations: ['lookup', 'analyze', 'threat', 'intel']
   }
 ]
 

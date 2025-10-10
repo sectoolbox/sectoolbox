@@ -14,6 +14,7 @@ const MemoryForensics = lazy(() => import('./pages/MemoryForensics'))
 const FolderScanner = lazy(() => import('./pages/FolderScanner'))
 const AudioAnalysis = lazy(() => import('./pages/AudioAnalysis'))
 const Network = lazy(() => import('./pages/Network'))
+const ThreatIntel = lazy(() => import('./pages/ThreatIntel'))
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
               <Route path="/folder-scanner" element={<FolderScanner />} />
               <Route path="/audio" element={<AudioAnalysis />} />
               <Route path="/network" element={<Network />} />
+              <Route path="/threat-intel" element={<ThreatIntel />} />
             </Routes>
           </Suspense>
         </Layout>
