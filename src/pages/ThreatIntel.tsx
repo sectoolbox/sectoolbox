@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Shield,
   Search,
@@ -10,8 +10,7 @@ import {
   Eye,
   Lock,
   Globe,
-  Activity,
-  Upload
+  Activity
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -36,11 +35,24 @@ export default function ThreatIntel() {
   const [activeTab, setActiveTab] = useState<TabType>('virustotal')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [results, setResults] = useState<any>(null)
+
+  // Per-tab results storage
+  const [tabResults, setTabResults] = useState<Record<TabType, any>>({
+    virustotal: null,
+    hibp: null,
+    urlhaus: null,
+    phishstats: null,
+    cloudflare: null,
+    abuseipdb: null,
+    greynoise: null,
+    alienvault: null
+  })
+
   const [input, setInput] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [apiKeys, setApiKeys] = useState({ virustotal: true, hibp: true, abuseipdb: false, alienvault: false })
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Get results for the current tab
+  const results = tabResults[activeTab]
 
   useEffect(() => {
     checkApiKeys().then(keys => setApiKeys(keys))
@@ -63,14 +75,13 @@ export default function ThreatIntel() {
 
   const performLookup = useCallback(async (tab: TabType, query: string) => {
     // Cloudflare doesn't need a query
-    if (tab !== 'cloudflare' && !query.trim() && !selectedFile) {
-      setError('Please enter a query or upload a file')
+    if (tab !== 'cloudflare' && !query.trim()) {
+      setError('Please enter a query')
       return
     }
 
     setLoading(true)
     setError(null)
-    setResults(null)
 
     try {
       let url = ''
@@ -109,51 +120,20 @@ export default function ThreatIntel() {
         throw new Error(data.error || 'API request failed')
       }
 
-      setResults(data)
-    } catch (err: any) {
-      setError(err.message || 'Lookup failed')
-      setResults(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedFile])
-
-  const uploadFile = useCallback(async (file: File) => {
-    setLoading(true)
-    setError(null)
-    setResults(null)
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch('/api/threat-intel?service=virustotal-upload', {
-        method: 'POST',
-        body: formData
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed')
+      // Check for URLhaus-specific error responses
+      if (tab === 'urlhaus' && data.query_status && data.query_status !== 'ok') {
+        throw new Error(data.query_status || 'URLhaus API error')
       }
 
-      setResults(data)
+      // Store results for this specific tab
+      setTabResults(prev => ({ ...prev, [tab]: data }))
     } catch (err: any) {
-      setError(err.message || 'File upload failed')
-      setResults(null)
+      setError(err.message || 'Lookup failed')
+      setTabResults(prev => ({ ...prev, [tab]: null }))
     } finally {
       setLoading(false)
     }
   }, [])
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      uploadFile(file)
-    }
-  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -321,28 +301,6 @@ export default function ThreatIntel() {
                       Search
                     </Button>
                   </div>
-
-                  {activeTab === 'virustotal' && (
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm text-muted-foreground">or</div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        accept="*/*"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={loading}
-                        className="w-full"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        {selectedFile ? `Upload: ${selectedFile.name}` : 'Upload File to Scan'}
-                      </Button>
-                    </div>
-                  )}
                 </>
               )}
 
