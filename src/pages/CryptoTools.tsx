@@ -1553,7 +1553,7 @@ const CryptoTools: React.FC = () => {
             <span>Cryptography Toolkit</span>
           </h1>
           <p className="text-muted-foreground text-lg">
-            Comprehensive encryption, encoding, and cryptanalysis tools for security professionals
+            Encryption, encoding, and cryptanalysis tools for security professionals
           </p>
         </div>
 

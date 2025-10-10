@@ -706,11 +706,11 @@ export default function Network() {
         <div className="flex items-center justify-center gap-3">
           <NetworkIcon className="w-10 h-10 text-accent" />
           <h1 className="text-4xl font-bold bg-gradient-to-r from-accent to-blue-400 bg-clip-text text-transparent">
-            Network Analysis Tools
+            Network Analysis
           </h1>
         </div>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Real networking tools for CTF competitions and security research
+          Networking tools for CTF competitions and security research
         </p>
       </div>
 
@@ -945,7 +945,7 @@ export default function Network() {
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Using Cloudflare DNS-over-HTTPS for real DNS queries
+                Using Cloudflare DNS-over-HTTPS for DNS queries
               </div>
 
               {error && (
@@ -1121,7 +1121,7 @@ export default function Network() {
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Free Shodan InternetDB - shows open ports, vulnerabilities, and tags
+                Shodan InternetDB - shows open ports, vulnerabilities, and tags
               </div>
 
               {error && (
