@@ -310,6 +310,7 @@ export default function Network() {
   // Nmap
   const [nmapInput, setNmapInput] = useState('')
   const [nmapResult, setNmapResult] = useState<NmapResult | null>(null)
+  const [nmapScanType, setNmapScanType] = useState('nmap')
 
   // Filter unique certificates by name_value
   const filteredCertRecords = useMemo(() => {
@@ -720,23 +721,23 @@ export default function Network() {
   }, [])
 
   // Nmap Scan (via HackerTarget API)
-  const performNmapScan = useCallback(async (target: string) => {
+  const performNmapScan = useCallback(async (target: string, scanType: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/nmap?target=${encodeURIComponent(target)}`)
+      const response = await fetch(`/api/nmap?target=${encodeURIComponent(target)}&scanType=${encodeURIComponent(scanType)}`)
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || `Nmap scan failed: ${response.statusText}`)
+        throw new Error(errorData.message || errorData.error || `Scan failed: ${response.statusText}`)
       }
 
       const data = await response.json()
 
       setNmapResult(data)
     } catch (err: any) {
-      setError(err.message || 'Nmap scan failed')
+      setError(err.message || 'Scan failed')
       setNmapResult(null)
     } finally {
       setLoading(false)
@@ -1895,29 +1896,47 @@ export default function Network() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-5 h-5 text-accent" />
-                <h2 className="text-2xl font-bold">Nmap Port Scanner</h2>
+                <h2 className="text-2xl font-bold">HackerTarget Network Scanner</h2>
               </div>
 
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter IP or domain (e.g., 8.8.8.8 or example.com)"
-                  value={nmapInput}
-                  onChange={(e) => setNmapInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performNmapScan(nmapInput)}
-                  className="flex-1"
-                />
-                <Button onClick={() => performNmapScan(nmapInput)} disabled={loading}>
-                  {loading ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4 mr-2" />
-                  )}
-                  Scan
-                </Button>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter IP or domain (e.g., 8.8.8.8 or example.com)"
+                    value={nmapInput}
+                    onChange={(e) => setNmapInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && performNmapScan(nmapInput, nmapScanType)}
+                    className="flex-1"
+                  />
+                  <Button onClick={() => performNmapScan(nmapInput, nmapScanType)} disabled={loading}>
+                    {loading ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4 mr-2" />
+                    )}
+                    Scan
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold mb-2 block">Scan Type:</label>
+                  <select
+                    value={nmapScanType}
+                    onChange={(e) => setNmapScanType(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="nmap">Nmap Port Scan (10 common ports + version detection)</option>
+                    <option value="dnslookup">DNS Records Lookup</option>
+                    <option value="reversedns">Reverse DNS Lookup</option>
+                    <option value="hostsearch">Host Search (Reverse DNS + IP lookup)</option>
+                    <option value="whois">WHOIS Lookup</option>
+                    <option value="zonetransfer">DNS Zone Transfer</option>
+                  </select>
+                </div>
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Using HackerTarget Nmap API - 50 free requests per day
+                Requires HACKERTARGET_API_KEY in .env file - get yours at <a href="https://hackertarget.com/api/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">hackertarget.com</a>
               </div>
 
               {error && (
