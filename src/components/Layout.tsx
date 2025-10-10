@@ -161,6 +161,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       description: 'Network utilities and tools',
       keywords: ['ping', 'port', 'scan', 'connectivity']
     },
+    {
+      path: '/threat-intel',
+      label: 'Threat Intel',
+      icon: Shield,
+      description: 'Threat intelligence and malware analysis',
+      keywords: ['virustotal', 'hibp', 'malware', 'phishing', 'abuse', 'threat']
+    },
   ]
 
   const allItems = [...analysisTools, ...securityTools, ...standaloneItems]
