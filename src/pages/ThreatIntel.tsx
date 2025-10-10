@@ -401,12 +401,23 @@ export default function ThreatIntel() {
                             </div>
 
                             {breach.LogoPath && (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 mt-2 border-t border-border/50 pt-3">
+                                <span className="text-xs text-muted-foreground">Breach Logo:</span>
                                 <img
                                   src={`https://haveibeenpwned.com${breach.LogoPath}`}
                                   alt={breach.Name}
-                                  className="w-8 h-8 object-contain"
-                                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                  className="h-12 max-w-[200px] object-contain bg-white/10 rounded px-3 py-2"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement
+                                    target.style.display = 'none'
+                                    const parent = target.parentElement
+                                    if (parent) {
+                                      const fallback = document.createElement('span')
+                                      fallback.className = 'text-xs text-muted-foreground italic'
+                                      fallback.textContent = '(logo unavailable)'
+                                      parent.appendChild(fallback)
+                                    }
+                                  }}
                                 />
                               </div>
                             )}
