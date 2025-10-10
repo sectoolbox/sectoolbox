@@ -849,6 +849,17 @@ const FolderScanner: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {selectedFile.analysisResult?.hexDump && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Hex Dump (First 1KB)</h3>
+                      <div className="bg-muted/20 p-3 rounded overflow-x-auto">
+                        <pre className="font-mono text-xs text-foreground whitespace-pre">
+                          {selectedFile.analysisResult.hexDump}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </Card>
               </TabsContent>
             )}
