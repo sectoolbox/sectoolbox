@@ -323,11 +323,136 @@ export default function ThreatIntel() {
                     </Button>
                   </div>
 
-                  <Card className="p-4">
-                    <pre className="text-xs overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                      {JSON.stringify(results, null, 2)}
-                    </pre>
-                  </Card>
+                  {/* HIBP Results Display */}
+                  {activeTab === 'hibp' && results.found && results.data && (
+                    <div className="space-y-3">
+                      {Array.isArray(results.data) ? results.data.map((breach: any, idx: number) => (
+                        <Card key={idx} className="p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="text-lg font-bold text-accent">{breach.Name || breach.Title}</h3>
+                                {breach.Domain && (
+                                  <div className="text-sm text-muted-foreground">{breach.Domain}</div>
+                                )}
+                              </div>
+                              {breach.IsVerified !== undefined && !breach.IsVerified && (
+                                <span className="px-2 py-1 rounded text-xs bg-amber-500/20 text-amber-400 font-semibold">
+                                  Unverified
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-sm">
+                              {breach.Description && (
+                                <div className="mb-3" dangerouslySetInnerHTML={{ __html: breach.Description }} />
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                              {breach.BreachDate && (
+                                <div>
+                                  <span className="font-semibold">Breach Date:</span> {breach.BreachDate}
+                                </div>
+                              )}
+                              {breach.AddedDate && (
+                                <div>
+                                  <span className="font-semibold">Added:</span> {new Date(breach.AddedDate).toLocaleDateString()}
+                                </div>
+                              )}
+                              {breach.ModifiedDate && (
+                                <div>
+                                  <span className="font-semibold">Modified:</span> {new Date(breach.ModifiedDate).toLocaleDateString()}
+                                </div>
+                              )}
+                              {breach.PwnCount !== undefined && (
+                                <div>
+                                  <span className="font-semibold">Accounts:</span> {breach.PwnCount.toLocaleString()}
+                                </div>
+                              )}
+                              {breach.Source && breach.Source !== breach.Title && (
+                                <div className="col-span-2">
+                                  <span className="font-semibold">Source:</span> {breach.Source}
+                                </div>
+                              )}
+                            </div>
+
+                            {breach.DataClasses && breach.DataClasses.length > 0 && (
+                              <div>
+                                <div className="font-semibold text-sm mb-2">Compromised Data:</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {breach.DataClasses.map((dc: string, dcIdx: number) => (
+                                    <span
+                                      key={dcIdx}
+                                      className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 font-semibold"
+                                    >
+                                      {dc}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              {breach.IsFabricated && <span>⚠️ Fabricated</span>}
+                              {breach.IsSensitive && <span>🔒 Sensitive</span>}
+                              {breach.IsRetired && <span>📁 Retired</span>}
+                              {breach.IsSpamList && <span>📧 Spam List</span>}
+                            </div>
+
+                            {breach.LogoPath && (
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={`https://haveibeenpwned.com${breach.LogoPath}`}
+                                  alt={breach.Name}
+                                  className="w-8 h-8 object-contain"
+                                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      )) : results.type === 'paste' && results.data ? (
+                        // Pastes display
+                        <Card className="p-4">
+                          <h3 className="font-bold mb-3">Pastes Found</h3>
+                          <div className="space-y-2">
+                            {results.data.map((paste: any, idx: number) => (
+                              <div key={idx} className="border-b border-border/50 pb-2">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  {paste.Source && <div><span className="font-semibold">Source:</span> {paste.Source}</div>}
+                                  {paste.Id && <div><span className="font-semibold">ID:</span> {paste.Id}</div>}
+                                  {paste.Title && <div className="col-span-2"><span className="font-semibold">Title:</span> {paste.Title}</div>}
+                                  {paste.Date && <div><span className="font-semibold">Date:</span> {new Date(paste.Date).toLocaleString()}</div>}
+                                  {paste.EmailCount !== undefined && <div><span className="font-semibold">Emails:</span> {paste.EmailCount}</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* No results for HIBP */}
+                  {activeTab === 'hibp' && results.found === false && (
+                    <Card className="p-4">
+                      <div className="text-center text-muted-foreground py-4">
+                        <AlertCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>{results.message || 'No breaches found'}</p>
+                        <p className="text-xs mt-2">This email address has not been found in any known data breaches.</p>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Default JSON display for other services */}
+                  {activeTab !== 'hibp' && (
+                    <Card className="p-4">
+                      <pre className="text-xs overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                        {JSON.stringify(results, null, 2)}
+                      </pre>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>

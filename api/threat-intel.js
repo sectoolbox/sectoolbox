@@ -149,7 +149,8 @@ async function handleHIBP(req, res, type, query) {
   }
 
   if (type === 'breach') {
-    url = `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(query)}`
+    // Request full breach details with truncateResponse=false
+    url = `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(query)}?truncateResponse=false&includeUnverified=true`
   } else if (type === 'paste') {
     url = `https://haveibeenpwned.com/api/v3/pasteaccount/${encodeURIComponent(query)}`
   } else if (type === 'password') {
@@ -186,7 +187,7 @@ async function handleHIBP(req, res, type, query) {
       message: found ? `This password has been seen ${count} times before` : 'Password not found in breach database'
     })
   } else {
-    url = `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(query)}`
+    url = `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(query)}?truncateResponse=false&includeUnverified=true`
   }
 
   const response = await fetch(url, options)
@@ -194,12 +195,27 @@ async function handleHIBP(req, res, type, query) {
   if (response.status === 404) {
     return res.status(200).json({
       found: false,
-      message: type === 'paste' ? 'No pastes found' : 'No breaches found'
+      message: type === 'paste' ? 'No pastes found' : 'No breaches found',
+      type: type
+    })
+  }
+
+  if (response.status === 401) {
+    return res.status(401).json({
+      error: 'HIBP API key invalid or missing',
+      message: 'Please check your HIBP_API_KEY environment variable'
+    })
+  }
+
+  if (!response.ok) {
+    return res.status(response.status).json({
+      error: `HIBP API error: ${response.status}`,
+      message: response.statusText
     })
   }
 
   const data = await response.json()
-  return res.status(200).json({ found: true, data })
+  return res.status(200).json({ found: true, type: type, data })
 }
 
 // URLhaus
