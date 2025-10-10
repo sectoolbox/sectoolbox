@@ -545,7 +545,7 @@ const PcapAnalysis: React.FC = () => {
                 USB Analysis
               </Button>
               <Button onClick={() => analyzePcap()} disabled={isAnalyzing} size="sm">
-                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>Analyze</span></>)}
+                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>PCAP Analysis</span></>)}
               </Button>
               <Button
                 variant="destructive"

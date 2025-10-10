@@ -1107,7 +1107,7 @@ const DigitalForensics: React.FC = () => {
                 size="sm"
               >
                 <Search className="h-4 w-4 mr-2" />
-                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                {isAnalyzing ? 'Analyzing...' : 'General Analysis'}
               </Button>
               <Button
                 variant="destructive"
