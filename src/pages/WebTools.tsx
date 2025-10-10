@@ -63,6 +63,7 @@ const WebTools: React.FC = () => {
   const [targetDomain, setTargetDomain] = useState('')
   const [targetIP, setTargetIP] = useState('')
   const [attackerIP, setAttackerIP] = useState('')
+  const [enableSubstitution, setEnableSubstitution] = useState(false)
 
   // Interactive Testing Tools State
   const [testInput, setTestInput] = useState('')
@@ -2194,6 +2195,11 @@ const WebTools: React.FC = () => {
 
   // Substitute placeholders in payloads with actual target values
   const substitutePayload = (payload: string): string => {
+    // Only substitute if enabled
+    if (!enableSubstitution) {
+      return payload
+    }
+
     let result = payload
 
     // Replace {DOMAIN} with target domain
@@ -2235,10 +2241,21 @@ const WebTools: React.FC = () => {
       {/* Target Configuration */}
       <Card className="p-4 bg-accent/5 border-accent/20">
         <div className="space-y-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Server className="w-4 h-4 text-accent" />
-            <h3 className="font-semibold text-sm">Target Configuration</h3>
-            <span className="text-xs text-muted-foreground">(Auto-replaces {'{DOMAIN}'}, {'{IP}'}, {'{ATTACKER_IP}'} in payloads)</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-accent" />
+              <h3 className="font-semibold text-sm">Target Configuration</h3>
+              <span className="text-xs text-muted-foreground">(Replaces {'{DOMAIN}'}, {'{IP}'}, {'{ATTACKER_IP}'} in payloads)</span>
+            </div>
+            <Button
+              onClick={() => setEnableSubstitution(!enableSubstitution)}
+              variant={enableSubstitution ? "default" : "outline"}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Zap className={`h-4 w-4 ${enableSubstitution ? 'fill-current' : ''}`} />
+              {enableSubstitution ? 'Enabled' : 'Disabled'}
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Input
@@ -2247,6 +2264,7 @@ const WebTools: React.FC = () => {
               value={targetDomain}
               onChange={(e) => setTargetDomain(e.target.value)}
               className="text-sm"
+              disabled={!enableSubstitution}
             />
             <Input
               type="text"
@@ -2254,6 +2272,7 @@ const WebTools: React.FC = () => {
               value={targetIP}
               onChange={(e) => setTargetIP(e.target.value)}
               className="text-sm"
+              disabled={!enableSubstitution}
             />
             <Input
               type="text"
@@ -2261,8 +2280,15 @@ const WebTools: React.FC = () => {
               value={attackerIP}
               onChange={(e) => setAttackerIP(e.target.value)}
               className="text-sm"
+              disabled={!enableSubstitution}
             />
           </div>
+          {enableSubstitution && (targetDomain || targetIP || attackerIP) && (
+            <div className="text-xs text-accent flex items-center gap-1 mt-2">
+              <Zap className="w-3 h-3" />
+              <span>Target substitution active - payloads will be customized automatically</span>
+            </div>
+          )}
         </div>
       </Card>
 
