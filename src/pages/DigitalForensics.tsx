@@ -1003,7 +1003,7 @@ const DigitalForensics: React.FC = () => {
           Digital Forensics
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Real forensic analysis for EVTX files, memory dumps, disk images, and digital evidence
+          Forensic analysis for EVTX files, memory dumps, disk images, and digital evidence
         </p>
       </div>
 

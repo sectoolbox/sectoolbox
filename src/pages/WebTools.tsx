@@ -2159,7 +2159,7 @@ const WebTools: React.FC = () => {
           <span>Web Exploitation Arsenal</span>
         </h1>
         <p className="text-muted-foreground text-lg">
-          Comprehensive collection of web exploitation payloads and techniques for Capture The Flag competitions
+          Collection of web exploitation payloads and techniques for CTF competitions
         </p>
       </div>
 

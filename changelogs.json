@@ -1,6 +1,26 @@
 [
   {
     "date": "2025-10-10",
+    "version": "v1.3.0",
+    "title": "Threat Intelligence Integration",
+    "description": "Comprehensive threat intelligence capabilities with 8 industry-standard APIs for malware analysis, breach detection, and security research.",
+    "changes": [
+      "VirusTotal API integration for malware scanning of files, URLs, domains, and IPs",
+      "HaveIBeenPwned integration with k-anonymity for password and breach checking",
+      "URLhaus malware database for URL reputation checking",
+      "PhishStats phishing database for malicious site detection",
+      "Cloudflare Trace for IP and visitor information lookup",
+      "AbuseIPDB for IP reputation and abuse report checking",
+      "GreyNoise community API for internet scanner identification",
+      "AlienVault OTX threat intelligence platform integration",
+      "Unified threat intelligence page with tabbed interface for all 8 APIs",
+      "Serverless API proxies for CORS-free access to all services",
+      "JSON export functionality for threat intelligence results",
+      "Search integration with 8 new threat intel tools in database"
+    ]
+  },
+  {
+    "date": "2025-10-10",
     "version": "v1.2.0",
     "title": "Navigation Overhaul & UI Refinements",
     "description": "Complete navigation redesign with dropdown menus, comprehensive search, and multiple UI improvements.",
