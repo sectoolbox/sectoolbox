@@ -47,7 +47,7 @@ const Footer: React.FC = () => {
 
   return (
     <footer className="bg-slate-900 border-t border-slate-700 py-4 mt-auto" role="contentinfo">
-      <div className="px-6">
+      <div>
         <div className="flex flex-wrap justify-between items-start gap-4 mb-3">
           {/* GitHub Links Section - Far Left */}
           <div className="flex flex-col items-center flex-1 min-w-0">
