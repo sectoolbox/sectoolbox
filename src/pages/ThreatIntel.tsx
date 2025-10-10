@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Shield,
   Search,
@@ -10,7 +10,8 @@ import {
   Eye,
   Lock,
   Globe,
-  Activity
+  Activity,
+  Upload
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -18,12 +19,32 @@ import { Card } from '../components/ui/card'
 
 type TabType = 'virustotal' | 'hibp' | 'urlhaus' | 'phishstats' | 'cloudflare' | 'abuseipdb' | 'greynoise' | 'alienvault'
 
+// Check which APIs have keys configured
+const checkApiKeys = async () => {
+  try {
+    const response = await fetch('/api/check-keys')
+    if (response.ok) {
+      return await response.json()
+    }
+  } catch (err) {
+    console.error('Failed to check API keys:', err)
+  }
+  return { virustotal: true, hibp: true, abuseipdb: false, alienvault: false }
+}
+
 export default function ThreatIntel() {
   const [activeTab, setActiveTab] = useState<TabType>('virustotal')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<any>(null)
   const [input, setInput] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [apiKeys, setApiKeys] = useState({ virustotal: true, hibp: true, abuseipdb: false, alienvault: false })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    checkApiKeys().then(keys => setApiKeys(keys))
+  }, [])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -41,8 +62,9 @@ export default function ThreatIntel() {
   }
 
   const performLookup = useCallback(async (tab: TabType, query: string) => {
-    if (!query.trim()) {
-      setError('Please enter a query')
+    // Cloudflare doesn't need a query
+    if (tab !== 'cloudflare' && !query.trim() && !selectedFile) {
+      setError('Please enter a query or upload a file')
       return
     }
 
@@ -76,7 +98,7 @@ export default function ThreatIntel() {
           url = `/api/greynoise?ip=${encodeURIComponent(query)}`
           break
         case 'alienvault':
-          url = `/api/alienvault?type=ip&query=${encodeURIComponent(query)}`
+          url = `/api/alienvault?type=IPv4&query=${encodeURIComponent(query)}`
           break
       }
 
@@ -94,7 +116,44 @@ export default function ThreatIntel() {
     } finally {
       setLoading(false)
     }
+  }, [selectedFile])
+
+  const uploadFile = useCallback(async (file: File) => {
+    setLoading(true)
+    setError(null)
+    setResults(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/virustotal-upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      setResults(data)
+    } catch (err: any) {
+      setError(err.message || 'File upload failed')
+      setResults(null)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      uploadFile(file)
+    }
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -171,14 +230,19 @@ export default function ThreatIntel() {
           </button>
           <button
             onClick={() => setActiveTab('abuseipdb')}
+            disabled={!apiKeys.abuseipdb}
             className={`flex items-center space-x-2 px-4 py-2 rounded-t-lg transition-colors ${
               activeTab === 'abuseipdb'
                 ? 'text-accent border-b-2 border-accent bg-accent/5'
+                : !apiKeys.abuseipdb
+                ? 'text-muted-foreground/50 cursor-not-allowed'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
             }`}
+            title={!apiKeys.abuseipdb ? 'API key required - not configured' : ''}
           >
             <AlertCircle className="w-4 h-4" />
             <span>AbuseIPDB</span>
+            {!apiKeys.abuseipdb && <Lock className="w-3 h-3" />}
           </button>
           <button
             onClick={() => setActiveTab('greynoise')}
@@ -198,6 +262,7 @@ export default function ThreatIntel() {
                 ? 'text-accent border-b-2 border-accent bg-accent/5'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
             }`}
+            title={!apiKeys.alienvault ? 'Works without API key (limited rate)' : ''}
           >
             <Shield className="w-4 h-4" />
             <span>AlienVault</span>
@@ -229,32 +294,56 @@ export default function ThreatIntel() {
               </div>
 
               {activeTab !== 'cloudflare' && (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder={
-                      activeTab === 'virustotal' ? 'Enter domain, IP, or file hash' :
-                      activeTab === 'hibp' ? 'Enter email address' :
-                      activeTab === 'urlhaus' ? 'Enter URL or domain' :
-                      activeTab === 'phishstats' ? 'Enter domain or URL' :
-                      activeTab === 'abuseipdb' ? 'Enter IP address' :
-                      activeTab === 'greynoise' ? 'Enter IP address' :
-                      activeTab === 'alienvault' ? 'Enter IP, domain, or hash' :
-                      'Enter query'
-                    }
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && performLookup(activeTab, input)}
-                    className="flex-1"
-                  />
-                  <Button onClick={() => performLookup(activeTab, input)} disabled={loading}>
-                    {loading ? (
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Search className="w-4 h-4 mr-2" />
-                    )}
-                    Search
-                  </Button>
-                </div>
+                <>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={
+                        activeTab === 'virustotal' ? 'Enter domain, IP, or file hash' :
+                        activeTab === 'hibp' ? 'Enter email address' :
+                        activeTab === 'urlhaus' ? 'Enter URL or domain' :
+                        activeTab === 'phishstats' ? 'Enter domain or URL' :
+                        activeTab === 'abuseipdb' ? 'Enter IP address' :
+                        activeTab === 'greynoise' ? 'Enter IP address' :
+                        activeTab === 'alienvault' ? 'Enter IP, domain, or hash' :
+                        'Enter query'
+                      }
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && performLookup(activeTab, input)}
+                      className="flex-1"
+                    />
+                    <Button onClick={() => performLookup(activeTab, input)} disabled={loading}>
+                      {loading ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4 mr-2" />
+                      )}
+                      Search
+                    </Button>
+                  </div>
+
+                  {activeTab === 'virustotal' && (
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-muted-foreground">or</div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        accept="*/*"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={loading}
+                        className="w-full"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {selectedFile ? `Upload: ${selectedFile.name}` : 'Upload File to Scan'}
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
 
               {activeTab === 'cloudflare' && (
