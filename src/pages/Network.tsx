@@ -145,10 +145,21 @@ interface IPInfoData {
 interface PassiveDNSRecord {
   rrname: string
   rrtype: string
-  rdata: string
+  rdata: string | string[]
   firstSeenTimestamp: number
   lastSeenTimestamp: number
   count: number
+  createdTimestamp?: number
+  lastUpdatedTimestamp?: number
+  times?: number
+  tlp?: string
+  query?: string
+  answer?: string
+  minTtl?: number
+  maxTtl?: number
+  customer?: string
+  flags?: string
+  rrclass?: string
 }
 
 interface CertRecord {
@@ -159,6 +170,9 @@ interface CertRecord {
   entry_timestamp: string
   not_before: string
   not_after: string
+  serial_number?: string
+  common_name?: string
+  result_count?: number
 }
 
 export default function Network() {
@@ -276,6 +290,20 @@ export default function Network() {
   // Certificate Transparency
   const [certInput, setCertInput] = useState('')
   const [certRecords, setCertRecords] = useState<CertRecord[]>([])
+  const [certShowUniqueOnly, setCertShowUniqueOnly] = useState(false)
+
+  // Filter unique certificates by name_value
+  const filteredCertRecords = useMemo(() => {
+    if (!certShowUniqueOnly) return certRecords
+
+    const seen = new Set<string>()
+    return certRecords.filter(cert => {
+      const nameValue = cert.name_value.toLowerCase().trim()
+      if (seen.has(nameValue)) return false
+      seen.add(nameValue)
+      return true
+    })
+  }, [certRecords, certShowUniqueOnly])
 
   // IP Address Analysis (Pure JavaScript - No API needed)
   const analyzeIP = useCallback((ip: string) => {
@@ -1591,21 +1619,88 @@ export default function Network() {
 
                   <div className="space-y-2">
                     {passiveDnsRecords.map((record, idx) => (
-                      <Card key={idx} className="p-3">
-                        <div className="grid grid-cols-1 gap-2 text-sm">
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono text-xs font-semibold text-accent min-w-[60px]">
-                              {record.rrtype}
-                            </span>
-                            <div className="flex-1">
-                              <div className="font-mono text-xs">{record.rdata}</div>
-                              <div className="text-xs text-muted-foreground">{record.rrname}</div>
+                      <Card key={idx} className="p-4">
+                        <div className="space-y-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono text-xs font-semibold text-accent min-w-[60px]">
+                                {record.rrtype}
+                              </span>
+                              <div>
+                                <div className="font-mono text-xs">{Array.isArray(record.rdata) ? record.rdata.join(', ') : record.rdata}</div>
+                                <div className="text-xs text-muted-foreground">{record.rrname}</div>
+                              </div>
                             </div>
+                            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(Array.isArray(record.rdata) ? record.rdata.join(', ') : record.rdata)}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
                           </div>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>First: {new Date(record.firstSeenTimestamp).toLocaleDateString()}</span>
-                            <span>Last: {new Date(record.lastSeenTimestamp).toLocaleDateString()}</span>
-                            <span>Count: {record.count}</span>
+
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                            <div>
+                              <span className="font-semibold">First Seen:</span> {new Date(record.firstSeenTimestamp).toLocaleString()}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Last Seen:</span> {new Date(record.lastSeenTimestamp).toLocaleString()}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Count:</span> {record.count}
+                            </div>
+                            {record.rrclass && (
+                              <div>
+                                <span className="font-semibold">Class:</span> {record.rrclass}
+                              </div>
+                            )}
+                            {record.minTtl !== undefined && (
+                              <div>
+                                <span className="font-semibold">Min TTL:</span> {record.minTtl}
+                              </div>
+                            )}
+                            {record.maxTtl !== undefined && (
+                              <div>
+                                <span className="font-semibold">Max TTL:</span> {record.maxTtl}
+                              </div>
+                            )}
+                            {record.times !== undefined && (
+                              <div>
+                                <span className="font-semibold">Times:</span> {record.times}
+                              </div>
+                            )}
+                            {record.tlp && (
+                              <div>
+                                <span className="font-semibold">TLP:</span> {record.tlp}
+                              </div>
+                            )}
+                            {record.query && (
+                              <div>
+                                <span className="font-semibold">Query:</span> {record.query}
+                              </div>
+                            )}
+                            {record.answer && (
+                              <div>
+                                <span className="font-semibold">Answer:</span> {record.answer}
+                              </div>
+                            )}
+                            {record.customer && (
+                              <div>
+                                <span className="font-semibold">Customer:</span> {record.customer}
+                              </div>
+                            )}
+                            {record.flags && (
+                              <div>
+                                <span className="font-semibold">Flags:</span> {record.flags}
+                              </div>
+                            )}
+                            {record.createdTimestamp && (
+                              <div>
+                                <span className="font-semibold">Created:</span> {new Date(record.createdTimestamp).toLocaleString()}
+                              </div>
+                            )}
+                            {record.lastUpdatedTimestamp && (
+                              <div>
+                                <span className="font-semibold">Updated:</span> {new Date(record.lastUpdatedTimestamp).toLocaleString()}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </Card>
@@ -1660,17 +1755,29 @@ export default function Network() {
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
                       Found {certRecords.length} certificate(s)
+                      {certShowUniqueOnly && ` (showing ${filteredCertRecords.length} unique)`}
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => exportData(certRecords, 'certificates.json')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={certShowUniqueOnly}
+                          onChange={(e) => setCertShowUniqueOnly(e.target.checked)}
+                          className="cursor-pointer"
+                        />
+                        <span>Show unique only</span>
+                      </label>
+                      <Button variant="outline" size="sm" onClick={() => exportData(certRecords, 'certificates.json')}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    {certRecords.map((cert, idx) => (
-                      <Card key={idx} className="p-3">
-                        <div className="space-y-2 text-sm">
+                    {filteredCertRecords.map((cert, idx) => (
+                      <Card key={idx} className="p-4">
+                        <div className="space-y-3 text-sm">
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-xs font-semibold text-accent">
                               {cert.name_value}
@@ -1683,11 +1790,40 @@ export default function Network() {
                               <Copy className="w-3 h-3" />
                             </Button>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                            <span>Issuer: {cert.issuer_name}</span>
-                            <span>ID: {cert.id}</span>
-                            <span>Not Before: {new Date(cert.not_before).toLocaleDateString()}</span>
-                            <span>Not After: {new Date(cert.not_after).toLocaleDateString()}</span>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                            <div>
+                              <span className="font-semibold">Issuer CA ID:</span> {cert.issuer_ca_id}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Cert ID:</span> {cert.id}
+                            </div>
+                            {cert.serial_number && (
+                              <div className="col-span-2 md:col-span-1">
+                                <span className="font-semibold">Serial:</span> {cert.serial_number}
+                              </div>
+                            )}
+                            {cert.common_name && (
+                              <div className="col-span-2">
+                                <span className="font-semibold">Common Name:</span> {cert.common_name}
+                              </div>
+                            )}
+                            <div className="col-span-2">
+                              <span className="font-semibold">Issuer:</span> {cert.issuer_name}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Not Before:</span> {new Date(cert.not_before).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Not After:</span> {new Date(cert.not_after).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Entry Time:</span> {new Date(cert.entry_timestamp).toLocaleDateString()}
+                            </div>
+                            {cert.result_count !== undefined && (
+                              <div>
+                                <span className="font-semibold">Result Count:</span> {cert.result_count}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </Card>
