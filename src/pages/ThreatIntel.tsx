@@ -22,7 +22,7 @@ type TabType = 'virustotal' | 'hibp' | 'urlhaus' | 'phishstats' | 'cloudflare' |
 // Check which APIs have keys configured
 const checkApiKeys = async () => {
   try {
-    const response = await fetch('/api/check-keys')
+    const response = await fetch('/api/threat-intel?service=check-keys')
     if (response.ok) {
       return await response.json()
     }
@@ -77,28 +77,28 @@ export default function ThreatIntel() {
 
       switch (tab) {
         case 'virustotal':
-          url = `/api/virustotal?type=domain&query=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=virustotal&type=domain&query=${encodeURIComponent(query)}`
           break
         case 'hibp':
-          url = `/api/hibp?type=breach&query=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=hibp&type=breach&query=${encodeURIComponent(query)}`
           break
         case 'urlhaus':
-          url = `/api/urlhaus?type=url&query=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=urlhaus&type=url&query=${encodeURIComponent(query)}`
           break
         case 'phishstats':
-          url = `/api/phishstats?type=domain&query=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=phishstats&type=domain&query=${encodeURIComponent(query)}`
           break
         case 'cloudflare':
-          url = `/api/cloudflare`
+          url = `/api/threat-intel?service=cloudflare`
           break
         case 'abuseipdb':
-          url = `/api/abuseipdb?ip=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=abuseipdb&query=${encodeURIComponent(query)}`
           break
         case 'greynoise':
-          url = `/api/greynoise?ip=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=greynoise&query=${encodeURIComponent(query)}`
           break
         case 'alienvault':
-          url = `/api/alienvault?type=IPv4&query=${encodeURIComponent(query)}`
+          url = `/api/threat-intel?service=alienvault&type=IPv4&query=${encodeURIComponent(query)}`
           break
       }
 
@@ -127,7 +127,7 @@ export default function ThreatIntel() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/virustotal-upload', {
+      const response = await fetch('/api/threat-intel?service=virustotal-upload', {
         method: 'POST',
         body: formData
       })
