@@ -1,5 +1,23 @@
 [
   {
+    "date": "2025-10-11",
+    "version": "v1.4.0",
+    "title": "Network Scanning & Payload Customization",
+    "description": "Added HackerTarget Nmap integration with multiple scan types, comprehensive payload substitution system, and enhanced binary file analysis.",
+    "changes": [
+      "HackerTarget Nmap API integration with API key authentication",
+      "Multiple scan type support: Nmap, DNS lookup, Reverse DNS, Host search, WHOIS, Zone transfer",
+      "Target configuration system for Web Tools with domain, IP, and callback URL inputs",
+      "Dynamic payload substitution with toggle control for XSS, SQL, RCE, SSRF, XXE, OAuth, LFI/RFI, CSRF payloads",
+      "Comprehensive placeholder support with {DOMAIN}, {URL}, {IP}, {ATTACKER_IP}, {CALLBACK_URL} templates",
+      "Enhanced Folder Scanner with multi-encoding string extraction (ASCII, UTF-8, UTF-16 LE/BE)",
+      "Hex dump viewer for binary file inspection (first 1KB)",
+      "Raw binary preview with advanced string detection",
+      "Removed EVTX handling from Image Analysis page for cleaner separation of concerns",
+      "Fixed syntax errors in ImageAnalysis tab conditionals"
+    ]
+  },
+  {
     "date": "2025-10-10",
     "version": "v1.3.0",
     "title": "Threat Intelligence Integration",
