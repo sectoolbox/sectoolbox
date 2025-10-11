@@ -819,6 +819,18 @@ const FolderScanner: React.FC = () => {
                         </div>
                       )}
 
+                      <div className="md:col-span-3 flex items-center gap-4">
+                        <label className="flex items-center text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={byteExtractionConfig.hideNullBytes ?? false}
+                            onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, hideNullBytes: e.target.checked })}
+                            className="mr-2"
+                          />
+                          Hide null bytes (0x00)
+                        </label>
+                      </div>
+
                       <div className="md:col-span-3">
                         <Button
                           onClick={handleByteExtraction}
