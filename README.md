@@ -1,13 +1,13 @@
 # Sectoolbox
 
-> Professional-grade cybersecurity analysis toolkit for CTF competitions and security research
+> Cybersecurity analysis toolkit for CTF competitions and security research
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-19.1-61DAFB?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.1-646CFF?logo=vite)](https://vitejs.dev)
 
-Sectoolbox is a comprehensive web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with modern React and TypeScript, it provides powerful forensics and exploitation tools directly in your browser with real-time analysis capabilities.
+Sectoolbox is a web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with modern React and TypeScript, it provides powerful forensics and exploitation tools directly in your browser with real-time analysis capabilities.
 
 ## Features
 
@@ -74,72 +74,27 @@ npm install
 
 # Start development server
 npm run dev
-```
 
-Visit `http://localhost:5173` to access the application.
-
-### Build for Production
-
-```bash
+# Build for Production
 npm run build
 npm run preview
 ```
 
-## Usage Examples
-
-### Digital Forensics
-1. Navigate to **Digital Forensics** from the Analysis Tools menu
-2. Choose your analysis type (General, EVTX, Memory)
-3. Upload your file
-4. View comprehensive analysis results with visualizations
-5. Export findings in your preferred format
-
-### Image Forensics
-1. Select **Image** from the Analysis Tools dropdown
-2. Upload your image file (JPEG, PNG, GIF, BMP)
-3. View EXIF metadata and GPS coordinates
-4. Analyze bit planes for hidden data
-5. Extract embedded files and run steganography detection
-
-### PCAP Analysis
-1. Go to **PCAP** under Analysis Tools
-2. Upload network capture file (.pcap, .pcapng)
-3. Choose between general PCAP analysis or USB PCAP analysis
-4. View packet details, protocol distribution, conversations
-5. Analyze suspicious activity and export findings
-
-### Web Exploitation
-1. Access **Web** from Security Tools
-2. Browse 240+ attack payloads organized by category
-3. Use interactive tools for payload testing and encoding
-4. Favorite commonly-used payloads for quick access
-5. Test SQL injection, XSS, and other vulnerabilities
-
-### Cryptography
-1. Open **Cryptography** from Security Tools
-2. Choose from encoding, hashing, or cipher operations
-3. Paste or type your input
-4. View instant results with multiple format options
-5. Perform frequency analysis on encrypted text
-
-### Network Intelligence
-1. Navigate to **Network** under Analysis Tools
-2. Enter domain or IP address
-3. Gather intelligence from multiple sources (Shodan, IPInfo, PassiveDNS)
-4. View historical website snapshots from Archive.org
-5. Check SSL certificates via crt.sh
+Visit `http://localhost:5173` to access the application.
 
 ## Tech Stack
 
-- **Framework**: React 19 + TypeScript 5.8
-- **Build Tool**: Vite 7
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **Routing**: React Router 7
-- **Charts**: Recharts for data visualization
-- **Icons**: Lucide React
-- **Image Processing**: ExifReader, zbar-wasm for QR codes
-- **File Handling**: JSZip, file-saver
-- **Deployment**: Vercel with serverless functions
+```
+- Framework: React 19 + TypeScript 5.8
+- Build Tool: Vite 7
+- Styling: Tailwind CSS + shadcn/ui components
+- Routing: React Router 7
+- Charts: Recharts for data visualization
+- Icons: Lucide React
+- Image Processing: ExifReader, zbar-wasm for QR codes
+- File Handling: JSZip, file-saver
+- Deployment: Vercel with serverless functions
+```
 
 ## Project Structure
 
@@ -177,32 +132,6 @@ sectoolbox/
 └── package.json
 ```
 
-## Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Contribution Guidelines
-- Write clean, documented code
-- Follow existing code style and conventions
-- Test your changes thoroughly across different browsers
-- Update documentation as needed
-- Add changelog entries for significant changes
-
-## Bug Reports
-
-Found a bug? Please report it on our [Issues page](https://github.com/sectoolbox/sectoolbox/issues/new) with:
-- Clear description of the issue
-- Steps to reproduce
-- Expected vs actual behavior
-- Screenshots if applicable
-- Browser, OS, and version information
-
 ## Community
 
 Join our community:
@@ -210,32 +139,20 @@ Join our community:
 - **GitHub Discussions**: [sectoolbox/sectoolbox/discussions](https://github.com/sectoolbox/sectoolbox/discussions)
 - **Contribute**: [https://github.com/sectoolbox/sectoolbox](https://github.com/sectoolbox/sectoolbox)
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Authors
 
 - **Zeb** - Lead Developer - [@zebbern](https://github.com/zebbern)
 - **Kimmi** - Frontend Engineer - [@Opkimmi](https://github.com/Opkimmi)
 
-## Acknowledgments
-
-- Built for the CTF and security research community
-- Inspired by the need for accessible, browser-based security tools
-- Thanks to all contributors and the open-source community
-
 ## Roadmap
 
-- Password analysis and generation tools
 - Binary analysis and reverse engineering tools
 - Extended memory forensics with Volatility integration
-- Keyboard shortcuts for power users
-- PWA support for full offline capability
 - Custom payload builder
 - Report generation system
-- API documentation
 - Plugin system for community extensions
+- API documentation
+- Website documentation
 
 ---
 
