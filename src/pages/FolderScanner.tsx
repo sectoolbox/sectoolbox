@@ -88,6 +88,8 @@ const FolderScanner: React.FC = () => {
   })
   const [extractionResult, setExtractionResult] = useState<CombinedExtractionResult | null>(null)
   const [showExtractionDetails, setShowExtractionDetails] = useState(false)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionError, setExtractionError] = useState<string | null>(null)
 
   // Apply filters and sorting whenever they change
   useEffect(() => {
@@ -277,10 +279,46 @@ const FolderScanner: React.FC = () => {
   }
 
   const handleByteExtraction = async () => {
-    if (!scanResult) return
+    if (!scanResult) {
+      setExtractionError('No folder scanned. Please scan a folder first.')
+      return
+    }
 
-    const result = await extractBytesFromFiles(scanResult.files, byteExtractionConfig)
-    setExtractionResult(result)
+    // Validation
+    if (!byteExtractionConfig.filenamePattern.trim()) {
+      setExtractionError('Please enter a filename pattern (e.g., $I*.txt)')
+      return
+    }
+
+    if (!byteExtractionConfig.bytePositions.trim()) {
+      setExtractionError('Please enter byte position(s) (e.g., 8 or 8,16,24)')
+      return
+    }
+
+    setIsExtracting(true)
+    setExtractionError(null)
+    setExtractionResult(null)
+
+    try {
+      console.log('Starting byte extraction with config:', byteExtractionConfig)
+      console.log('Total files available:', scanResult.files.length)
+
+      const result = await extractBytesFromFiles(scanResult.files, byteExtractionConfig)
+
+      console.log('Extraction result:', result)
+
+      setExtractionResult(result)
+      setShowExtractionDetails(true) // Auto-show details
+
+      if (result.filesProcessed === 0) {
+        setExtractionError(`No files matched pattern "${byteExtractionConfig.filenamePattern}". Try a different pattern.`)
+      }
+    } catch (error) {
+      console.error('Byte extraction error:', error)
+      setExtractionError(`Extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsExtracting(false)
+    }
   }
 
   const copyExtractionResult = () => {
@@ -559,29 +597,80 @@ const FolderScanner: React.FC = () => {
 
               {/* Byte Extractor Section */}
               <div className="border-t border-border pt-4 mt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Hash className="w-5 h-5 text-accent" />
-                  <h3 className="text-base font-semibold">Byte Extractor (Forensics)</h3>
-                </div>
-                <div className="space-y-3">
-                  <label className="flex items-center text-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-accent" />
+                    <h3 className="text-base font-semibold">Byte Extractor (Forensics)</h3>
+                  </div>
+                  <label className="flex items-center text-sm cursor-pointer">
                     <input
                       type="checkbox"
                       checked={byteExtractionConfig.enabled}
                       onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, enabled: e.target.checked })}
                       className="mr-2"
                     />
-                    Enable Byte Extraction
+                    Enable
                   </label>
+                </div>
 
-                  {byteExtractionConfig.enabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                {byteExtractionConfig.enabled && (
+                  <div className="space-y-3 pl-6">
+                    {/* Preset Examples */}
+                    <div className="bg-muted/20 border border-border rounded p-3">
+                      <p className="text-xs font-medium mb-2 text-muted-foreground">Quick Presets:</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: '$I*.txt',
+                            bytePositions: '8',
+                            sortBy: 'name'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          NTFS Recycle Bin ($I files, pos 8)
+                        </Button>
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: 'flag*.txt',
+                            bytePositions: '0',
+                            sortBy: 'name'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Sequential Flags (first byte)
+                        </Button>
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: '*.bin',
+                            bytePositions: '0-3',
+                            sortBy: 'name'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Magic Bytes (0-3)
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="md:col-span-2">
                         <label className="text-xs font-medium block mb-1">Filename Pattern (wildcards supported)</label>
                         <Input
                           placeholder="e.g., $I*.txt or file*.bin"
                           value={byteExtractionConfig.filenamePattern}
-                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, filenamePattern: e.target.value })}
+                          onChange={(e) => {
+                            setByteExtractionConfig({ ...byteExtractionConfig, filenamePattern: e.target.value })
+                            setExtractionError(null)
+                          }}
                           className="text-sm"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Use * for multiple chars, ? for single char</p>
@@ -592,7 +681,10 @@ const FolderScanner: React.FC = () => {
                         <Input
                           placeholder="8 or 8,16,24 or 8-12"
                           value={byteExtractionConfig.bytePositions}
-                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, bytePositions: e.target.value })}
+                          onChange={(e) => {
+                            setByteExtractionConfig({ ...byteExtractionConfig, bytePositions: e.target.value })
+                            setExtractionError(null)
+                          }}
                           className="text-sm"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Single, multiple, or range</p>
@@ -612,14 +704,38 @@ const FolderScanner: React.FC = () => {
                       </div>
 
                       <div className="md:col-span-3">
-                        <Button onClick={handleByteExtraction} variant="default" size="sm" className="w-full">
-                          <Zap className="w-4 h-4 mr-2" />
-                          Extract Characters
+                        <Button
+                          onClick={handleByteExtraction}
+                          variant="default"
+                          size="sm"
+                          className="w-full"
+                          disabled={isExtracting}
+                        >
+                          {isExtracting ? (
+                            <>
+                              <Activity className="w-4 h-4 mr-2 animate-spin" />
+                              Extracting...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-4 h-4 mr-2" />
+                              Extract Characters
+                            </>
+                          )}
                         </Button>
                       </div>
+
+                      {extractionError && (
+                        <div className="md:col-span-3">
+                          <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-400 flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <span>{extractionError}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">
