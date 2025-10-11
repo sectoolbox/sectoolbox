@@ -702,7 +702,18 @@ const FolderScanner: React.FC = () => {
                         <label className="text-xs font-medium block mb-1">Sort Files By</label>
                         <select
                           value={byteExtractionConfig.sortBy}
-                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, sortBy: e.target.value as any })}
+                          onChange={(e) => {
+                            const newSortBy = e.target.value as any
+                            setByteExtractionConfig({
+                              ...byteExtractionConfig,
+                              sortBy: newSortBy,
+                              // Enable metadata sort when "metadata" is selected
+                              metadataSort: {
+                                ...byteExtractionConfig.metadataSort!,
+                                enabled: newSortBy === 'metadata'
+                              }
+                            })
+                          }}
                           className="w-full p-2 bg-background border border-border rounded text-sm"
                         >
                           <optgroup label="Name">
