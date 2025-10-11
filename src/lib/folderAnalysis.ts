@@ -69,11 +69,31 @@ export interface FilterOptions {
   showHidden?: boolean
 }
 
+export type MetadataFormat =
+  | 'uint-le'      // Unsigned Integer Little Endian
+  | 'uint-be'      // Unsigned Integer Big Endian
+  | 'int-le'       // Signed Integer Little Endian
+  | 'int-be'       // Signed Integer Big Endian
+  | 'filetime'     // Windows FILETIME (64-bit)
+  | 'unix32'       // Unix Timestamp 32-bit
+  | 'unix64'       // Unix Timestamp 64-bit
+  | 'ascii'        // ASCII String
+  | 'hex'          // Raw Bytes (hex comparison)
+
+export interface MetadataSortConfig {
+  enabled: boolean
+  startByte: number
+  length: number
+  format: MetadataFormat
+  ascending: boolean
+}
+
 export interface ByteExtractionConfig {
   enabled: boolean
   filenamePattern: string
   bytePositions: string // "8" or "8,16,24" or "8-12"
-  sortBy: 'name' | 'modified' | 'size'
+  sortBy: 'name' | 'name-reverse' | 'natural' | 'modified' | 'modified-reverse' | 'created' | 'size' | 'size-reverse' | 'metadata'
+  metadataSort?: MetadataSortConfig
 }
 
 export interface ByteExtractionResult {
@@ -790,6 +810,135 @@ function detectUtf16EncodingIssue(strings: string[]): boolean {
   return ratio > 0.3
 }
 
+// Natural sort comparator (handles numbers in strings correctly)
+function naturalSort(a: string, b: string): number {
+  const regex = /(\d+)|(\D+)/g
+  const aParts = a.match(regex) || []
+  const bParts = b.match(regex) || []
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aPart = aParts[i] || ''
+    const bPart = bParts[i] || ''
+
+    // If both are numbers, compare numerically
+    if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
+      const diff = parseInt(aPart, 10) - parseInt(bPart, 10)
+      if (diff !== 0) return diff
+    } else {
+      // Otherwise compare as strings
+      const diff = aPart.localeCompare(bPart)
+      if (diff !== 0) return diff
+    }
+  }
+
+  return 0
+}
+
+// Parse metadata value from bytes
+function parseMetadata(bytes: Uint8Array, config: MetadataSortConfig): number | string {
+  const { startByte, length, format } = config
+
+  // Extract bytes
+  if (startByte + length > bytes.length) {
+    return 0 // Return default if out of bounds
+  }
+
+  const slice = bytes.slice(startByte, startByte + length)
+
+  switch (format) {
+    case 'uint-le': {
+      // Unsigned integer little endian
+      let value = 0
+      for (let i = 0; i < slice.length; i++) {
+        value += slice[i] << (i * 8)
+      }
+      return value >>> 0 // Ensure unsigned
+    }
+
+    case 'uint-be': {
+      // Unsigned integer big endian
+      let value = 0
+      for (let i = 0; i < slice.length; i++) {
+        value = (value << 8) + slice[i]
+      }
+      return value >>> 0
+    }
+
+    case 'int-le': {
+      // Signed integer little endian
+      let value = 0
+      for (let i = 0; i < slice.length; i++) {
+        value += slice[i] << (i * 8)
+      }
+      // Sign extend if negative
+      const bits = slice.length * 8
+      const signBit = 1 << (bits - 1)
+      if (value & signBit) {
+        value = value - (1 << bits)
+      }
+      return value
+    }
+
+    case 'int-be': {
+      // Signed integer big endian
+      let value = 0
+      for (let i = 0; i < slice.length; i++) {
+        value = (value << 8) + slice[i]
+      }
+      const bits = slice.length * 8
+      const signBit = 1 << (bits - 1)
+      if (value & signBit) {
+        value = value - (1 << bits)
+      }
+      return value
+    }
+
+    case 'filetime': {
+      // Windows FILETIME (64-bit): 100-nanosecond intervals since 1601-01-01
+      if (slice.length !== 8) return 0
+
+      const low = slice[0] + (slice[1] << 8) + (slice[2] << 16) + (slice[3] << 24)
+      const high = slice[4] + (slice[5] << 8) + (slice[6] << 16) + (slice[7] << 24)
+
+      // Convert to JavaScript timestamp (milliseconds since 1970-01-01)
+      const filetime = (high * 0x100000000 + low) / 10000
+      const unixEpoch = 11644473600000 // Milliseconds between 1601 and 1970
+      return filetime - unixEpoch
+    }
+
+    case 'unix32': {
+      // Unix timestamp 32-bit (seconds since 1970-01-01)
+      if (slice.length !== 4) return 0
+
+      const timestamp = slice[0] + (slice[1] << 8) + (slice[2] << 16) + (slice[3] << 24)
+      return timestamp * 1000 // Convert to milliseconds
+    }
+
+    case 'unix64': {
+      // Unix timestamp 64-bit (milliseconds since 1970-01-01)
+      if (slice.length !== 8) return 0
+
+      const low = slice[0] + (slice[1] << 8) + (slice[2] << 16) + (slice[3] << 24)
+      const high = slice[4] + (slice[5] << 8) + (slice[6] << 16) + (slice[7] << 24)
+
+      return high * 0x100000000 + low
+    }
+
+    case 'ascii': {
+      // ASCII string
+      return String.fromCharCode(...slice.filter(b => b >= 32 && b <= 126))
+    }
+
+    case 'hex': {
+      // Raw hex comparison
+      return Array.from(slice).map(b => b.toString(16).padStart(2, '0')).join('')
+    }
+
+    default:
+      return 0
+  }
+}
+
 // Parse byte positions string into array of positions
 function parseBytePositions(positionsStr: string): number[] {
   const positions: number[] = []
@@ -868,19 +1017,59 @@ export async function extractBytesFromFiles(
   // Filter matching files
   const matchingFiles = files.filter(f => pattern.test(f.name))
 
-  // Sort files based on config
-  const sortedFiles = [...matchingFiles].sort((a, b) => {
-    switch (config.sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'modified':
-        return a.lastModified.getTime() - b.lastModified.getTime()
-      case 'size':
-        return a.size - b.size
-      default:
-        return 0
+  // For metadata sorting, need to read files and extract metadata values
+  const filesWithMetadata: Array<{ file: FileEntry; metadataValue: number | string }> = []
+
+  if (config.sortBy === 'metadata' && config.metadataSort?.enabled) {
+    for (const file of matchingFiles) {
+      try {
+        const buffer = await file.file.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        const metadataValue = parseMetadata(bytes, config.metadataSort)
+        filesWithMetadata.push({ file, metadataValue })
+      } catch (error) {
+        console.error('Error reading file for metadata sort:', file.name, error)
+        filesWithMetadata.push({ file, metadataValue: 0 })
+      }
     }
-  })
+  }
+
+  // Sort files based on config
+  const sortedFiles = config.sortBy === 'metadata' && config.metadataSort?.enabled
+    ? filesWithMetadata.sort((a, b) => {
+        const aVal = a.metadataValue
+        const bVal = b.metadataValue
+
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return config.metadataSort!.ascending ? aVal - bVal : bVal - aVal
+        } else {
+          const compareResult = String(aVal).localeCompare(String(bVal))
+          return config.metadataSort!.ascending ? compareResult : -compareResult
+        }
+      }).map(item => item.file)
+    : [...matchingFiles].sort((a, b) => {
+        switch (config.sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name)
+          case 'name-reverse':
+            return b.name.localeCompare(a.name)
+          case 'natural':
+            return naturalSort(a.name, b.name)
+          case 'modified':
+            return a.lastModified.getTime() - b.lastModified.getTime()
+          case 'modified-reverse':
+            return b.lastModified.getTime() - a.lastModified.getTime()
+          case 'created':
+            // Use lastModified as fallback (created date not always available in browser)
+            return a.lastModified.getTime() - b.lastModified.getTime()
+          case 'size':
+            return a.size - b.size
+          case 'size-reverse':
+            return b.size - a.size
+          default:
+            return 0
+        }
+      })
 
   // Extract bytes from each file
   const results: ByteExtractionResult[] = []

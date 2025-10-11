@@ -40,7 +40,8 @@ import {
   type FolderScanResult,
   type FilterOptions,
   type ByteExtractionConfig,
-  type CombinedExtractionResult
+  type CombinedExtractionResult,
+  type MetadataFormat
 } from '../lib/folderAnalysis'
 
 type SortField = 'name' | 'size' | 'type' | 'entropy' | 'strings' | 'modified'
@@ -84,7 +85,14 @@ const FolderScanner: React.FC = () => {
     enabled: false,
     filenamePattern: '',
     bytePositions: '8',
-    sortBy: 'name'
+    sortBy: 'name',
+    metadataSort: {
+      enabled: false,
+      startByte: 9,
+      length: 8,
+      format: 'filetime',
+      ascending: true
+    }
   })
   const [extractionResult, setExtractionResult] = useState<CombinedExtractionResult | null>(null)
   const [showExtractionDetails, setShowExtractionDetails] = useState(false)
@@ -690,18 +698,126 @@ const FolderScanner: React.FC = () => {
                         <p className="text-xs text-muted-foreground mt-1">Single, multiple, or range</p>
                       </div>
 
-                      <div>
+                      <div className="md:col-span-3">
                         <label className="text-xs font-medium block mb-1">Sort Files By</label>
                         <select
                           value={byteExtractionConfig.sortBy}
                           onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, sortBy: e.target.value as any })}
                           className="w-full p-2 bg-background border border-border rounded text-sm"
                         >
-                          <option value="name">Alphabetical</option>
-                          <option value="modified">Modified Date</option>
-                          <option value="size">File Size</option>
+                          <optgroup label="Name">
+                            <option value="name">Alphabetical (A→Z)</option>
+                            <option value="name-reverse">Alphabetical (Z→A)</option>
+                            <option value="natural">Natural Sort (1,2,10 not 1,10,2)</option>
+                          </optgroup>
+                          <optgroup label="Time">
+                            <option value="modified">Modified Date (Old→New)</option>
+                            <option value="modified-reverse">Modified Date (New→Old)</option>
+                            <option value="created">Created Date (Old→New)</option>
+                          </optgroup>
+                          <optgroup label="Size">
+                            <option value="size">File Size (Small→Large)</option>
+                            <option value="size-reverse">File Size (Large→Small)</option>
+                          </optgroup>
+                          <optgroup label="Metadata">
+                            <option value="metadata">Custom Metadata Field</option>
+                          </optgroup>
                         </select>
                       </div>
+
+                      {/* Metadata Sort Configuration */}
+                      {byteExtractionConfig.sortBy === 'metadata' && (
+                        <div className="md:col-span-3 bg-blue-500/5 border border-blue-500/20 rounded p-3 space-y-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Hash className="w-4 h-4 text-blue-400" />
+                            <h4 className="text-xs font-semibold text-blue-400">Metadata Sort Configuration</h4>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-xs font-medium block mb-1">Start Byte</label>
+                              <Input
+                                type="number"
+                                placeholder="9"
+                                value={byteExtractionConfig.metadataSort?.startByte ?? 9}
+                                onChange={(e) => setByteExtractionConfig({
+                                  ...byteExtractionConfig,
+                                  metadataSort: {
+                                    ...byteExtractionConfig.metadataSort!,
+                                    startByte: parseInt(e.target.value) || 0
+                                  }
+                                })}
+                                className="text-xs"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium block mb-1">Length (bytes)</label>
+                              <Input
+                                type="number"
+                                placeholder="8"
+                                value={byteExtractionConfig.metadataSort?.length ?? 8}
+                                onChange={(e) => setByteExtractionConfig({
+                                  ...byteExtractionConfig,
+                                  metadataSort: {
+                                    ...byteExtractionConfig.metadataSort!,
+                                    length: parseInt(e.target.value) || 1
+                                  }
+                                })}
+                                className="text-xs"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-5">
+                              <label className="flex items-center text-xs cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={byteExtractionConfig.metadataSort?.ascending ?? true}
+                                  onChange={(e) => setByteExtractionConfig({
+                                    ...byteExtractionConfig,
+                                    metadataSort: {
+                                      ...byteExtractionConfig.metadataSort!,
+                                      ascending: e.target.checked
+                                    }
+                                  })}
+                                  className="mr-1"
+                                />
+                                Ascending
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-medium block mb-1">Interpret As</label>
+                            <select
+                              value={byteExtractionConfig.metadataSort?.format ?? 'filetime'}
+                              onChange={(e) => setByteExtractionConfig({
+                                ...byteExtractionConfig,
+                                metadataSort: {
+                                  ...byteExtractionConfig.metadataSort!,
+                                  format: e.target.value as MetadataFormat
+                                }
+                              })}
+                              className="w-full p-2 bg-background border border-border rounded text-xs"
+                            >
+                              <option value="uint-le">Unsigned Integer (Little Endian)</option>
+                              <option value="uint-be">Unsigned Integer (Big Endian)</option>
+                              <option value="int-le">Signed Integer (Little Endian)</option>
+                              <option value="int-be">Signed Integer (Big Endian)</option>
+                              <option value="filetime">Windows FILETIME (64-bit)</option>
+                              <option value="unix32">Unix Timestamp (32-bit)</option>
+                              <option value="unix64">Unix Timestamp (64-bit)</option>
+                              <option value="ascii">ASCII String</option>
+                              <option value="hex">Raw Bytes (hex comparison)</option>
+                            </select>
+                          </div>
+
+                          <div className="text-xs text-blue-400 bg-blue-500/10 rounded p-2">
+                            <p className="font-medium mb-1">Example: NTFS $I Deletion Time</p>
+                            <p className="text-muted-foreground">Start: 9, Length: 8, Format: Windows FILETIME</p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="md:col-span-3">
                         <Button
