@@ -1720,7 +1720,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='stego' {activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='stego' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium flex items-center">
@@ -1992,7 +1992,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='bitplane' {activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='bitplane' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-medium">Advanced Bitplane Analysis</h4>
@@ -2446,7 +2446,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='barcode' {activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='barcode' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium flex items-center">
