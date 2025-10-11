@@ -471,6 +471,60 @@ const CryptoTools: React.FC = () => {
           return basic + codes.join('')
         } catch { return null }
       }
+    },
+    {
+      name: 'UTF-16 Endianness Fix',
+      description: 'Fix UTF-16 LE/BE encoding issues',
+      example: 'Fixes CJK symbols from misread UTF-16',
+      encode: (text: string) => {
+        // Convert text to UTF-16 LE bytes representation
+        const result: string[] = []
+        for (let i = 0; i < text.length; i++) {
+          const code = text.charCodeAt(i)
+          result.push(String.fromCharCode(code & 0xFF) + String.fromCharCode((code >> 8) & 0xFF))
+        }
+        return result.join('')
+      },
+      decode: (text: string) => {
+        try {
+          // Method 1: Extract high byte from misencoded characters (e.g., U+4300 → 'C')
+          let decoded = ''
+          for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i)
+            // If character is in CJK/rare range (U+3000-U+FFFF), extract high byte
+            if (code >= 0x3000 && code <= 0xFFFF) {
+              const highByte = (code >> 8) & 0xFF
+              if (highByte >= 0x20 && highByte <= 0x7E) {
+                // High byte is printable ASCII
+                decoded += String.fromCharCode(highByte)
+                continue
+              }
+            }
+            // Otherwise keep original character
+            decoded += text[i]
+          }
+
+          // If decoded looks better (more ASCII), return it
+          const asciiCount = (decoded.match(/[\x20-\x7E]/g) || []).length
+          const originalAsciiCount = (text.match(/[\x20-\x7E]/g) || []).length
+          if (asciiCount > originalAsciiCount) {
+            return decoded
+          }
+
+          // Method 2: Try swapping byte order (UTF-16 BE to LE)
+          if (text.length % 2 === 0) {
+            const swapped: string[] = []
+            for (let i = 0; i < text.length; i++) {
+              const code = text.charCodeAt(i)
+              const swappedCode = ((code & 0xFF) << 8) | ((code >> 8) & 0xFF)
+              swapped.push(String.fromCharCode(swappedCode))
+            }
+            return swapped.join('')
+          }
+
+          return decoded || text
+        } catch { return null }
+      }
     }
   ]
 
