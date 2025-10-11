@@ -20,7 +20,8 @@ import {
   RefreshCw,
   File,
   EyeOff,
-  Zap
+  Zap,
+  Copy
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -34,9 +35,12 @@ import {
   exportToCSV,
   formatFileSize,
   getEntropyColor,
+  extractBytesFromFiles,
   type FileEntry,
   type FolderScanResult,
-  type FilterOptions
+  type FilterOptions,
+  type ByteExtractionConfig,
+  type CombinedExtractionResult
 } from '../lib/folderAnalysis'
 
 type SortField = 'name' | 'size' | 'type' | 'entropy' | 'strings' | 'modified'
@@ -74,6 +78,16 @@ const FolderScanner: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Byte extraction state
+  const [byteExtractionConfig, setByteExtractionConfig] = useState<ByteExtractionConfig>({
+    enabled: false,
+    filenamePattern: '',
+    bytePositions: '8',
+    sortBy: 'name'
+  })
+  const [extractionResult, setExtractionResult] = useState<CombinedExtractionResult | null>(null)
+  const [showExtractionDetails, setShowExtractionDetails] = useState(false)
 
   // Apply filters and sorting whenever they change
   useEffect(() => {
@@ -260,6 +274,37 @@ const FolderScanner: React.FC = () => {
       maxEntropy: undefined
     })
     setSearchInput('')
+  }
+
+  const handleByteExtraction = async () => {
+    if (!scanResult) return
+
+    const result = await extractBytesFromFiles(scanResult.files, byteExtractionConfig)
+    setExtractionResult(result)
+  }
+
+  const copyExtractionResult = () => {
+    if (extractionResult) {
+      navigator.clipboard.writeText(extractionResult.combinedString)
+      alert('Copied to clipboard!')
+    }
+  }
+
+  const exportExtractionResult = () => {
+    if (!extractionResult) return
+
+    const content = `Combined Result: ${extractionResult.combinedString}\n\nDetails:\n` +
+      extractionResult.details.map(d =>
+        `${d.filename} [pos ${d.position}] → '${d.char}' (0x${d.hex}, ASCII ${d.ascii})`
+      ).join('\n')
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `byte-extraction-${Date.now()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -512,11 +557,147 @@ const FolderScanner: React.FC = () => {
                 )}
               </div>
 
+              {/* Byte Extractor Section */}
+              <div className="border-t border-border pt-4 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Hash className="w-5 h-5 text-accent" />
+                  <h3 className="text-base font-semibold">Byte Extractor (Forensics)</h3>
+                </div>
+                <div className="space-y-3">
+                  <label className="flex items-center text-sm">
+                    <input
+                      type="checkbox"
+                      checked={byteExtractionConfig.enabled}
+                      onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, enabled: e.target.checked })}
+                      className="mr-2"
+                    />
+                    Enable Byte Extraction
+                  </label>
+
+                  {byteExtractionConfig.enabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium block mb-1">Filename Pattern (wildcards supported)</label>
+                        <Input
+                          placeholder="e.g., $I*.txt or file*.bin"
+                          value={byteExtractionConfig.filenamePattern}
+                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, filenamePattern: e.target.value })}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Use * for multiple chars, ? for single char</p>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium block mb-1">Byte Position(s)</label>
+                        <Input
+                          placeholder="8 or 8,16,24 or 8-12"
+                          value={byteExtractionConfig.bytePositions}
+                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, bytePositions: e.target.value })}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Single, multiple, or range</p>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium block mb-1">Sort Files By</label>
+                        <select
+                          value={byteExtractionConfig.sortBy}
+                          onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, sortBy: e.target.value as any })}
+                          className="w-full p-2 bg-background border border-border rounded text-sm"
+                        >
+                          <option value="name">Alphabetical</option>
+                          <option value="modified">Modified Date</option>
+                          <option value="size">File Size</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <Button onClick={handleByteExtraction} variant="default" size="sm" className="w-full">
+                          <Zap className="w-4 h-4 mr-2" />
+                          Extract Characters
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button onClick={resetFilters} variant="outline" size="sm">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset Filters
                 </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Extraction Result Box */}
+          {extractionResult && extractionResult.filesProcessed > 0 && (
+            <Card className="p-4 bg-accent/5 border-accent/20">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-accent" />
+                    Extraction Result
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button onClick={copyExtractionResult} variant="outline" size="sm">
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                    <Button onClick={exportExtractionResult} variant="outline" size="sm">
+                      <Download className="w-3 h-3 mr-1" />
+                      Export
+                    </Button>
+                    <Button
+                      onClick={() => setShowExtractionDetails(!showExtractionDetails)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      {showExtractionDetails ? 'Hide' : 'Show'} Details {showExtractionDetails ? '▲' : '▼'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Combined String:</p>
+                  <div className="bg-background border border-border rounded p-3 font-mono text-sm break-all">
+                    {extractionResult.combinedString || '(empty)'}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {extractionResult.filesProcessed} files processed, {extractionResult.details.length} bytes extracted
+                  </p>
+                </div>
+
+                {showExtractionDetails && (
+                  <div>
+                    <p className="text-xs font-medium mb-2">Details:</p>
+                    <div className="bg-background border border-border rounded p-3 max-h-64 overflow-auto">
+                      <table className="w-full text-xs font-mono">
+                        <thead className="border-b border-border">
+                          <tr>
+                            <th className="text-left p-1">File</th>
+                            <th className="text-center p-1">Pos</th>
+                            <th className="text-center p-1">Char</th>
+                            <th className="text-center p-1">Hex</th>
+                            <th className="text-center p-1">ASCII</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {extractionResult.details.map((detail, idx) => (
+                            <tr key={idx} className="border-b border-border/30">
+                              <td className="p-1 text-muted-foreground">{detail.filename}</td>
+                              <td className="p-1 text-center">{detail.position}</td>
+                              <td className="p-1 text-center text-accent font-bold">{detail.char}</td>
+                              <td className="p-1 text-center text-green-400">0x{detail.hex}</td>
+                              <td className="p-1 text-center text-blue-400">{detail.ascii}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           )}
