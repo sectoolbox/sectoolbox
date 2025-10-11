@@ -779,22 +779,22 @@ const FolderScanner: React.FC = () => {
                               />
                             </div>
 
-                            <div className="flex items-center gap-2 pt-5">
-                              <label className="flex items-center text-xs cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={byteExtractionConfig.metadataSort?.ascending ?? true}
-                                  onChange={(e) => setByteExtractionConfig({
-                                    ...byteExtractionConfig,
-                                    metadataSort: {
-                                      ...byteExtractionConfig.metadataSort!,
-                                      ascending: e.target.checked
-                                    }
-                                  })}
-                                  className="mr-1"
-                                />
-                                Ascending
-                              </label>
+                            <div>
+                              <label className="text-xs font-medium block mb-1">Sort Direction</label>
+                              <select
+                                value={byteExtractionConfig.metadataSort?.ascending ?? true ? 'asc' : 'desc'}
+                                onChange={(e) => setByteExtractionConfig({
+                                  ...byteExtractionConfig,
+                                  metadataSort: {
+                                    ...byteExtractionConfig.metadataSort!,
+                                    ascending: e.target.value === 'asc'
+                                  }
+                                })}
+                                className="w-full p-2 bg-background border border-border rounded text-xs"
+                              >
+                                <option value="asc">Ascending (Low→High / Old→New)</option>
+                                <option value="desc">Descending (High→Low / New→Old)</option>
+                              </select>
                             </div>
                           </div>
 
