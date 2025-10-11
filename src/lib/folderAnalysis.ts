@@ -94,6 +94,7 @@ export interface ByteExtractionConfig {
   bytePositions: string // "8" or "8,16,24" or "8-12"
   sortBy: 'name' | 'name-reverse' | 'natural' | 'modified' | 'modified-reverse' | 'created' | 'size' | 'size-reverse' | 'metadata'
   metadataSort?: MetadataSortConfig
+  hideNullBytes?: boolean // Hide null bytes (0x00 / ASCII 0) from results
 }
 
 export interface ByteExtractionResult {
@@ -1083,6 +1084,12 @@ export async function extractBytesFromFiles(
       for (const pos of positions) {
         if (pos < bytes.length) {
           const byte = bytes[pos]
+
+          // Skip null bytes if hideNullBytes option is enabled
+          if (config.hideNullBytes && byte === 0) {
+            continue
+          }
+
           const char = byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.'
           const hex = byte.toString(16).padStart(2, '0').toUpperCase()
 
