@@ -5,7 +5,6 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
 import { performComprehensiveImageAnalysis, ImageAnalysisResult, computeHistogramFromCanvas, extractBitPlaneFromCanvas, analyzeLSBWithDepth, extractPrintableStringsFromBuffer, applyEdgeDetection, analyzeNoise, applyAutoGammaCorrection, applyHistogramEqualization } from '../lib/imageAnalysis'
-import { parseEvtxWithWasm } from '../lib/evtxWasm'
 import { carveFiles } from '../lib/forensics'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 import { scanImageData } from '@undecaf/zbar-wasm'
@@ -195,7 +194,7 @@ export default function ImageAnalysis() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const f = e.dataTransfer.files?.[0]
-    if (f && (f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.evtx'))) onFile(f)
+    if (f && f.type.startsWith('image/')) onFile(f)
   }
 
   // Advanced forensic processing functions
@@ -783,96 +782,23 @@ export default function ImageAnalysis() {
     setIsAnalyzing(true)
     try {
       const buf = await file.arrayBuffer()
-      
-      // Check if it's an EVTX file
-      if (file.name.toLowerCase().endsWith('.evtx')) {
-        // Handle EVTX file analysis
-        const evtxResult = await parseEvtxWithWasm(buf)
-        
-        // Create a structured result similar to image analysis
-        const res: ImageAnalysisResult = {
-          metadata: {
-            filename: file.name,
-            fileSize: file.size,
-            dimensions: { width: 0, height: 0 },
-            format: 'EVTX',
-            exif: {}
-          },
-          steganography: {
-            detected: false,
-            confidence: 0,
-            techniques: [],
-            hiddenContent: []
-          },
-          forensics: {
-            signatures: [],
-            carvedFiles: [],
-            anomalies: []
-          }
-        }
-        
-        setStructuredResults(res)
-        
-        // Extract strings from EVTX content
-        const evtxStrings = {
-          all: evtxResult.events.flatMap(event => [
-            event.eventId?.toString() || '',
-            event.channel || '',
-            event.computer || '',
-            event.message || '',
-            ...Object.values(event.data || {}).map(v => String(v))
-          ]).filter(s => s.length > 0),
-          interesting: evtxResult.events.filter(e => e.level === 'Error' || e.level === 'Warning').map(e => e.message || '').filter(Boolean),
-          urls: [],
-          emails: [],
-          base64: [],
-          ips: [],
-          counts: {
-            total: 0,
-            unique: 0,
-            ascii: 0,
-            unicode: 0
-          },
-          patterns: {}
-        }
-        
-        // Calculate counts
-        evtxStrings.counts.total = evtxStrings.all.length
-        evtxStrings.counts.unique = new Set(evtxStrings.all).size
-        evtxStrings.counts.ascii = evtxStrings.all.length
-        evtxStrings.counts.unicode = 0
-        
-        setExtractedStrings(evtxStrings)
-        
-        setMetadata({
-          filename: file.name,
-          fileSize: file.size,
-          dimensions: { width: 0, height: 0 },
-          format: 'EVTX',
-          exif: {
-            'Total Events': evtxResult.events.length,
-            'Parse Status': evtxResult.success ? 'Success' : 'Failed',
-            'Parse Time': evtxResult.metadata?.parseTime ? `${evtxResult.metadata.parseTime.toFixed(2)}ms` : 'Unknown'
-          }
-        })
-      } else {
-        // Handle image file analysis (existing logic)
-        const res = await performComprehensiveImageAnalysis(file)
-        setStructuredResults(res)
 
-        const meta = res?.metadata || {}
-        setMetadata({
-          filename: meta.filename || file.name,
-          fileSize: meta.fileSize ?? file.size,
-          dimensions: meta.dimensions ?? { width: 0, height: 0 },
-          format: meta.format || '',
-          exif: meta.exif || {}
-        })
+      // Handle image file analysis
+      const res = await performComprehensiveImageAnalysis(file)
+      setStructuredResults(res)
 
-        setExtractedStrings(extractStrings(buf))
-      }
-      
-      // Generate hex data for both file types
+      const meta = res?.metadata || {}
+      setMetadata({
+        filename: meta.filename || file.name,
+        fileSize: meta.fileSize ?? file.size,
+        dimensions: meta.dimensions ?? { width: 0, height: 0 },
+        format: meta.format || '',
+        exif: meta.exif || {}
+      })
+
+      setExtractedStrings(extractStrings(buf))
+
+      // Generate hex data
       await generateHexData(buf)
 
       // save lightly to DB (best-effort)
@@ -1293,12 +1219,12 @@ export default function ImageAnalysis() {
 
       {!file ? (
         <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Upload Image or EVTX File</h2>
+          <h2 className="text-lg font-semibold mb-4">Upload Image File</h2>
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">Drop your image or EVTX file here or click to browse</p>
-            <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF, and EVTX files up to 500MB</p>
-            <input ref={fileRef} type="file" accept="image/*,.evtx" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
+            <p className="text-lg font-medium mb-2">Drop your image file here or click to browse</p>
+            <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF files up to 500MB</p>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
           </div>
         </div>
       ) : (
@@ -1339,35 +1265,7 @@ export default function ImageAnalysis() {
         </div>
       )}
 
-      {/* EVTX File Analysis Display */}
-      {file?.name.toLowerCase().endsWith('.evtx') && metadata && (
-        <div className="bg-card border border-border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold flex items-center"><FileText className="w-5 h-5 text-accent mr-2"/> EVTX Analysis Results</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-background/50 p-4 rounded-lg border border-border">
-              <div className="text-2xl font-bold text-accent">{metadata.exif?.['Total Events'] || 0}</div>
-              <div className="text-sm text-muted-foreground">Total Events</div>
-            </div>
-            <div className="bg-background/50 p-4 rounded-lg border border-border">
-              <div className="text-2xl font-bold text-accent">{metadata.exif?.['Parse Status'] || 'Unknown'}</div>
-              <div className="text-sm text-muted-foreground">Parse Status</div>
-            </div>
-            <div className="bg-background/50 p-4 rounded-lg border border-border">
-              <div className="text-2xl font-bold text-accent">{((metadata.fileSize || 0) / 1024 / 1024).toFixed(2)} MB</div>
-              <div className="text-sm text-muted-foreground">File Size</div>
-            </div>
-          </div>
-          
-          <div className="text-sm text-muted-foreground">
-            <p>Use the tabs below to explore extracted strings, metadata, and hex dump from the EVTX file.</p>
-          </div>
-        </div>
-      )}
-
-      {imageUrl && metadata && !file?.name.toLowerCase().endsWith('.evtx') && (
+      {imageUrl && metadata && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
@@ -1794,19 +1692,13 @@ export default function ImageAnalysis() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex space-x-2 border-b border-border pb-3 mb-4">
               <button onClick={()=>setActiveTab('metadata')} className={`px-3 py-2 ${activeTab==='metadata'?'text-accent border-b-2 border-accent':''}`}>
-                {file?.name.toLowerCase().endsWith('.evtx') ? 'EVTX Info' : 'EXIF Fields'}
+                EXIF Fields
               </button>
-              {!file?.name.toLowerCase().endsWith('.evtx') && (
-                <>
-                  <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
-                  <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
-                </>
-              )}
+              <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
+              <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
               <button onClick={()=>setActiveTab('strings')} className={`px-3 py-2 ${activeTab==='strings'?'text-accent border-b-2 border-accent':''}`}>Strings</button>
               <button onClick={()=>setActiveTab('hex')} className={`px-3 py-2 ${activeTab==='hex'?'text-accent border-b-2 border-accent':''}`}>Hex</button>
-              {!file?.name.toLowerCase().endsWith('.evtx') && (
-                <button onClick={()=>{setActiveTab('barcode'); if(barcodeResults.length === 0 && !isScanningBarcode) scanBarcodes()}} className={`px-3 py-2 ${activeTab==='barcode'?'text-accent border-b-2 border-accent':''}`}>Barcode</button>
-              )}
+              <button onClick={()=>{setActiveTab('barcode'); if(barcodeResults.length === 0 && !isScanningBarcode) scanBarcodes()}} className={`px-3 py-2 ${activeTab==='barcode'?'text-accent border-b-2 border-accent':''}`}>Barcode</button>
             </div>
 
             {activeTab==='metadata' && (
@@ -1828,7 +1720,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='stego' {activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='stego' && !file?.name.toLowerCase().endsWith('.evtx') && (
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium flex items-center">
@@ -2100,7 +1992,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='bitplane' {activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='bitplane' && !file?.name.toLowerCase().endsWith('.evtx') && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-medium">Advanced Bitplane Analysis</h4>
@@ -2554,7 +2446,7 @@ export default function ImageAnalysis() {
               </div>
             )}
 
-            {activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') && (
+            {activeTab==='barcode' {activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') &&{activeTab==='barcode' && !file?.name.toLowerCase().endsWith('.evtx') && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium flex items-center">
