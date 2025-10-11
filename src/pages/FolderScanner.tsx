@@ -19,7 +19,8 @@ import {
   ArrowDown,
   RefreshCw,
   File,
-  EyeOff
+  EyeOff,
+  Zap
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -674,6 +675,7 @@ const FolderScanner: React.FC = () => {
                           <td className="p-2">
                             <div className="flex items-center gap-2">
                               {file.isHidden && <EyeOff className="w-3 h-3 text-yellow-400" />}
+                              {file.analysisResult?.hasUtf16EncodingIssue && <Zap className="w-3 h-3 text-orange-400" title="UTF-16 encoding issue detected" />}
                               <span className="font-mono text-xs">{file.name}</span>
                             </div>
                           </td>
@@ -806,6 +808,17 @@ const FolderScanner: React.FC = () => {
                             <span className="text-muted-foreground">Magic Bytes:</span>
                             <p className="font-mono text-xs">{selectedFile.analysisResult.magicBytes || 'None'}</p>
                           </div>
+                          {selectedFile.analysisResult.hasUtf16EncodingIssue && (
+                            <div className="md:col-span-2">
+                              <span className="text-muted-foreground">Encoding:</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/10 text-orange-400 rounded text-xs border border-orange-500/20">
+                                  <Zap className="w-3 h-3" />
+                                  UTF-16 Encoding Issue Detected & Fixed
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -813,9 +826,27 @@ const FolderScanner: React.FC = () => {
 
                   {selectedFile.analysisResult && selectedFile.analysisResult.printableStrings.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">Extracted Strings</h3>
+                      <h3 className="text-lg font-semibold mb-2">
+                        {selectedFile.analysisResult.hasUtf16EncodingIssue ? 'Raw Strings' : 'Extracted Strings'}
+                      </h3>
                       <div className="bg-muted/20 p-3 rounded max-h-64 overflow-auto font-mono text-xs space-y-1">
                         {selectedFile.analysisResult.printableStrings.map((str, idx) => (
+                          <div key={idx} className="text-foreground">
+                            {str}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedFile.analysisResult?.hasUtf16EncodingIssue && selectedFile.analysisResult.utf16DecodedStrings && selectedFile.analysisResult.utf16DecodedStrings.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-orange-400" />
+                        UTF-16 Decoded Strings
+                      </h3>
+                      <div className="bg-orange-500/5 border border-orange-500/20 p-3 rounded max-h-64 overflow-auto font-mono text-xs space-y-1">
+                        {selectedFile.analysisResult.utf16DecodedStrings.map((str, idx) => (
                           <div key={idx} className="text-foreground">
                             {str}
                           </div>
