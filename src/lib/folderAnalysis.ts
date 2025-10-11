@@ -305,22 +305,24 @@ export function filterFiles(files: FileEntry[], options: FilterOptions): FileEnt
       try {
         const regex = new RegExp(term, options.searchCaseSensitive ? '' : 'i')
         filtered = filtered.filter(f => {
-          // Search in filename
-          if (regex.test(f.name)) return true
+          // Search in filename and path
+          if (regex.test(f.name) || regex.test(f.relativePath)) return true
 
-          // Search in content strings
-          if (f.analyzed && f.analysisResult) {
+          // Search in content strings (only for analyzed files)
+          if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
             return f.analysisResult.printableStrings.some(s => regex.test(s))
           }
           return false
         })
       } catch (e) {
-        // Invalid regex, fall back to string search
+        // Invalid regex - log error and fall back to string search
+        console.warn('Invalid regex pattern:', term, e)
         filtered = filtered.filter(f => {
           const fileName = options.searchCaseSensitive ? f.name : f.name.toLowerCase()
-          if (fileName.includes(term)) return true
+          const filePath = options.searchCaseSensitive ? f.relativePath : f.relativePath.toLowerCase()
+          if (fileName.includes(term) || filePath.includes(term)) return true
 
-          if (f.analyzed && f.analysisResult) {
+          if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
             return f.analysisResult.printableStrings.some(s => {
               const str = options.searchCaseSensitive ? s : s.toLowerCase()
               return str.includes(term)
@@ -333,9 +335,11 @@ export function filterFiles(files: FileEntry[], options: FilterOptions): FileEnt
       // Simple string search
       filtered = filtered.filter(f => {
         const fileName = options.searchCaseSensitive ? f.name : f.name.toLowerCase()
-        if (fileName.includes(term)) return true
+        const filePath = options.searchCaseSensitive ? f.relativePath : f.relativePath.toLowerCase()
+        if (fileName.includes(term) || filePath.includes(term)) return true
 
-        if (f.analyzed && f.analysisResult) {
+        // Search in content strings (only for analyzed files)
+        if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
           return f.analysisResult.printableStrings.some(s => {
             const str = options.searchCaseSensitive ? s : s.toLowerCase()
             return str.includes(term)
@@ -418,23 +422,31 @@ function extractStrings(buffer: ArrayBuffer, minLength = 4): string[] {
   const bytes = new Uint8Array(buffer)
   const allStrings: Set<string> = new Set()
 
+  // Limit processing to first 5MB for large files to prevent memory issues
+  const maxBytesToProcess = 5 * 1024 * 1024 // 5MB
+  const bytesToProcess = bytes.length > maxBytesToProcess
+    ? bytes.slice(0, maxBytesToProcess)
+    : bytes
+
   // Extract ASCII strings (original method)
-  const asciiStrings = extractASCIIStrings(bytes, minLength)
+  const asciiStrings = extractASCIIStrings(bytesToProcess, minLength)
   asciiStrings.forEach(s => allStrings.add(s))
 
   // Extract UTF-8 strings
-  const utf8Strings = extractUTF8Strings(bytes, minLength)
+  const utf8Strings = extractUTF8Strings(bytesToProcess, minLength)
   utf8Strings.forEach(s => allStrings.add(s))
 
   // Extract UTF-16 LE strings (Windows binaries)
-  const utf16LEStrings = extractUTF16LEStrings(bytes, minLength)
+  const utf16LEStrings = extractUTF16LEStrings(bytesToProcess, minLength)
   utf16LEStrings.forEach(s => allStrings.add(s))
 
   // Extract UTF-16 BE strings
-  const utf16BEStrings = extractUTF16BEStrings(bytes, minLength)
+  const utf16BEStrings = extractUTF16BEStrings(bytesToProcess, minLength)
   utf16BEStrings.forEach(s => allStrings.add(s))
 
-  return Array.from(allStrings)
+  // Limit total strings returned to prevent UI performance issues
+  const stringArray = Array.from(allStrings)
+  return stringArray.length > 5000 ? stringArray.slice(0, 5000) : stringArray
 }
 
 // Extract ASCII printable strings

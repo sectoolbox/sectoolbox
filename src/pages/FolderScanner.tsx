@@ -427,6 +427,12 @@ const FolderScanner: React.FC = () => {
                       Regex
                     </label>
                   </div>
+                  {analyzedFiles.length === 0 && filters.searchTerm && (
+                    <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Content search requires file analysis. Currently searching filenames and paths only.
+                    </div>
+                  )}
                 </div>
 
                 {/* Size Range */}
