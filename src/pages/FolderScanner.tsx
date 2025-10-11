@@ -819,7 +819,7 @@ const FolderScanner: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="md:col-span-3 flex items-center gap-4">
+                      <div className="md:col-span-3 flex items-center gap-6">
                         <label className="flex items-center text-xs cursor-pointer">
                           <input
                             type="checkbox"
@@ -828,6 +828,15 @@ const FolderScanner: React.FC = () => {
                             className="mr-2"
                           />
                           Hide null bytes (0x00)
+                        </label>
+                        <label className="flex items-center text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={byteExtractionConfig.onlyPrintable ?? false}
+                            onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, onlyPrintable: e.target.checked })}
+                            className="mr-2"
+                          />
+                          Only printable ASCII (32-126)
                         </label>
                       </div>
 

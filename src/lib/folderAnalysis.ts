@@ -95,6 +95,7 @@ export interface ByteExtractionConfig {
   sortBy: 'name' | 'name-reverse' | 'natural' | 'modified' | 'modified-reverse' | 'created' | 'size' | 'size-reverse' | 'metadata'
   metadataSort?: MetadataSortConfig
   hideNullBytes?: boolean // Hide null bytes (0x00 / ASCII 0) from results
+  onlyPrintable?: boolean // Only extract printable ASCII characters (32-126)
 }
 
 export interface ByteExtractionResult {
@@ -1087,6 +1088,11 @@ export async function extractBytesFromFiles(
 
           // Skip null bytes if hideNullBytes option is enabled
           if (config.hideNullBytes && byte === 0) {
+            continue
+          }
+
+          // Skip non-printable characters if onlyPrintable option is enabled
+          if (config.onlyPrintable && (byte < 32 || byte > 126)) {
             continue
           }
 
