@@ -69,6 +69,28 @@ export interface FilterOptions {
   showHidden?: boolean
 }
 
+export interface ByteExtractionConfig {
+  enabled: boolean
+  filenamePattern: string
+  bytePositions: string // "8" or "8,16,24" or "8-12"
+  sortBy: 'name' | 'modified' | 'size'
+}
+
+export interface ByteExtractionResult {
+  filename: string
+  relativePath: string
+  position: number
+  char: string
+  hex: string
+  ascii: number
+}
+
+export interface CombinedExtractionResult {
+  combinedString: string
+  details: ByteExtractionResult[]
+  filesProcessed: number
+}
+
 // Scan entire folder recursively
 export async function scanFolder(files: FileList | File[]): Promise<FolderScanResult> {
   const startTime = performance.now()
@@ -766,6 +788,131 @@ function detectUtf16EncodingIssue(strings: string[]): boolean {
   // If more than 30% of characters are CJK/rare Unicode, likely encoding issue
   const ratio = totalChars > 0 ? cjkRareChars / totalChars : 0
   return ratio > 0.3
+}
+
+// Parse byte positions string into array of positions
+function parseBytePositions(positionsStr: string): number[] {
+  const positions: number[] = []
+
+  // Split by comma for multiple positions
+  const parts = positionsStr.split(',').map(p => p.trim())
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      // Range: "8-12"
+      const [start, end] = part.split('-').map(n => parseInt(n.trim(), 10))
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = start; i <= end; i++) {
+          positions.push(i)
+        }
+      }
+    } else {
+      // Single position: "8"
+      const pos = parseInt(part, 10)
+      if (!isNaN(pos)) {
+        positions.push(pos)
+      }
+    }
+  }
+
+  return positions
+}
+
+// Extract bytes from files matching pattern
+export async function extractBytesFromFiles(
+  files: FileEntry[],
+  config: ByteExtractionConfig
+): Promise<CombinedExtractionResult> {
+  if (!config.enabled || !config.filenamePattern.trim()) {
+    return {
+      combinedString: '',
+      details: [],
+      filesProcessed: 0
+    }
+  }
+
+  // Parse byte positions
+  const positions = parseBytePositions(config.bytePositions)
+  if (positions.length === 0) {
+    return {
+      combinedString: '',
+      details: [],
+      filesProcessed: 0
+    }
+  }
+
+  // Filter files by pattern (support wildcards and regex)
+  let pattern: RegExp
+  try {
+    // Convert wildcard pattern to regex
+    const regexPattern = config.filenamePattern
+      .replace(/\./g, '\\.')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.')
+    pattern = new RegExp(regexPattern, 'i')
+  } catch (e) {
+    // Invalid pattern
+    return {
+      combinedString: '',
+      details: [],
+      filesProcessed: 0
+    }
+  }
+
+  // Filter matching files
+  const matchingFiles = files.filter(f => pattern.test(f.name))
+
+  // Sort files based on config
+  const sortedFiles = [...matchingFiles].sort((a, b) => {
+    switch (config.sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'modified':
+        return a.lastModified.getTime() - b.lastModified.getTime()
+      case 'size':
+        return a.size - b.size
+      default:
+        return 0
+    }
+  })
+
+  // Extract bytes from each file
+  const results: ByteExtractionResult[] = []
+  let combinedString = ''
+
+  for (const file of sortedFiles) {
+    try {
+      const buffer = await file.file.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+
+      for (const pos of positions) {
+        if (pos < bytes.length) {
+          const byte = bytes[pos]
+          const char = byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.'
+          const hex = byte.toString(16).padStart(2, '0').toUpperCase()
+
+          results.push({
+            filename: file.name,
+            relativePath: file.relativePath,
+            position: pos,
+            char,
+            hex,
+            ascii: byte
+          })
+
+          combinedString += char
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting bytes from file:', file.name, error)
+    }
+  }
+
+  return {
+    combinedString,
+    details: results,
+    filesProcessed: sortedFiles.length
+  }
 }
 
 // Generate formatted hex dump with ASCII sidebar
