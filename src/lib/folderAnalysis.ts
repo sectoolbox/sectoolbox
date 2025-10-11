@@ -844,14 +844,20 @@ export async function extractBytesFromFiles(
   // Filter files by pattern (support wildcards and regex)
   let pattern: RegExp
   try {
-    // Convert wildcard pattern to regex
+    // Escape all special regex characters except * and ?
+    // Then convert wildcards to regex
     const regexPattern = config.filenamePattern
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.')
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars including $
+      .replace(/\*/g, '.*')   // Convert * to .*
+      .replace(/\?/g, '.')    // Convert ? to .
+
+    console.log('Original pattern:', config.filenamePattern)
+    console.log('Converted regex:', regexPattern)
+
     pattern = new RegExp(regexPattern, 'i')
   } catch (e) {
     // Invalid pattern
+    console.error('Pattern conversion error:', e)
     return {
       combinedString: '',
       details: [],
