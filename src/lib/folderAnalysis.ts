@@ -28,6 +28,8 @@ export interface FileAnalysisResult {
   magicBytes: string
   detectedType: string
   printableStrings: string[]
+  utf16DecodedStrings?: string[] // UTF-16 endianness-fixed strings
+  hasUtf16EncodingIssue?: boolean // True if CJK/rare Unicode detected and fixed
   interestingPatterns: {
     urls: string[]
     emails: string[]
@@ -160,8 +162,15 @@ export async function analyzeFile(entry: FileEntry): Promise<FileAnalysisResult>
   const strings = extractStrings(buffer)
   const hasStrings = strings.length > 0
 
-  // Find interesting patterns
-  const patterns = extractPatterns(strings.join(' '))
+  // Detect UTF-16 encoding issues and fix if needed
+  const hasUtf16Issue = detectUtf16EncodingIssue(strings)
+  const utf16DecodedStrings = hasUtf16Issue ? fixUtf16Encoding(strings) : undefined
+
+  // Find interesting patterns (search in both raw and decoded strings)
+  const allStringsForPatterns = hasUtf16Issue && utf16DecodedStrings
+    ? [...strings, ...utf16DecodedStrings].join(' ')
+    : strings.join(' ')
+  const patterns = extractPatterns(allStringsForPatterns)
 
   // Calculate hashes (for small files only, < 10MB)
   const hashes: { md5?: string; sha256?: string } = {}
@@ -186,6 +195,8 @@ export async function analyzeFile(entry: FileEntry): Promise<FileAnalysisResult>
     magicBytes,
     detectedType,
     printableStrings: strings.slice(0, 100), // Limit to first 100 strings
+    utf16DecodedStrings: utf16DecodedStrings ? utf16DecodedStrings.slice(0, 100) : undefined,
+    hasUtf16EncodingIssue: hasUtf16Issue,
     interestingPatterns: patterns,
     hexDump,
     rawPreview,
@@ -310,7 +321,13 @@ export function filterFiles(files: FileEntry[], options: FilterOptions): FileEnt
 
           // Search in content strings (only for analyzed files)
           if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
-            return f.analysisResult.printableStrings.some(s => regex.test(s))
+            // Search in raw strings
+            if (f.analysisResult.printableStrings.some(s => regex.test(s))) return true
+
+            // Search in UTF-16 decoded strings if available
+            if (f.analysisResult.utf16DecodedStrings && f.analysisResult.utf16DecodedStrings.length > 0) {
+              return f.analysisResult.utf16DecodedStrings.some(s => regex.test(s))
+            }
           }
           return false
         })
@@ -323,10 +340,20 @@ export function filterFiles(files: FileEntry[], options: FilterOptions): FileEnt
           if (fileName.includes(term) || filePath.includes(term)) return true
 
           if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
-            return f.analysisResult.printableStrings.some(s => {
+            // Search in raw strings
+            const foundInRaw = f.analysisResult.printableStrings.some(s => {
               const str = options.searchCaseSensitive ? s : s.toLowerCase()
               return str.includes(term)
             })
+            if (foundInRaw) return true
+
+            // Search in UTF-16 decoded strings if available
+            if (f.analysisResult.utf16DecodedStrings && f.analysisResult.utf16DecodedStrings.length > 0) {
+              return f.analysisResult.utf16DecodedStrings.some(s => {
+                const str = options.searchCaseSensitive ? s : s.toLowerCase()
+                return str.includes(term)
+              })
+            }
           }
           return false
         })
@@ -340,10 +367,20 @@ export function filterFiles(files: FileEntry[], options: FilterOptions): FileEnt
 
         // Search in content strings (only for analyzed files)
         if (f.analyzed && f.analysisResult && f.analysisResult.printableStrings.length > 0) {
-          return f.analysisResult.printableStrings.some(s => {
+          // Search in raw strings
+          const foundInRaw = f.analysisResult.printableStrings.some(s => {
             const str = options.searchCaseSensitive ? s : s.toLowerCase()
             return str.includes(term)
           })
+          if (foundInRaw) return true
+
+          // Search in UTF-16 decoded strings if available
+          if (f.analysisResult.utf16DecodedStrings && f.analysisResult.utf16DecodedStrings.length > 0) {
+            return f.analysisResult.utf16DecodedStrings.some(s => {
+              const str = options.searchCaseSensitive ? s : s.toLowerCase()
+              return str.includes(term)
+            })
+          }
         }
         return false
       })
@@ -669,6 +706,66 @@ export function getEntropyColor(entropy: number): string {
   if (entropy < 6) return 'text-yellow-400' // Medium entropy
   if (entropy < 7.5) return 'text-orange-400' // High entropy (compressed)
   return 'text-red-400' // Very high entropy (encrypted)
+}
+
+// Fix UTF-16 endianness issues (extract high byte from misencoded characters)
+function fixUtf16Encoding(strings: string[]): string[] {
+  const decoded: string[] = []
+
+  for (const text of strings) {
+    let decodedStr = ''
+    let hasChanges = false
+
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i)
+
+      // If character is in CJK/rare Unicode range (U+3000-U+FFFF), extract high byte
+      if (code >= 0x3000 && code <= 0xFFFF) {
+        const highByte = (code >> 8) & 0xFF
+
+        // Check if high byte is printable ASCII
+        if (highByte >= 0x20 && highByte <= 0x7E) {
+          decodedStr += String.fromCharCode(highByte)
+          hasChanges = true
+          continue
+        }
+      }
+
+      // Otherwise keep original character
+      decodedStr += text[i]
+    }
+
+    // Only add if it was actually decoded and different
+    if (hasChanges && decodedStr !== text) {
+      decoded.push(decodedStr)
+    }
+  }
+
+  return decoded
+}
+
+// Detect if strings have UTF-16 encoding issues (high ratio of CJK/rare Unicode)
+function detectUtf16EncodingIssue(strings: string[]): boolean {
+  if (strings.length === 0) return false
+
+  let totalChars = 0
+  let cjkRareChars = 0
+
+  for (const str of strings) {
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i)
+      totalChars++
+
+      // Count CJK/rare Unicode characters
+      if (code >= 0x3000 && code <= 0xFFFF) {
+        cjkRareChars++
+      }
+    }
+  }
+
+  // If more than 30% of characters are CJK/rare Unicode, likely encoding issue
+  const ratio = totalChars > 0 ? cjkRareChars / totalChars : 0
+  return ratio > 0.3
 }
 
 // Generate formatted hex dump with ASCII sidebar
