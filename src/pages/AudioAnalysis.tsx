@@ -110,6 +110,10 @@ const AudioAnalysis: React.FC = () => {
   const [enhancedBuffer, setEnhancedBuffer] = useState<AudioBuffer | null>(null)
   const [showEnhanceControls, setShowEnhanceControls] = useState(false)
 
+  // Interactive waveform state
+  const [hoverTime, setHoverTime] = useState<number | null>(null)
+  const [hoverAmplitude, setHoverAmplitude] = useState<number | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -155,6 +159,13 @@ const AudioAnalysis: React.FC = () => {
       return () => clearTimeout(timer)
     }
   }, [waveformData])
+
+  // Redraw waveform when playback position changes
+  useEffect(() => {
+    if (waveformData && isPlaying) {
+      drawWaveform(waveformData)
+    }
+  }, [currentTime, waveformData, isPlaying])
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
@@ -318,6 +329,24 @@ const AudioAnalysis: React.FC = () => {
     ctx.moveTo(0, halfHeight)
     ctx.lineTo(width, halfHeight)
     ctx.stroke()
+
+    // Draw playback position indicator (playhead)
+    if (audioBuffer && currentTime > 0) {
+      const progress = currentTime / audioBuffer.duration
+      const playheadX = progress * width
+
+      // Draw playhead line
+      ctx.strokeStyle = '#ff0088'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(playheadX, 0)
+      ctx.lineTo(playheadX, height)
+      ctx.stroke()
+
+      // Draw played region overlay
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.1)'
+      ctx.fillRect(0, 0, playheadX, height)
+    }
   }
 
   const drawSpectrogram = (spectro: SpectrogramData) => {
@@ -688,12 +717,71 @@ const AudioAnalysis: React.FC = () => {
                 </div>
 
                 {/* Waveform */}
-                <canvas
-                  ref={canvasRef}
-                  width={800}
-                  height={150}
-                  className="w-full border border-border rounded"
-                />
+                <div className="relative">
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={150}
+                    className="w-full border border-border rounded cursor-pointer"
+                    onClick={(e) => {
+                      if (!audioBuffer) return
+                      const canvas = canvasRef.current
+                      if (!canvas) return
+
+                      const rect = canvas.getBoundingClientRect()
+                      const x = e.clientX - rect.left
+                      const clickProgress = x / rect.width
+                      const seekTime = clickProgress * audioBuffer.duration
+
+                      // Update current time and pause position
+                      setCurrentTime(seekTime)
+                      pauseTimeRef.current = seekTime
+
+                      // If playing, restart from new position
+                      if (isPlaying) {
+                        stopAudio()
+                        setTimeout(() => playAudio(), 50)
+                      } else {
+                        // Redraw to show new position
+                        drawWaveform(waveformData!)
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (!audioBuffer || !waveformData) return
+                      const canvas = canvasRef.current
+                      if (!canvas) return
+
+                      const rect = canvas.getBoundingClientRect()
+                      const x = e.clientX - rect.left
+                      const progress = x / rect.width
+                      const time = progress * audioBuffer.duration
+
+                      // Get amplitude at this position
+                      const dataIndex = Math.floor(progress * waveformData.length)
+                      const amplitude = waveformData[dataIndex] || 0
+
+                      setHoverTime(time)
+                      setHoverAmplitude(amplitude)
+                    }}
+                    onMouseLeave={() => {
+                      setHoverTime(null)
+                      setHoverAmplitude(null)
+                    }}
+                  />
+
+                  {/* Hover tooltip */}
+                  {hoverTime !== null && hoverAmplitude !== null && (
+                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-background border border-accent rounded px-3 py-2 text-xs font-mono shadow-lg pointer-events-none z-10">
+                      <div className="text-accent font-semibold mb-1">Waveform Info</div>
+                      <div>Time: {formatDuration(hoverTime)}</div>
+                      <div>Amplitude: {(hoverAmplitude * 100).toFixed(1)}%</div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Click anywhere on the waveform to seek to that position • Hover to see details
+                  </p>
+                </div>
 
                 {/* Audio Enhancement Controls */}
                 <div className="border-t border-border pt-4">
