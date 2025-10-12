@@ -54,7 +54,7 @@ const Footer: React.FC = () => {
             <h3 className="text-sm font-semibold text-slate-200 mb-2">
               GitHub
             </h3>
-            <ul className="flex flex-wrap justify-center items-center gap-3 list-none p-0 m-0" aria-label="GitHub links">
+            <ul className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 list-none p-0 m-0" aria-label="GitHub links">
               {reportIssueLinks.map((link) => {
                 const Icon = link.icon
                 return (
@@ -67,7 +67,7 @@ const Footer: React.FC = () => {
                       aria-label={link.alt}
                     >
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200
+                        w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200
                         ${link.color === 'red'
                           ? 'border-red-600 bg-red-600/10 group-hover:border-red-400 group-hover:bg-red-600/20'
                           : link.color === 'green'
@@ -78,7 +78,7 @@ const Footer: React.FC = () => {
                         }
                       `}>
                         <Icon className={`
-                          w-5 h-5 transition-colors duration-200
+                          w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200
                           ${link.color === 'red'
                             ? 'text-red-400 group-hover:text-red-300'
                             : link.color === 'green'
@@ -89,7 +89,7 @@ const Footer: React.FC = () => {
                           }
                         `} />
                       </div>
-                      <span className="text-xs text-slate-300 mt-1 group-hover:text-blue-400 transition-colors duration-200">
+                      <span className="text-xs text-slate-300 mt-1 group-hover:text-blue-400 transition-colors duration-200 whitespace-nowrap">
                         {link.name}
                       </span>
                     </a>

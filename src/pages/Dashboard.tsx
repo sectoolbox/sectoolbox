@@ -41,7 +41,8 @@ const Dashboard: React.FC = () => {
     { name: 'Network', path: '/network', description: 'Network analysis and security tools', icon: Network },
     { name: 'Forensics', path: '/forensics', description: 'File analysis and digital evidence examination', icon: Search },
     { name: 'Folder', path: '/folder-scanner', description: 'Bulk scan folders and filter files by content', icon: FolderOpen },
-    { name: 'Audio', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones }
+    { name: 'Audio', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones },
+    { name: 'Threat Intel', path: '/threat-intel', description: 'Threat intelligence and security monitoring', icon: Activity }
   ]
 
   // Use the tools database search to find actual tools/operations

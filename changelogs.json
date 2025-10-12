@@ -1,5 +1,60 @@
 [
   {
+    "date": "2025-10-12",
+    "version": "v1.8.0",
+    "title": "Mobile Optimization & Dashboard Enhancements",
+    "description": "Improved mobile responsiveness for footer layout and added threat intelligence quick access to dashboard.",
+    "changes": [
+      "Fixed mobile footer layout issue where 'Discussions' link wrapped to next line",
+      "Reduced icon sizes and gaps on mobile devices (sm:breakpoint responsive)",
+      "Added whitespace-nowrap to footer link text for better mobile display",
+      "Added Threat Intel quick access button to Dashboard",
+      "Updated dashboard tools grid to include threat intelligence monitoring",
+      "Improved footer accessibility with responsive sizing"
+    ]
+  },
+  {
+    "date": "2025-10-12",
+    "version": "v1.7.0",
+    "title": "External Crypto Tools Enhancement",
+    "description": "Comprehensive external cryptography tools section with detailed descriptions and improved UX.",
+    "changes": [
+      "Added 5 external crypto tool links with descriptions: dCode.fr, CrypTii, CacheSleuth, Boxentriq, CyberChef",
+      "Moved external tools section above 'Recent Operations' for better visibility",
+      "Implemented 2-column responsive grid layout for tool cards",
+      "Added hover effects with accent border and background transitions",
+      "Included detailed descriptions explaining each tool's specialty",
+      "Globe icons for consistent visual identity across all external links"
+    ]
+  },
+  {
+    "date": "2025-10-12",
+    "version": "v1.6.0",
+    "title": "Crypto Tools External References",
+    "description": "Initial integration of external cryptography tool redirects for expanded capabilities.",
+    "changes": [
+      "Added visible redirect section for external crypto tools",
+      "Integrated CrypTii (Caesar cipher) quick access link",
+      "Added CyberChef link for advanced data transformation",
+      "Created 'Need More Crypto Tools?' section with clear call-to-action",
+      "Opens external tools in new tabs with security attributes (noopener noreferrer)"
+    ]
+  },
+  {
+    "date": "2025-10-12",
+    "version": "v1.5.0",
+    "title": "Repository Synchronization & Documentation",
+    "description": "Synchronized with latest upstream changes and improved project documentation.",
+    "changes": [
+      "Fetched and merged latest changes from sectoolbox/sectoolbox main branch",
+      "Added MIT LICENSE to project root",
+      "Updated package.json with proper metadata and license information",
+      "Synchronized with v1.0.0 release tag",
+      "Updated repository documentation for clarity",
+      "Fixed file permissions and line endings (LF/CRLF handling)"
+    ]
+  },
+  {
     "date": "2025-10-11",
     "version": "v1.4.0",
     "title": "Network Scanning & Payload Customization",
