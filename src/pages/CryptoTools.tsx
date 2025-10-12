@@ -1611,39 +1611,6 @@ const CryptoTools: React.FC = () => {
           </p>
         </div>
 
-        {/* External Tools */}
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <Globe className="w-5 h-5 text-accent mt-1 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-foreground mb-2">Need More Crypto Tools?</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                For additional cryptography and cipher tools, check out these powerful online resources:
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="https://cryptii.com/pipes/caesar-cipher"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-accent hover:bg-accent/80 text-background rounded-lg transition-colors font-medium"
-                >
-                  <Globe className="w-4 h-4" />
-                  <span>CrypTii</span>
-                </a>
-                <a
-                  href="https://gchq.github.io/CyberChef/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-accent hover:bg-accent/80 text-background rounded-lg transition-colors font-medium"
-                >
-                  <Globe className="w-4 h-4" />
-                  <span>CyberChef</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="bg-card border border-border rounded-lg">
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
@@ -1859,6 +1826,107 @@ const CryptoTools: React.FC = () => {
               </div>
             </div>
             )}
+          </div>
+        </div>
+
+        {/* External Crypto Tools */}
+        <div className="bg-card border border-border rounded-lg">
+          <div className="p-4 border-b border-border">
+            <h3 className="font-semibold flex items-center space-x-2">
+              <Globe className="w-5 h-5 text-accent" />
+              <span>Need More Crypto Tools?</span>
+            </h3>
+          </div>
+          <div className="p-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              For additional cryptography and cipher tools, check out these powerful online resources:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <a
+                href="https://www.dcode.fr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-border rounded-lg hover:bg-accent/5 hover:border-accent/30 transition-all"
+              >
+                <div className="flex items-start space-x-3">
+                  <Globe className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">dCode.fr</h4>
+                    <p className="text-xs text-muted-foreground">
+                      900+ cipher/encoding tools with automatic cipher detection. Essential for CTF challenges.
+                    </p>
+                  </div>
+                </div>
+              </a>
+
+              <a
+                href="https://cryptii.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-border rounded-lg hover:bg-accent/5 hover:border-accent/30 transition-all"
+              >
+                <div className="flex items-start space-x-3">
+                  <Globe className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">CrypTii</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Modular cipher/encoding pipeline builder. Chain multiple operations together seamlessly.
+                    </p>
+                  </div>
+                </div>
+              </a>
+
+              <a
+                href="https://www.cachesleuth.com/multidecoder/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-border rounded-lg hover:bg-accent/5 hover:border-accent/30 transition-all"
+              >
+                <div className="flex items-start space-x-3">
+                  <Globe className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">CacheSleuth Multi-Decoder</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Tries multiple encodings simultaneously. Perfect for quick decoding when format is unknown.
+                    </p>
+                  </div>
+                </div>
+              </a>
+
+              <a
+                href="https://www.boxentriq.com/code-breaking"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-border rounded-lg hover:bg-accent/5 hover:border-accent/30 transition-all"
+              >
+                <div className="flex items-start space-x-3">
+                  <Globe className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">Boxentriq</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Cipher identifier and analyzer. Excellent for classical ciphers and frequency analysis.
+                    </p>
+                  </div>
+                </div>
+              </a>
+
+              <a
+                href="https://gchq.github.io/CyberChef/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-border rounded-lg hover:bg-accent/5 hover:border-accent/30 transition-all"
+              >
+                <div className="flex items-start space-x-3">
+                  <Globe className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">CyberChef</h4>
+                    <p className="text-xs text-muted-foreground">
+                      The "Cyber Swiss Army Knife" from GCHQ. Powerful recipe-based data transformation tool.
+                    </p>
+                  </div>
+                </div>
+              </a>
+            </div>
           </div>
         </div>
 
