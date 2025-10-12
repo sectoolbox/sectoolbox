@@ -1611,6 +1611,39 @@ const CryptoTools: React.FC = () => {
           </p>
         </div>
 
+        {/* External Tools */}
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <Globe className="w-5 h-5 text-accent mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Need More Crypto Tools?</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                For additional cryptography and cipher tools, check out these powerful online resources:
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="https://cryptii.com/pipes/caesar-cipher"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-accent hover:bg-accent/80 text-background rounded-lg transition-colors font-medium"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>CrypTii</span>
+                </a>
+                <a
+                  href="https://gchq.github.io/CyberChef/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-accent hover:bg-accent/80 text-background rounded-lg transition-colors font-medium"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>CyberChef</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="bg-card border border-border rounded-lg">
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
