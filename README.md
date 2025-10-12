@@ -10,7 +10,7 @@
 
 Sectoolbox is a web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with modern React and TypeScript, it provides powerful forensics and exploitation tools directly in your browser with real-time analysis capabilities.
 
-<img width="600" height="600" alt="{E03A6043-A370-4DEF-83C8-6FA26E429A7D}" src="https://github.com/user-attachments/assets/58957240-cff9-43a8-b14b-c4e11a27eff8" />
+<img width="600" height="400" alt="{E03A6043-A370-4DEF-83C8-6FA26E429A7D}" src="https://github.com/user-attachments/assets/58957240-cff9-43a8-b14b-c4e11a27eff8" />
 
 </div>
 
