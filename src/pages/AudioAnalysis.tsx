@@ -496,6 +496,33 @@ const AudioAnalysis: React.FC = () => {
     setCurrentTime(0)
   }
 
+  const seekTo = (time: number) => {
+    // Update time references
+    pauseTimeRef.current = time
+    setCurrentTime(time)
+
+    if (isPlaying) {
+      // Stop current playback without resetting time
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.stop()
+        sourceNodeRef.current = null
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
+        audioContextRef.current = null
+      }
+      setIsPlaying(false)
+
+      // Restart playback from new position
+      setTimeout(() => playAudio(), 50)
+    } else {
+      // Just update visuals when paused
+      if (waveformData) {
+        drawWaveform(waveformData)
+      }
+    }
+  }
+
   const handleReanalyze = async () => {
     if (file && audioBuffer) {
       setIsAnalyzing(true)
@@ -733,18 +760,8 @@ const AudioAnalysis: React.FC = () => {
                       const clickProgress = x / rect.width
                       const seekTime = clickProgress * audioBuffer.duration
 
-                      // Update current time and pause position
-                      setCurrentTime(seekTime)
-                      pauseTimeRef.current = seekTime
-
-                      // If playing, restart from new position
-                      if (isPlaying) {
-                        stopAudio()
-                        setTimeout(() => playAudio(), 50)
-                      } else {
-                        // Redraw to show new position
-                        drawWaveform(waveformData!)
-                      }
+                      // Use dedicated seekTo function
+                      seekTo(seekTime)
                     }}
                     onMouseMove={(e) => {
                       if (!audioBuffer || !waveformData) return
