@@ -160,12 +160,12 @@ const AudioAnalysis: React.FC = () => {
     }
   }, [waveformData])
 
-  // Redraw waveform when playback position changes
+  // Redraw waveform when playback position changes (works for both playing and paused states)
   useEffect(() => {
-    if (waveformData && isPlaying) {
+    if (waveformData) {
       drawWaveform(waveformData)
     }
-  }, [currentTime, waveformData, isPlaying])
+  }, [currentTime, waveformData])
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
