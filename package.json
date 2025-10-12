@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Professional-grade cybersecurity analysis toolkit for CTF competitions and security research",
+  "license": "MIT",
   "author": {
     "name": "Sectoolbox Team",
     "url": "https://github.com/sectoolbox"
