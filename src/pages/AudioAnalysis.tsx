@@ -145,6 +145,17 @@ const AudioAnalysis: React.FC = () => {
     return () => clearTimeout(timer)
   }, [stringFilter])
 
+  // Draw waveform whenever waveformData changes
+  useEffect(() => {
+    if (waveformData && canvasRef.current) {
+      // Small delay to ensure canvas is fully rendered in DOM
+      const timer = setTimeout(() => {
+        drawWaveform(waveformData)
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [waveformData])
+
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
     resetAnalysis()
@@ -187,9 +198,14 @@ const AudioAnalysis: React.FC = () => {
       const waveform = getWaveformData(buffer)
       setWaveformData(waveform)
 
-      // Draw waveform immediately
-      await new Promise(resolve => setTimeout(resolve, 0))
-      drawWaveform(waveform)
+      // Draw waveform with proper timing to ensure canvas is rendered
+      await new Promise(resolve => setTimeout(resolve, 50))
+      if (canvasRef.current) {
+        drawWaveform(waveform)
+        // Force another draw after short delay to ensure visibility
+        await new Promise(resolve => setTimeout(resolve, 100))
+        drawWaveform(waveform)
+      }
 
       // Separate channels
       const channels = separateChannels(buffer)
