@@ -82,7 +82,8 @@ const MemoryForensics: React.FC = () => {
       // Generate hex view for first 1KB
       const firstChunk = targetFile.slice(0, 1024)
       const buffer = await firstChunk.arrayBuffer()
-      const hexString = hexy(buffer, {
+      const uint8Array = new Uint8Array(buffer)
+      const hexString = hexy(uint8Array, {
         width: 16,
         format: 'twos',
         caps: 'upper'
