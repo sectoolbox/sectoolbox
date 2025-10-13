@@ -357,7 +357,7 @@ const EVTXAnalysis: React.FC = () => {
 
           {/* Tabs */}
           <Card>
-            <div className="flex border-b border-border overflow-x-auto">
+            <div className="flex flex-wrap border-b border-border">
               {[
                 { id: 'statistics', label: 'Stats', icon: TrendingUp },
                 { id: 'timeline', label: 'Timeline', icon: BarChart3 },
@@ -373,7 +373,7 @@ const EVTXAnalysis: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  className={`px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center space-x-2 ${
                     activeTab === tab.id
                       ? 'text-accent border-b-2 border-accent'
                       : 'text-muted-foreground hover:text-foreground'
