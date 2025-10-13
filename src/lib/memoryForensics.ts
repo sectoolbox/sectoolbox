@@ -1,8 +1,6 @@
 // Advanced Memory Forensics Library for Threat Hunting and Incident Response
 // Focused on helping investigators answer attack chain questions
 
-import Parser from 'binary-parser'
-
 // ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
