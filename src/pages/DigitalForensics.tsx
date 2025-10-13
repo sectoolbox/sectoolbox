@@ -103,11 +103,11 @@ const DigitalForensics: React.FC = () => {
       console.log(`Starting forensic analysis of ${file.name} (${file.type})`)
       
       // Validate file size and basic properties
-      const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB
+      const MAX_FILE_SIZE = 1.5 * 1024 * 1024 * 1024 // 1.5GB
       if (!Number.isFinite(file.size) || file.size < 0) {
         throw new Error('File has invalid size property')
       }
-      
+
       if (file.size > MAX_FILE_SIZE) {
         throw new Error(`File too large: ${formatFileSize(file.size)}. Maximum supported size is ${formatFileSize(MAX_FILE_SIZE)}`)
       }
@@ -877,8 +877,8 @@ const DigitalForensics: React.FC = () => {
         console.warn('Dropped file is empty')
         return
       }
-      
-      const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB limit
+
+      const MAX_FILE_SIZE = 1.5 * 1024 * 1024 * 1024 // 1.5GB limit
       if (file.size > MAX_FILE_SIZE) {
         console.warn(`Dropped file too large: ${formatFileSize(file.size)}`)
         return
@@ -1043,7 +1043,7 @@ const DigitalForensics: React.FC = () => {
                       return
                     }
 
-                    const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB limit
+                    const MAX_FILE_SIZE = 1.5 * 1024 * 1024 * 1024 // 1.5GB limit
                     if (file.size > MAX_FILE_SIZE) {
                       console.warn(`Selected file too large: ${formatFileSize(file.size)}`)
                       return
@@ -1062,7 +1062,7 @@ const DigitalForensics: React.FC = () => {
                 Drop file here or click to browse
               </h3>
               <p className="text-muted-foreground">
-                Supports EVTX files, memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 500MB)
+                Supports EVTX files, memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 1.5GB)
               </p>
             </div>
           </div>
