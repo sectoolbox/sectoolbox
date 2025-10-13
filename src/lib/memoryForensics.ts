@@ -936,8 +936,15 @@ export class AdvancedMemoryAnalyzer {
   // ============================================================================
 
   private static bufferToText(buffer: ArrayBuffer, maxSize = 2 * 1024 * 1024): string {
-    const slice = buffer.slice(0, Math.min(buffer.byteLength, maxSize))
-    return new TextDecoder('utf-8', { fatal: false }).decode(slice)
+    try {
+      const slice = buffer.slice(0, Math.min(buffer.byteLength, maxSize))
+      const uint8Array = new Uint8Array(slice)
+      const decoder = new TextDecoder('utf-8', { fatal: false })
+      return decoder.decode(uint8Array)
+    } catch (error) {
+      console.error('Error decoding buffer to text:', error)
+      return ''
+    }
   }
 
   private static extractPath(cmdLine: string): string {
