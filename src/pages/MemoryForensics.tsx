@@ -58,6 +58,8 @@ const MemoryForensics: React.FC = () => {
   const [results, setResults] = useState<ThreatHuntingResult | null>(null)
   const [selectedProcess, setSelectedProcess] = useState<ProcessInfo | null>(null)
   const [hexView, setHexView] = useState<string>('')
+  const [progress, setProgress] = useState(0)
+  const [progressStatus, setProgressStatus] = useState('')
 
   // Handle file from Digital Forensics page
   useEffect(() => {
@@ -73,26 +75,50 @@ const MemoryForensics: React.FC = () => {
     if (!targetFile) return
 
     setIsAnalyzing(true)
-    try {
-      const buffer = await targetFile.arrayBuffer()
+    setProgress(0)
+    setProgressStatus('Starting analysis...')
 
+    try {
       // Generate hex view for first 1KB
-      const hexString = hexy(buffer.slice(0, 1024), {
+      const firstChunk = targetFile.slice(0, 1024)
+      const buffer = await firstChunk.arrayBuffer()
+      const hexString = hexy(buffer, {
         width: 16,
         format: 'twos',
         caps: 'upper'
       })
       setHexView(hexString)
 
-      // Perform advanced threat hunting analysis
-      const analysisResults = await AdvancedMemoryAnalyzer.analyze(buffer)
+      // Use streaming analysis for large files (>100MB), regular analysis for smaller files
+      const progressCallback = (prog: number, status: string) => {
+        setProgress(prog)
+        setProgressStatus(status)
+      }
+
+      let analysisResults: ThreatHuntingResult
+      if (targetFile.size > 100 * 1024 * 1024) {
+        // Use streaming for files larger than 100MB
+        analysisResults = await AdvancedMemoryAnalyzer.analyzeStream(targetFile, progressCallback)
+      } else {
+        // Load entire file for smaller files
+        const fullBuffer = await targetFile.arrayBuffer()
+        analysisResults = await AdvancedMemoryAnalyzer.analyze(fullBuffer, progressCallback)
+      }
+
       setResults(analysisResults)
+      setProgressStatus('Analysis complete')
+      setProgress(100)
 
     } catch (error) {
       console.error('Memory analysis failed:', error)
       alert('Failed to analyze memory dump: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setIsAnalyzing(false)
+      // Reset progress after a delay
+      setTimeout(() => {
+        setProgress(0)
+        setProgressStatus('')
+      }, 2000)
     }
   }, [file])
 
@@ -214,13 +240,16 @@ const MemoryForensics: React.FC = () => {
         </Card>
       ) : (
         <Card className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-3">
               <MemoryStick className="w-5 h-5 text-accent" />
               <div>
                 <p className="font-medium">{file.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {file.size > 100 * 1024 * 1024 && (
+                    <span className="ml-2 text-accent">(Large file - streaming enabled)</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -253,6 +282,20 @@ const MemoryForensics: React.FC = () => {
               </Button>
             </div>
           </div>
+          {isAnalyzing && progress > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{progressStatus}</span>
+                <span className="text-accent font-medium">{progress}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-accent h-full transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

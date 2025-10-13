@@ -187,23 +187,49 @@ export class AdvancedMemoryAnalyzer {
   ]
 
   /**
-   * Main analysis entry point
+   * Main analysis entry point with streaming support for large files
    */
-  static async analyze(buffer: ArrayBuffer): Promise<ThreatHuntingResult> {
+  static async analyze(
+    buffer: ArrayBuffer,
+    progressCallback?: (progress: number, status: string) => void
+  ): Promise<ThreatHuntingResult> {
+    progressCallback?.(5, 'Extracting processes...')
     const processes = this.extractProcesses(buffer)
+
+    progressCallback?.(15, 'Analyzing network connections...')
     const networks = this.extractNetworks(buffer)
+
+    progressCallback?.(25, 'Scanning Windows services...')
     const services = this.extractServices(buffer)
+
+    progressCallback?.(35, 'Detecting credential dumps...')
     const credentials = this.detectCredentialDumping(buffer, processes)
+
+    progressCallback?.(45, 'Identifying lateral movement...')
     const lateralMovement = this.detectLateralMovement(processes, networks, buffer)
+
+    progressCallback?.(55, 'Detecting privilege escalation...')
     const privilegeEscalation = this.detectPrivilegeEscalation(processes, buffer)
+
+    progressCallback?.(65, 'Finding suspicious files...')
     const suspiciousFiles = this.findSuspiciousFiles(buffer)
+
+    progressCallback?.(75, 'Analyzing registry activity...')
     const registryActivity = this.analyzeRegistryActivity(buffer)
+
+    progressCallback?.(85, 'Detecting process injection...')
     const injections = this.detectInjection(processes, buffer)
+
+    progressCallback?.(90, 'Building attack chain...')
     const attackChain = this.buildAttackChain(
       processes, networks, services, credentials, lateralMovement,
       privilegeEscalation, suspiciousFiles, registryActivity, injections
     )
+
+    progressCallback?.(95, 'Extracting IOCs...')
     const iocs = this.extractIOCs(buffer, processes, networks)
+
+    progressCallback?.(100, 'Analysis complete!')
 
     return {
       processes,
@@ -218,6 +244,175 @@ export class AdvancedMemoryAnalyzer {
       attackChain,
       iocs
     }
+  }
+
+  /**
+   * Analyze file in chunks for large files (streaming)
+   */
+  static async analyzeStream(
+    file: File,
+    progressCallback?: (progress: number, status: string) => void
+  ): Promise<ThreatHuntingResult> {
+    const CHUNK_SIZE = 50 * 1024 * 1024 // 50MB chunks
+    const fileSize = file.size
+    const chunks: ArrayBuffer[] = []
+
+    // Read file in chunks
+    progressCallback?.(0, 'Reading file...')
+    let offset = 0
+
+    while (offset < fileSize) {
+      const chunkSize = Math.min(CHUNK_SIZE, fileSize - offset)
+      const chunk = file.slice(offset, offset + chunkSize)
+      const buffer = await chunk.arrayBuffer()
+      chunks.push(buffer)
+
+      offset += chunkSize
+      const readProgress = Math.floor((offset / fileSize) * 100)
+      progressCallback?.(readProgress, `Reading file: ${readProgress}%`)
+
+      // Allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    progressCallback?.(100, 'File loaded, starting analysis...')
+
+    // Concatenate chunks for analysis
+    // For files > 100MB, we'll analyze in chunks and merge results
+    if (fileSize > 100 * 1024 * 1024) {
+      return await this.analyzeChunked(chunks, progressCallback)
+    } else {
+      // Concatenate all chunks
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+      const combined = new Uint8Array(totalLength)
+      let position = 0
+      for (const chunk of chunks) {
+        combined.set(new Uint8Array(chunk), position)
+        position += chunk.byteLength
+      }
+      return await this.analyze(combined.buffer, progressCallback)
+    }
+  }
+
+  /**
+   * Analyze large files in chunks and merge results
+   */
+  private static async analyzeChunked(
+    chunks: ArrayBuffer[],
+    progressCallback?: (progress: number, status: string) => void
+  ): Promise<ThreatHuntingResult> {
+    const results: ThreatHuntingResult[] = []
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkProgress = Math.floor((i / chunks.length) * 100)
+      progressCallback?.(chunkProgress, `Analyzing chunk ${i + 1}/${chunks.length}...`)
+
+      const result = await this.analyze(chunks[i], progressCallback)
+      results.push(result)
+
+      // Allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    // Merge results
+    return this.mergeResults(results)
+  }
+
+  /**
+   * Merge multiple analysis results
+   */
+  private static mergeResults(results: ThreatHuntingResult[]): ThreatHuntingResult {
+    const merged: ThreatHuntingResult = {
+      processes: [],
+      networks: [],
+      services: [],
+      credentials: [],
+      lateralMovement: [],
+      privilegeEscalation: [],
+      suspiciousFiles: [],
+      registryActivity: [],
+      injections: [],
+      attackChain: {
+        stages: [],
+        timeline: [],
+        compromisedAccounts: [],
+        compromisedHosts: [],
+        toolsUsed: [],
+        techniques: []
+      },
+      iocs: []
+    }
+
+    for (const result of results) {
+      // Deduplicate and merge processes
+      for (const proc of result.processes) {
+        if (!merged.processes.some(p => p.name === proc.name && p.pid === proc.pid)) {
+          merged.processes.push(proc)
+        }
+      }
+
+      // Deduplicate and merge networks
+      for (const net of result.networks) {
+        if (!merged.networks.some(n => n.remoteAddr === net.remoteAddr && n.remotePort === net.remotePort)) {
+          merged.networks.push(net)
+        }
+      }
+
+      // Deduplicate and merge services
+      for (const svc of result.services) {
+        if (!merged.services.some(s => s.name === svc.name)) {
+          merged.services.push(svc)
+        }
+      }
+
+      // Merge credentials
+      merged.credentials.push(...result.credentials)
+
+      // Merge lateral movement
+      merged.lateralMovement.push(...result.lateralMovement)
+
+      // Merge privilege escalation
+      merged.privilegeEscalation.push(...result.privilegeEscalation)
+
+      // Deduplicate suspicious files
+      for (const file of result.suspiciousFiles) {
+        if (!merged.suspiciousFiles.some(f => f.path === file.path)) {
+          merged.suspiciousFiles.push(file)
+        }
+      }
+
+      // Deduplicate registry activity
+      for (const reg of result.registryActivity) {
+        if (!merged.registryActivity.some(r => r.key === reg.key)) {
+          merged.registryActivity.push(reg)
+        }
+      }
+
+      // Merge injections
+      merged.injections.push(...result.injections)
+
+      // Merge IOCs
+      for (const ioc of result.iocs) {
+        if (!merged.iocs.includes(ioc)) {
+          merged.iocs.push(ioc)
+        }
+      }
+    }
+
+    // Rebuild attack chain from merged data
+    merged.attackChain = this.buildAttackChain(
+      merged.processes,
+      merged.networks,
+      merged.services,
+      merged.credentials,
+      merged.lateralMovement,
+      merged.privilegeEscalation,
+      merged.suspiciousFiles,
+      merged.registryActivity,
+      merged.injections
+    )
+
+    return merged
   }
 
   /**
