@@ -45,7 +45,7 @@ const EVTXAnalysis: React.FC = () => {
   const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<EVTXAnalysisResult | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'statistics' | 'timeline' | 'mitre' | 'events' | 'threats' | 'flags' | 'commands' | 'sessions' | 'artifacts' | 'correlation'>('statistics')
+  const [activeTab, setActiveTab] = useState<'overview' | 'attack-chain' | 'statistics' | 'timeline' | 'mitre' | 'events' | 'threats' | 'flags' | 'commands' | 'sessions' | 'artifacts' | 'correlation' | 'hex' | 'dump'>('overview')
   const [searchTerm, setSearchTerm] = useState('')
   const [levelFilter, setLevelFilter] = useState<string>('All')
   const [sourceFilter, setSourceFilter] = useState<string>('All')
@@ -54,6 +54,12 @@ const EVTXAnalysis: React.FC = () => {
   const [quickFilter, setQuickFilter] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<EVTXEvent | null>(null)
   const [timelineZoom, setTimelineZoom] = useState<{startIndex?: number, endIndex?: number} | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [progressStatus, setProgressStatus] = useState('')
+  const [hexView, setHexView] = useState<string>('')
+  const [isLoadingHex, setIsLoadingHex] = useState(false)
+  const [fullDump, setFullDump] = useState<string>('')
+  const [isLoadingDump, setIsLoadingDump] = useState(false)
 
   // Handle file from Digital Forensics page
   useEffect(() => {
@@ -99,30 +105,78 @@ const EVTXAnalysis: React.FC = () => {
     if (!targetFiles || targetFiles.length === 0) return
 
     setIsAnalyzing(true)
+    setProgress(0)
+    setProgressStatus('Starting analysis...')
+
     try {
       if (targetFiles.length === 1) {
-        // Single file analysis
+        // Single file analysis with progress
+        setProgressStatus('Loading file...')
+        setProgress(10)
+
         const buffer = await targetFiles[0].arrayBuffer()
+
+        setProgressStatus('Parsing EVTX events...')
+        setProgress(30)
+
         const analysis = analyzeEVTX(buffer, targetFiles[0].name)
+
+        setProgressStatus('Analyzing statistics...')
+        setProgress(50)
+
+        setProgressStatus('Detecting threats...')
+        setProgress(70)
+
+        setProgressStatus('Building timeline...')
+        setProgress(85)
+
+        setProgressStatus('Extracting artifacts...')
+        setProgress(95)
+
         setResult(analysis)
         setFilteredEvents(analysis.events)
+
+        setProgressStatus('Analysis complete')
+        setProgress(100)
       } else {
-        // Multi-file analysis
+        // Multi-file analysis with progress
+        setProgressStatus(`Loading ${targetFiles.length} files...`)
+        setProgress(10)
+
         const fileBuffers = await Promise.all(
           targetFiles.map(async (f) => ({
             name: f.name,
             buffer: await f.arrayBuffer()
           }))
         )
+
+        setProgressStatus('Parsing events from all files...')
+        setProgress(40)
+
         const analysis = await analyzeMultipleEVTX(fileBuffers)
+
+        setProgressStatus('Correlating events across logs...')
+        setProgress(70)
+
+        setProgressStatus('Detecting threats...')
+        setProgress(85)
+
         setResult(analysis)
         setFilteredEvents(analysis.events)
+
+        setProgressStatus('Analysis complete')
+        setProgress(100)
       }
     } catch (error) {
       console.error('EVTX analysis failed:', error)
       alert('Failed to analyze EVTX file(s): ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setIsAnalyzing(false)
+      // Reset progress after a delay
+      setTimeout(() => {
+        setProgress(0)
+        setProgressStatus('')
+      }, 2000)
     }
   }, [files])
 
@@ -196,6 +250,195 @@ const EVTXAnalysis: React.FC = () => {
     }
   }
 
+  // Generate full hex view when hex tab is activated
+  const generateFullHexView = useCallback(async () => {
+    if (!files[0] || hexView || isLoadingHex) return
+
+    setIsLoadingHex(true)
+    try {
+      const file = files[0]
+      // For large files, limit to first 10MB for performance
+      const maxSize = Math.min(file.size, 10 * 1024 * 1024)
+      const chunk = file.slice(0, maxSize)
+      const buffer = await chunk.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+
+      let hexString = ''
+      for (let i = 0; i < bytes.length; i += 16) {
+        const hexPart = Array.from(bytes.slice(i, i + 16))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join(' ')
+        const asciiPart = Array.from(bytes.slice(i, i + 16))
+          .map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.')
+          .join('')
+        hexString += `${i.toString(16).padStart(8, '0')}: ${hexPart.padEnd(48, ' ')} | ${asciiPart}\n`
+      }
+
+      if (file.size > maxSize) {
+        hexString += `\n... (showing first ${(maxSize / 1024 / 1024).toFixed(2)} MB of ${(file.size / 1024 / 1024).toFixed(2)} MB file)\n`
+      }
+
+      setHexView(hexString)
+    } catch (error) {
+      console.error('Error generating hex view:', error)
+      setHexView('Error generating hex view')
+    } finally {
+      setIsLoadingHex(false)
+    }
+  }, [files, hexView, isLoadingHex])
+
+  // Generate chainsaw-style full dump
+  const generateFullDump = useCallback(() => {
+    if (!result || fullDump || isLoadingDump) return
+
+    setIsLoadingDump(true)
+    try {
+      let dump = '='.repeat(80) + '\n'
+      dump += ' EVTX ANALYSIS FULL DUMP (Chainsaw-style)\n'
+      dump += '='.repeat(80) + '\n\n'
+
+      dump += `File: ${result.metadata.fileName}\n`
+      dump += `File Size: ${(result.metadata.fileSize / 1024 / 1024).toFixed(2)} MB\n`
+      dump += `Parser: ${result.metadata.parserType}\n`
+      dump += `Parse Time: ${result.metadata.parseTime.toFixed(2)}ms\n`
+      if (result.metadata.fileCount) {
+        dump += `Files Analyzed: ${result.metadata.fileCount}\n`
+      }
+      dump += `Total Events: ${result.events.length}\n`
+      dump += `Time Range: ${new Date(result.statistics.timeRange.start).toLocaleString()} - ${new Date(result.statistics.timeRange.end).toLocaleString()}\n`
+      dump += '\n' + '='.repeat(80) + '\n\n'
+
+      // Statistics
+      dump += '## STATISTICS\n\n'
+      dump += `Total Events: ${result.statistics.totalEvents}\n`
+      dump += `Critical: ${result.statistics.criticalCount}\n`
+      dump += `Errors: ${result.statistics.errorCount}\n`
+      dump += `Warnings: ${result.statistics.warningCount}\n`
+      dump += `Info: ${result.statistics.infoCount}\n`
+      dump += `Unique Users: ${result.statistics.uniqueUsers}\n`
+      dump += `Unique Computers: ${result.statistics.uniqueComputers}\n\n`
+
+      // Top Event IDs
+      dump += '## TOP EVENT IDS\n\n'
+      result.statistics.topEventIds.forEach(item => {
+        dump += `[${item.eventId}] ${item.description}: ${item.count} occurrences\n`
+      })
+      dump += '\n'
+
+      // Threats
+      if (result.threats.length > 0) {
+        dump += '## THREATS DETECTED\n\n'
+        result.threats.forEach((threat, idx) => {
+          dump += `[${idx + 1}] ${threat.type} (${threat.severity})\n`
+          dump += `    Description: ${threat.description}\n`
+          dump += `    Details: ${threat.details}\n`
+          dump += `    Confidence: ${threat.confidence}%\n`
+          dump += `    Event IDs: ${threat.eventIds.join(', ')}\n`
+          dump += `    Timestamp: ${new Date(threat.timestamp).toLocaleString()}\n\n`
+        })
+      }
+
+      // MITRE ATT&CK
+      if (result.mitreAttacks.length > 0) {
+        dump += '## MITRE ATT&CK TECHNIQUES\n\n'
+        result.mitreAttacks.forEach((attack, idx) => {
+          dump += `[${idx + 1}] ${attack.id} - ${attack.technique}\n`
+          dump += `    Tactic: ${attack.tactic}\n`
+          dump += `    Description: ${attack.description}\n`
+          dump += `    Severity: ${attack.severity}\n`
+          dump += `    Confidence: ${attack.confidence}%\n`
+          dump += `    Event IDs: ${attack.eventIds.join(', ')}\n\n`
+        })
+      }
+
+      // Suspicious Commands
+      if (result.suspiciousCommands.length > 0) {
+        dump += '## SUSPICIOUS COMMANDS\n\n'
+        result.suspiciousCommands.forEach((cmd, idx) => {
+          dump += `[${idx + 1}] ${cmd.reason} (${cmd.severity})\n`
+          dump += `    Command: ${cmd.command}\n`
+          dump += `    User: ${cmd.user || 'N/A'}\n`
+          dump += `    Event ID: ${cmd.eventId}\n`
+          dump += `    Timestamp: ${new Date(cmd.timestamp).toLocaleString()}\n`
+          dump += `    Indicators: ${cmd.indicators.join(', ')}\n\n`
+        })
+      }
+
+      // User Sessions
+      if (result.userSessions.length > 0) {
+        dump += '## USER SESSIONS\n\n'
+        result.userSessions.slice(0, 20).forEach((session, idx) => {
+          dump += `[${idx + 1}] ${session.userName} @ ${session.computer}\n`
+          dump += `    Logon Time: ${new Date(session.logonTime).toLocaleString()}\n`
+          if (session.logoffTime) {
+            dump += `    Logoff Time: ${new Date(session.logoffTime).toLocaleString()}\n`
+          }
+          if (session.duration) {
+            dump += `    Duration: ${Math.round(session.duration / 1000 / 60)} minutes\n`
+          }
+          dump += `    Logon Type: ${session.logonType}\n`
+          dump += `    Actions: ${session.actions.length} events\n`
+          dump += `    Suspicious: ${session.suspicious ? 'YES' : 'No'}\n\n`
+        })
+      }
+
+      // Flags
+      if (result.flags.length > 0) {
+        dump += '## FLAGS & SUSPICIOUS STRINGS\n\n'
+        result.flags.forEach((flag, idx) => {
+          dump += `[${idx + 1}] ${flag.type} (${flag.confidence}% confidence)\n`
+          dump += `    Value: ${flag.value}\n`
+          dump += `    Context: ${flag.context}\n`
+          dump += `    Event ID: ${flag.eventId}\n`
+          dump += `    Timestamp: ${new Date(flag.timestamp).toLocaleString()}\n\n`
+        })
+      }
+
+      // All Events (limited to first 100 for performance)
+      dump += '## ALL EVENTS (First 100)\n\n'
+      result.events.slice(0, 100).forEach(event => {
+        dump += `[${event.number}] Event ${event.eventId} - ${getEventDescription(event.eventId)}\n`
+        dump += `    Level: ${event.level}\n`
+        dump += `    Timestamp: ${new Date(event.timestamp).toLocaleString()}\n`
+        dump += `    Source: ${event.source}\n`
+        dump += `    Computer: ${event.computer}\n`
+        if (event.userName) {
+          dump += `    User: ${event.userName}\n`
+        }
+        dump += `    Message: ${event.message.substring(0, 200)}${event.message.length > 200 ? '...' : ''}\n\n`
+      })
+
+      if (result.events.length > 100) {
+        dump += `\n... (showing first 100 of ${result.events.length} total events)\n`
+      }
+
+      dump += '\n' + '='.repeat(80) + '\n'
+      dump += ' END OF DUMP\n'
+      dump += '='.repeat(80) + '\n'
+
+      setFullDump(dump)
+    } catch (error) {
+      console.error('Error generating dump:', error)
+      setFullDump('Error generating dump')
+    } finally {
+      setIsLoadingDump(false)
+    }
+  }, [result, fullDump, isLoadingDump])
+
+  // Generate hex view when hex tab is activated
+  useEffect(() => {
+    if (activeTab === 'hex' && files[0] && !hexView && !isLoadingHex) {
+      generateFullHexView()
+    }
+  }, [activeTab, files, hexView, isLoadingHex, generateFullHexView])
+
+  // Generate dump when dump tab is activated
+  useEffect(() => {
+    if (activeTab === 'dump' && result && !fullDump && !isLoadingDump) {
+      generateFullDump()
+    }
+  }, [activeTab, result, fullDump, isLoadingDump, generateFullDump])
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -251,7 +494,7 @@ const EVTXAnalysis: React.FC = () => {
         </Card>
       ) : (
         <Card className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-3">
               <FileText className="w-5 h-5 text-accent" />
               <div>
@@ -288,12 +531,28 @@ const EVTXAnalysis: React.FC = () => {
                 onClick={() => {
                   setFiles([])
                   setResult(null)
+                  setHexView('')
+                  setFullDump('')
                 }}
               >
                 Remove File{files.length > 1 ? 's' : ''}
               </Button>
             </div>
           </div>
+          {isAnalyzing && progress > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{progressStatus}</span>
+                <span className="text-accent font-medium">{progress}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-accent h-full transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
@@ -302,7 +561,22 @@ const EVTXAnalysis: React.FC = () => {
         <>
           {/* Statistics Dashboard */}
           <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Statistics Overview</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Investigation Overview</h3>
+              <Button variant="outline" size="sm" onClick={() => {
+                const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `evtx_analysis_${Date.now()}.json`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}>
+                <Download className="w-4 h-4 mr-2" />
+                Export Analysis
+              </Button>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-background border border-border rounded-lg p-4 text-center">
                 <div className="text-3xl font-bold text-accent">{result.statistics.totalEvents}</div>
@@ -326,6 +600,49 @@ const EVTXAnalysis: React.FC = () => {
               </div>
             </div>
 
+            {/* Quick Insights Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="bg-background border border-border rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Threat Level</span>
+                </div>
+                <div className="text-2xl font-bold text-red-400">
+                  {result.threats.filter(t => t.severity === 'Critical' || t.severity === 'High').length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {result.threats.length > 0 ? result.threats.slice(0, 2).map(t => t.type).join(', ') : 'No threats detected'}
+                </div>
+              </div>
+
+              <div className="bg-background border border-border rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
+                  <Users className="w-4 h-4" />
+                  <span>User Activity</span>
+                </div>
+                <div className="text-2xl font-bold text-orange-400">
+                  {result.statistics.uniqueUsers}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Failed logons: {result.events.filter(e => e.eventId === 4625).length}
+                </div>
+              </div>
+
+              <div className="bg-background border border-border rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
+                  <Terminal className="w-4 h-4" />
+                  <span>System Impact</span>
+                </div>
+                <div className="text-2xl font-bold text-purple-400">
+                  {result.suspiciousCommands.length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {result.suspiciousCommands.length > 0 ? 'Suspicious commands detected' : 'No suspicious activity'}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
@@ -340,10 +657,10 @@ const EVTXAnalysis: React.FC = () => {
               </div>
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
-                  <User className="w-4 h-4" />
-                  <span>Unique Users</span>
+                  <Target className="w-4 h-4" />
+                  <span>MITRE ATT&CK Techniques</span>
                 </div>
-                <div className="text-2xl font-bold">{result.statistics.uniqueUsers}</div>
+                <div className="text-2xl font-bold text-accent">{result.mitreAttacks.length}</div>
               </div>
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
@@ -359,6 +676,8 @@ const EVTXAnalysis: React.FC = () => {
           <Card>
             <div className="flex flex-wrap border-b border-border">
               {[
+                { id: 'overview', label: 'Overview', icon: Target },
+                { id: 'attack-chain', label: 'Attack Chain', icon: Activity, count: result.correlatedEvents?.length || 0 },
                 { id: 'statistics', label: 'Stats', icon: TrendingUp },
                 { id: 'timeline', label: 'Timeline', icon: BarChart3 },
                 { id: 'mitre', label: 'MITRE', icon: Target, count: result.mitreAttacks.length },
@@ -367,8 +686,9 @@ const EVTXAnalysis: React.FC = () => {
                 { id: 'flags', label: 'Flags', icon: Flag, count: result.flags.length },
                 { id: 'commands', label: 'Commands', icon: Terminal, count: result.suspiciousCommands.length },
                 { id: 'sessions', label: 'Sessions', icon: Users, count: result.userSessions.length },
-                { id: 'correlation', label: 'Correlation', icon: Activity, count: result.correlatedEvents?.length || 0 },
-                { id: 'artifacts', label: 'Artifacts', icon: Target, count: result.artifacts.length }
+                { id: 'artifacts', label: 'Artifacts', icon: FileWarning, count: result.artifacts.length },
+                { id: 'hex', label: 'Hex View', icon: FileText },
+                { id: 'dump', label: 'Full Dump', icon: Download }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -391,6 +711,173 @@ const EVTXAnalysis: React.FC = () => {
             </div>
 
             <div className="p-6">
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  <h4 className="font-medium text-lg">Investigation Summary</h4>
+
+                  <div className="bg-background border border-border rounded-lg p-4">
+                    <h5 className="font-medium mb-3 flex items-center">
+                      <Shield className="w-4 h-4 mr-2 text-accent" />
+                      Key Findings
+                    </h5>
+                    <ul className="space-y-2">
+                      <li className="flex items-start space-x-2">
+                        <span className="text-accent">•</span>
+                        <span>
+                          <strong className="text-red-400">{result.threats.filter(t => t.severity === 'Critical' || t.severity === 'High').length}</strong> critical/high severity threats detected
+                        </span>
+                      </li>
+                      <li className="flex items-start space-x-2">
+                        <span className="text-accent">•</span>
+                        <span>
+                          <strong className="text-orange-400">{result.suspiciousCommands.length}</strong> suspicious commands discovered
+                        </span>
+                      </li>
+                      <li className="flex items-start space-x-2">
+                        <span className="text-accent">•</span>
+                        <span>
+                          <strong className="text-purple-400">{result.mitreAttacks.length}</strong> MITRE ATT&CK techniques identified
+                        </span>
+                      </li>
+                      <li className="flex items-start space-x-2">
+                        <span className="text-accent">•</span>
+                        <span>
+                          <strong className="text-blue-400">{result.events.filter(e => e.eventId === 4625).length}</strong> failed logon attempts
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-background border border-border rounded-lg p-4">
+                      <h5 className="font-medium mb-2">Top Threats</h5>
+                      <div className="space-y-2">
+                        {result.threats
+                          .slice(0, 5)
+                          .map((t, i) => (
+                            <div key={i} className="flex justify-between text-sm">
+                              <span className={`font-medium ${
+                                t.severity === 'Critical' ? 'text-red-400' :
+                                t.severity === 'High' ? 'text-orange-400' :
+                                'text-yellow-400'
+                              }`}>{t.type}</span>
+                              <span className="text-muted-foreground">{t.confidence}%</span>
+                            </div>
+                          ))}
+                        {result.threats.length === 0 && (
+                          <p className="text-sm text-muted-foreground">No threats detected</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-background border border-border rounded-lg p-4">
+                      <h5 className="font-medium mb-2">Top Event Sources</h5>
+                      <div className="space-y-2">
+                        {result.statistics.topSources
+                          .slice(0, 5)
+                          .map((s, i) => (
+                            <div key={i} className="text-sm font-mono">
+                              <div className="text-accent">{s.source}</div>
+                              <div className="text-xs text-muted-foreground">{s.count} events</div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Attack Chain Tab */}
+              {activeTab === 'attack-chain' && (
+                <div className="space-y-4">
+                  <h4 className="font-medium text-lg flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-accent" />
+                    Attack Chain Reconstruction
+                  </h4>
+
+                  {result.correlatedEvents && result.correlatedEvents.length > 0 ? (
+                    <div className="space-y-3">
+                      {result.correlatedEvents.map((correlation, index) => (
+                        <div
+                          key={index}
+                          className="border border-border rounded-lg p-4 bg-background hover:border-accent/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="bg-accent/20 p-2 rounded">
+                                <Activity className="w-5 h-5 text-accent" />
+                              </div>
+                              <div>
+                                <h5 className="font-medium">{correlation.correlationType}</h5>
+                                <span className="text-xs text-muted-foreground">
+                                  {correlation.confidence}% confidence
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">
+                              Chain {index + 1}
+                            </span>
+                          </div>
+                          <div className="bg-muted/30 rounded p-3">
+                            <p className="text-xs font-medium mb-2">Event Sequence:</p>
+                            <ul className="space-y-1">
+                              <li className="text-xs font-mono text-muted-foreground">
+                                • Event {correlation.event.eventId}: {getEventDescription(correlation.event.eventId)}
+                              </li>
+                              {correlation.relatedEvents.map((ev, i) => (
+                                <li key={i} className="text-xs font-mono text-muted-foreground">
+                                  • Event {ev.eventId}: {getEventDescription(ev.eventId)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Activity className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p>No attack chains detected</p>
+                    </div>
+                  )}
+
+                  {result.mitreAttacks.length > 0 && (
+                    <div className="mt-6">
+                      <h5 className="font-medium mb-3">MITRE ATT&CK Techniques</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-red-400/10 border border-red-400/30 rounded-lg p-4">
+                          <h6 className="font-medium text-red-400 mb-2">Attack Techniques</h6>
+                          <div className="space-y-1">
+                            {result.mitreAttacks.slice(0, 5).map((attack, i) => (
+                              <div key={i} className="text-sm font-mono">{attack.id}</div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-orange-400/10 border border-orange-400/30 rounded-lg p-4">
+                          <h6 className="font-medium text-orange-400 mb-2">Tactics</h6>
+                          <div className="space-y-1">
+                            {Array.from(new Set(result.mitreAttacks.map(a => a.tactic))).slice(0, 5).map((tactic, i) => (
+                              <div key={i} className="text-sm">{tactic}</div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-purple-400/10 border border-purple-400/30 rounded-lg p-4">
+                          <h6 className="font-medium text-purple-400 mb-2">Severity</h6>
+                          <div className="space-y-1">
+                            <div className="text-sm">Critical: {result.mitreAttacks.filter(a => a.severity === 'Critical').length}</div>
+                            <div className="text-sm">High: {result.mitreAttacks.filter(a => a.severity === 'High').length}</div>
+                            <div className="text-sm">Medium: {result.mitreAttacks.filter(a => a.severity === 'Medium').length}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Statistics Tab */}
               {activeTab === 'statistics' && (
                 <div className="space-y-6">
@@ -1160,6 +1647,104 @@ const EVTXAnalysis: React.FC = () => {
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Hex View Tab */}
+              {activeTab === 'hex' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium flex items-center">
+                      <FileText className="w-4 h-4 mr-2 text-accent" />
+                      Hex View
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(hexView)}
+                      disabled={!hexView || isLoadingHex}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy Hex
+                    </Button>
+                  </div>
+
+                  {isLoadingHex ? (
+                    <div className="text-center py-12">
+                      <Activity className="w-16 h-16 mx-auto mb-4 text-accent animate-spin" />
+                      <p className="text-muted-foreground">Generating hex view...</p>
+                    </div>
+                  ) : hexView ? (
+                    <div className="bg-background border border-border rounded-lg p-4 overflow-auto">
+                      <pre className="font-mono text-xs whitespace-pre text-muted-foreground leading-relaxed">
+                        {hexView}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p>No hex view available</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Full Dump Tab */}
+              {activeTab === 'dump' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium flex items-center">
+                      <Download className="w-4 h-4 mr-2 text-accent" />
+                      Full Analysis Dump (Chainsaw-style)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(fullDump)}
+                        disabled={!fullDump || isLoadingDump}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Dump
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!fullDump) return
+                          const blob = new Blob([fullDump], { type: 'text/plain' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `evtx_dump_${Date.now()}.txt`
+                          a.click()
+                          URL.revokeObjectURL(url)
+                        }}
+                        disabled={!fullDump || isLoadingDump}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isLoadingDump ? (
+                    <div className="text-center py-12">
+                      <Activity className="w-16 h-16 mx-auto mb-4 text-accent animate-spin" />
+                      <p className="text-muted-foreground">Generating full dump...</p>
+                    </div>
+                  ) : fullDump ? (
+                    <div className="bg-background border border-border rounded-lg p-4 overflow-auto max-h-[600px]">
+                      <pre className="font-mono text-xs whitespace-pre text-muted-foreground leading-relaxed">
+                        {fullDump}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Download className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p>No dump available</p>
                     </div>
                   )}
                 </div>
