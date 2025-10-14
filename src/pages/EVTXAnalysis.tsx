@@ -25,7 +25,8 @@ import {
   Users,
   BarChart3,
   Eye,
-  X
+  X,
+  FileWarning
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
