@@ -15,6 +15,13 @@ export interface EVTXEvent {
   userId?: string
   userName?: string
   keywords?: string[]
+  task?: number
+  taskCategory?: string
+  opcode?: number
+  processId?: number
+  threadId?: number
+  eventData?: Record<string, any>
+  userData?: Record<string, any>
   raw?: any
 }
 
