@@ -59,8 +59,10 @@ const EVTXAnalysis: React.FC = () => {
   const [progressStatus, setProgressStatus] = useState('')
   const [hexView, setHexView] = useState<string>('')
   const [isLoadingHex, setIsLoadingHex] = useState(false)
+  const [hexFilter, setHexFilter] = useState<string>('')
   const [fullDump, setFullDump] = useState<string>('')
   const [isLoadingDump, setIsLoadingDump] = useState(false)
+  const [dumpFilter, setDumpFilter] = useState<string>('')
 
   // Handle file from Digital Forensics page
   useEffect(() => {
@@ -365,10 +367,10 @@ const EVTXAnalysis: React.FC = () => {
         })
       }
 
-      // User Sessions
+      // User Sessions (ALL)
       if (result.userSessions.length > 0) {
         dump += '## USER SESSIONS\n\n'
-        result.userSessions.slice(0, 20).forEach((session, idx) => {
+        result.userSessions.forEach((session, idx) => {
           dump += `[${idx + 1}] ${session.userName} @ ${session.computer}\n`
           dump += `    Logon Time: ${new Date(session.logonTime).toLocaleString()}\n`
           if (session.logoffTime) {
@@ -383,7 +385,7 @@ const EVTXAnalysis: React.FC = () => {
         })
       }
 
-      // Flags
+      // Flags (ALL)
       if (result.flags.length > 0) {
         dump += '## FLAGS & SUSPICIOUS STRINGS\n\n'
         result.flags.forEach((flag, idx) => {
@@ -395,9 +397,9 @@ const EVTXAnalysis: React.FC = () => {
         })
       }
 
-      // All Events (limited to first 100 for performance)
-      dump += '## ALL EVENTS (First 100)\n\n'
-      result.events.slice(0, 100).forEach(event => {
+      // ALL EVENTS - NO LIMITS
+      dump += `## ALL EVENTS (Complete - ${result.events.length} total)\n\n`
+      result.events.forEach(event => {
         dump += `[${event.number}] Event ${event.eventId} - ${getEventDescription(event.eventId)}\n`
         dump += `    Level: ${event.level}\n`
         dump += `    Timestamp: ${new Date(event.timestamp).toLocaleString()}\n`
@@ -406,12 +408,8 @@ const EVTXAnalysis: React.FC = () => {
         if (event.userName) {
           dump += `    User: ${event.userName}\n`
         }
-        dump += `    Message: ${event.message.substring(0, 200)}${event.message.length > 200 ? '...' : ''}\n\n`
+        dump += `    Message: ${event.message}\n\n`
       })
-
-      if (result.events.length > 100) {
-        dump += `\n... (showing first 100 of ${result.events.length} total events)\n`
-      }
 
       dump += '\n' + '='.repeat(80) + '\n'
       dump += ' END OF DUMP\n'
@@ -1169,7 +1167,7 @@ const EVTXAnalysis: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredEvents.slice(0, 100).map((event, index) => (
+                          {filteredEvents.map((event, index) => (
                             <tr key={index} className="border-t border-border hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedEvent(event)}>
                               <td className="p-3 text-accent font-medium">{event.number}</td>
                               <td className="p-3">
@@ -1194,11 +1192,6 @@ const EVTXAnalysis: React.FC = () => {
                           ))}
                         </tbody>
                       </table>
-                      {filteredEvents.length > 100 && (
-                        <div className="p-4 text-center text-sm text-muted-foreground border-t border-border">
-                          Showing first 100 events. Use filters to narrow results.
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -1468,7 +1461,7 @@ const EVTXAnalysis: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {result.userSessions.slice(0, 20).map((session, index) => (
+                      {result.userSessions.map((session, index) => (
                         <div
                           key={index}
                           className={`border rounded-lg p-4 ${
@@ -1624,7 +1617,7 @@ const EVTXAnalysis: React.FC = () => {
                           <div key={type}>
                             <h4 className="font-medium mb-2">{type}s ({items.length})</h4>
                             <div className="space-y-2">
-                              {items.slice(0, 20).map((artifact, index) => (
+                              {items.map((artifact, index) => (
                                 <div
                                   key={index}
                                   className="flex items-center justify-between p-3 bg-background border border-border rounded-lg hover:border-accent/50 transition-colors"
@@ -1664,12 +1657,32 @@ const EVTXAnalysis: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => copyToClipboard(hexView)}
+                      onClick={() => copyToClipboard(hexFilter ? hexView.split('\n').filter(line => line.toLowerCase().includes(hexFilter.toLowerCase())).join('\n') : hexView)}
                       disabled={!hexView || isLoadingHex}
                     >
                       <Copy className="w-4 h-4 mr-2" />
-                      Copy Hex
+                      Copy {hexFilter ? 'Filtered' : 'All'}
                     </Button>
+                  </div>
+
+                  {/* Filter Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Filter hex view (search for hex values, ASCII, or addresses)..."
+                      value={hexFilter}
+                      onChange={(e) => setHexFilter(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 bg-background border border-border rounded text-sm"
+                    />
+                    {hexFilter && (
+                      <button
+                        onClick={() => setHexFilter('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   {isLoadingHex ? (
@@ -1680,7 +1693,10 @@ const EVTXAnalysis: React.FC = () => {
                   ) : hexView ? (
                     <div className="bg-background border border-border rounded-lg p-4 overflow-auto">
                       <pre className="font-mono text-xs whitespace-pre text-muted-foreground leading-relaxed">
-                        {hexView}
+                        {hexFilter
+                          ? hexView.split('\n').filter(line => line.toLowerCase().includes(hexFilter.toLowerCase())).join('\n') || '  No matching lines found'
+                          : hexView
+                        }
                       </pre>
                     </div>
                   ) : (
@@ -1704,31 +1720,52 @@ const EVTXAnalysis: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => copyToClipboard(fullDump)}
+                        onClick={() => copyToClipboard(dumpFilter ? fullDump.split('\n').filter(line => line.toLowerCase().includes(dumpFilter.toLowerCase())).join('\n') : fullDump)}
                         disabled={!fullDump || isLoadingDump}
                       >
                         <Copy className="w-4 h-4 mr-2" />
-                        Copy Dump
+                        Copy {dumpFilter ? 'Filtered' : 'All'}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
                           if (!fullDump) return
-                          const blob = new Blob([fullDump], { type: 'text/plain' })
+                          const content = dumpFilter ? fullDump.split('\n').filter(line => line.toLowerCase().includes(dumpFilter.toLowerCase())).join('\n') : fullDump
+                          const blob = new Blob([content], { type: 'text/plain' })
                           const url = URL.createObjectURL(blob)
                           const a = document.createElement('a')
                           a.href = url
-                          a.download = `evtx_dump_${Date.now()}.txt`
+                          a.download = `evtx_dump_${dumpFilter ? 'filtered_' : ''}${Date.now()}.txt`
                           a.click()
                           URL.revokeObjectURL(url)
                         }}
                         disabled={!fullDump || isLoadingDump}
                       >
                         <Download className="w-4 h-4 mr-2" />
-                        Download
+                        Download {dumpFilter ? 'Filtered' : 'All'}
                       </Button>
                     </div>
+                  </div>
+
+                  {/* Filter Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Filter dump (search for event IDs, usernames, IPs, commands, etc.)..."
+                      value={dumpFilter}
+                      onChange={(e) => setDumpFilter(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 bg-background border border-border rounded text-sm"
+                    />
+                    {dumpFilter && (
+                      <button
+                        onClick={() => setDumpFilter('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   {isLoadingDump ? (
@@ -1739,7 +1776,10 @@ const EVTXAnalysis: React.FC = () => {
                   ) : fullDump ? (
                     <div className="bg-background border border-border rounded-lg p-4 overflow-auto max-h-[600px]">
                       <pre className="font-mono text-xs whitespace-pre text-muted-foreground leading-relaxed">
-                        {fullDump}
+                        {dumpFilter
+                          ? fullDump.split('\n').filter(line => line.toLowerCase().includes(dumpFilter.toLowerCase())).join('\n') || '  No matching lines found'
+                          : fullDump
+                        }
                       </pre>
                     </div>
                   ) : (
