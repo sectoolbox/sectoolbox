@@ -1080,7 +1080,7 @@ const DigitalForensics: React.FC = () => {
             <div className="flex items-center gap-2">
               {selectedFile.name.toLowerCase().endsWith('.evtx') && (
                 <Button
-                  onClick={() => navigate('/forensics-evtx', { state: { evtxFile: selectedFile } })}
+                  onClick={() => navigate('/evtx', { state: { evtxFile: selectedFile } })}
                   variant="outline"
                   size="sm"
                 >

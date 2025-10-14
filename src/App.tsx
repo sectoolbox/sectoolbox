@@ -30,7 +30,7 @@ function App() {
               <Route path="/crypto" element={<CryptoTools />} />
               <Route path="/web" element={<WebTools />} />
               <Route path="/forensics" element={<DigitalForensics />} />
-              <Route path="/forensics-evtx" element={<EVTXAnalysis />} />
+              <Route path="/evtx" element={<EVTXAnalysis />} />
               <Route path="/memory" element={<MemoryForensics />} />
               <Route path="/folder-scanner" element={<FolderScanner />} />
               <Route path="/audio" element={<AudioAnalysis />} />

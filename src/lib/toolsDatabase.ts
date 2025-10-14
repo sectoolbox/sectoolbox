@@ -451,7 +451,7 @@ export const toolsDatabase: Tool[] = [
     name: 'Memory Dump Analyzer',
     description: 'Analyze memory dumps for processes, network connections, and artifacts',
     category: 'Digital Forensics',
-    path: '/forensics',
+    path: '/memory',
     keywords: ['memory', 'dump', 'dmp', 'mem', 'process', 'volatility'],
     operations: ['analyze', 'extract', 'investigate']
   },
@@ -460,7 +460,7 @@ export const toolsDatabase: Tool[] = [
     name: 'Windows Event Log Analyzer',
     description: 'Parse and analyze Windows .evtx event log files',
     category: 'Digital Forensics',
-    path: '/forensics',
+    path: '/evtx',
     keywords: ['evtx', 'event', 'log', 'windows', 'timeline', 'security'],
     operations: ['parse', 'analyze', 'timeline']
   },
