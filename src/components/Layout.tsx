@@ -19,7 +19,8 @@ import {
   Music,
   FileImage,
   HardDrive,
-  XCircle
+  XCircle,
+  Code
 } from 'lucide-react'
 import Footer from './Footer'
 import {
@@ -138,13 +139,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       keywords: ['encryption', 'decryption', 'cipher', 'hash', 'base64', 'rsa', 'aes']
     },
     {
-      path: '/web',
-      label: 'Web Tools',
-      icon: Globe,
-      description: 'Web exploitation and payload tools',
-      keywords: ['payload', 'xss', 'sql', 'injection', 'url', 'encode']
-    },
-    {
       path: '/forensics',
       label: 'Digital Forensics',
       icon: HardDrive,
@@ -157,6 +151,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: HardDrive,
       description: 'Memory dump analysis and artifact extraction',
       keywords: ['memory', 'dump', 'volatility', 'ram', 'forensics', 'process']
+    },
+    {
+      path: '/python',
+      label: 'Python Environment',
+      icon: Code,
+      description: 'Browser-based Python for forensics scripting',
+      keywords: ['python', 'script', 'code', 'analysis', 'programming', 'pyodide']
     },
   ]
 
