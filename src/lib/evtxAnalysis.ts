@@ -201,169 +201,282 @@ const EVENT_DESCRIPTIONS: Record<number, string> = {
 
 /**
  * Parse EVTX file and extract events
+ * This implementation extracts XML from EVTX binary format
  */
 export function parseEVTX(buffer: ArrayBuffer): EVTXEvent[] {
   const events: EVTXEvent[] = []
   const data = new Uint8Array(buffer)
 
-  // Check EVTX magic signature
-  const magic = String.fromCharCode(...data.slice(0, 8))
-  if (magic !== 'ElfFile\0') {
-    console.warn('Not a valid EVTX file (missing magic signature), attempting parse anyway...')
+  console.log(`Parsing EVTX file: ${buffer.byteLength} bytes`)
+
+  // Verify EVTX signature
+  const signature = new TextDecoder().decode(data.slice(0, 7))
+  if (signature !== 'ElfFile') {
+    throw new Error('Invalid EVTX file: Missing ElfFile signature')
   }
 
-  // Since we're using JavaScript parsing (real EVTX parsing is complex),
-  // we'll extract what we can and generate meaningful sample data
-  const fileSize = buffer.byteLength
+  try {
+    // Extract all XML strings from the EVTX binary
+    const xmlStrings = extractAllXMLFromEVTX(data)
 
-  // Extract strings from the file to find event-like patterns
-  const strings = extractStringsFromBuffer(data)
+    console.log(`Found ${xmlStrings.length} XML event records in EVTX file`)
 
-  // Parse events based on patterns found in the binary
-  let eventNumber = 1
-  let foundRealEvents = false
+    if (xmlStrings.length === 0) {
+      throw new Error('No event records found in EVTX file')
+    }
 
-  // Look for common EVTX patterns and structures
-  for (let i = 0; i < data.length - 100; i++) {
-    // Look for Event Record signature (0x2a2a0000)
-    if (data[i] === 0x2a && data[i+1] === 0x2a && data[i+2] === 0x00 && data[i+3] === 0x00) {
+    // Parse each XML string into an event object
+    let eventNumber = 1
+    for (const xml of xmlStrings) {
       try {
-        const event = parseEventRecord(data, i, eventNumber++)
+        const event = parseXMLEvent(xml, eventNumber++)
         if (event) {
           events.push(event)
-          foundRealEvents = true
         }
-      } catch (e) {
-        // Skip invalid records
+      } catch (err) {
+        console.warn(`Failed to parse XML event:`, err)
       }
     }
-  }
 
-  // If no events found, generate representative sample data
-  if (!foundRealEvents || events.length < 10) {
-    console.log('Generating sample EVTX events based on file characteristics...')
-    const sampleEvents = generateSampleEvents(fileSize, strings)
-    events.push(...sampleEvents)
-  }
+    console.log(`Successfully parsed ${events.length} events`)
 
-  return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  } catch (error) {
+    console.error('EVTX parsing error:', error)
+    throw new Error(`Failed to parse EVTX file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }
 
 /**
- * Parse individual event record from binary data
+ * Extract all XML strings from EVTX binary data
  */
-function parseEventRecord(data: Uint8Array, offset: number, eventNumber: number): EVTXEvent | null {
-  try {
-    // Read event record header
-    const recordId = readUInt32LE(data, offset + 8)
-    const timestamp = readFileTime(data, offset + 16)
+function extractAllXMLFromEVTX(data: Uint8Array): string[] {
+  const xmlStrings: string[] = []
+  const chunkSize = 65536 // 64KB chunks
+  let offset = 4096 // Skip file header
 
-    // Extract basic event data
+  // Search through chunks for event records
+  while (offset < data.length) {
+    // Check for chunk signature
+    const chunkSig = new TextDecoder().decode(data.slice(offset, offset + 7))
+
+    if (chunkSig === 'ElfChnk') {
+      // Parse events from this chunk
+      const chunkEnd = Math.min(offset + chunkSize, data.length)
+      const chunkData = data.slice(offset, chunkEnd)
+
+      // Find event records in chunk (signature 0x2a2a0000)
+      for (let i = 128; i < chunkData.length - 24; i++) {
+        if (chunkData[i] === 0x2a && chunkData[i + 1] === 0x2a &&
+            chunkData[i + 2] === 0x00 && chunkData[i + 3] === 0x00) {
+
+          // Read record size
+          const recordSize = readUInt32LE(chunkData, i + 4)
+
+          if (recordSize > 24 && i + recordSize <= chunkData.length) {
+            const recordData = chunkData.slice(i, i + recordSize)
+
+            // Extract XML from record (try both UTF-8 and UTF-16)
+            const xml = extractXMLFromRecord(recordData)
+            if (xml) {
+              xmlStrings.push(xml)
+            }
+
+            // Skip to next record
+            i += recordSize - 1
+          }
+        }
+      }
+    }
+
+    offset += chunkSize
+  }
+
+  return xmlStrings
+}
+
+/**
+ * Extract XML from an event record
+ */
+function extractXMLFromRecord(recordData: Uint8Array): string | null {
+  // Try to find XML in UTF-8
+  let xml = extractXMLWithEncoding(recordData, 'utf-8')
+  if (xml) return xml
+
+  // Try UTF-16LE (common in Windows)
+  xml = extractXMLWithEncoding(recordData, 'utf-16le')
+  if (xml) return xml
+
+  return null
+}
+
+/**
+ * Extract XML with specific encoding
+ */
+function extractXMLWithEncoding(data: Uint8Array, encoding: string): string | null {
+  try {
+    const text = new TextDecoder(encoding, { fatal: false }).decode(data)
+
+    // Look for Event XML tags
+    const startPatterns = [
+      '<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">',
+      '<Event xmlns=',
+      '<Event>'
+    ]
+
+    for (const pattern of startPatterns) {
+      const startIdx = text.indexOf(pattern)
+      if (startIdx !== -1) {
+        const endIdx = text.indexOf('</Event>', startIdx)
+        if (endIdx !== -1) {
+          const xml = text.substring(startIdx, endIdx + 8) // +8 for '</Event>'
+
+          // Validate it looks like real XML
+          if (xml.includes('EventID') || xml.includes('System') || xml.includes('EventData')) {
+            return xml.trim()
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Encoding error, try next
+  }
+
+  return null
+}
+
+/**
+ * Parse XML event string into EVTXEvent object
+ */
+function parseXMLEvent(xml: string, eventNumber: number): EVTXEvent | null {
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'text/xml')
+
+    // Check for parse errors
+    const parseError = doc.querySelector('parsererror')
+    if (parseError) {
+      return null
+    }
+
+    const eventElement = doc.querySelector('Event')
+    if (!eventElement) return null
+
+    // Extract System section
+    const system = eventElement.querySelector('System')
+    if (!system) return null
+
+    const eventId = parseInt(system.querySelector('EventID')?.textContent || '0')
+    const level = parseInt(system.querySelector('Level')?.textContent || '4')
+    const computer = system.querySelector('Computer')?.textContent || 'Unknown'
+    const channel = system.querySelector('Channel')?.textContent || 'Unknown'
+    const provider = system.querySelector('Provider')?.getAttribute('Name') || 'Unknown'
+    const recordId = parseInt(system.querySelector('EventRecordID')?.textContent || '0')
+
+    // Extract timestamp
+    const timeCreated = system.querySelector('TimeCreated')
+    const timestamp = timeCreated?.getAttribute('SystemTime') || new Date().toISOString()
+
+    // Extract security info
+    const security = system.querySelector('Security')
+    const userId = security?.getAttribute('UserID') || undefined
+
+    // Extract execution info
+    const execution = system.querySelector('Execution')
+    const processId = execution?.getAttribute('ProcessID') ? parseInt(execution.getAttribute('ProcessID')!) : undefined
+    const threadId = execution?.getAttribute('ThreadID') ? parseInt(execution.getAttribute('ThreadID')!) : undefined
+
+    // Extract EventData
+    const eventDataElement = eventElement.querySelector('EventData')
+    const eventData: Record<string, any> = {}
+    let userName: string | undefined
+
+    if (eventDataElement) {
+      const dataElements = eventDataElement.querySelectorAll('Data')
+      dataElements.forEach(dataEl => {
+        const name = dataEl.getAttribute('Name')
+        const value = dataEl.textContent
+        if (name && value) {
+          eventData[name] = value
+
+          // Extract username from common fields
+          if (name === 'SubjectUserName' || name === 'TargetUserName' || name === 'AccountName') {
+            userName = value
+          }
+        }
+      })
+    }
+
+    // Build message from event data
+    const message = buildMessageFromEventData(eventId, eventData)
+
     const event: EVTXEvent = {
       number: eventNumber,
-      eventId: (recordId % 10000) || 4624, // Approximate
-      level: 'Information',
-      timestamp: timestamp,
-      source: 'Security',
-      provider: 'Microsoft-Windows-Security-Auditing',
-      channel: 'Security',
-      computer: 'FORENSICS-PC',
-      message: 'Event data extracted from EVTX',
-      recordId: recordId
+      eventId,
+      level: mapLevelNumber(level),
+      timestamp,
+      source: channel,
+      provider,
+      channel,
+      computer,
+      message,
+      recordId,
+      userId,
+      userName,
+      processId,
+      threadId,
+      eventData: Object.keys(eventData).length > 0 ? eventData : undefined,
+      raw: xml
     }
 
     return event
-  } catch (e) {
+  } catch (err) {
+    console.warn('Error parsing XML event:', err)
     return null
   }
 }
 
 /**
- * Read 32-bit little-endian integer
+ * Map level number to string
  */
-function readUInt32LE(data: Uint8Array, offset: number): number {
-  return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24)
+function mapLevelNumber(level: number): EVTXEvent['level'] {
+  switch (level) {
+    case 1: return 'Critical'
+    case 2: return 'Error'
+    case 3: return 'Warning'
+    case 4: return 'Information'
+    case 5: return 'Verbose'
+    default: return 'Unknown'
+  }
 }
 
 /**
- * Read Windows FILETIME and convert to ISO string
+ * Build human-readable message from event data
  */
-function readFileTime(data: Uint8Array, offset: number): string {
-  const low = readUInt32LE(data, offset)
-  const high = readUInt32LE(data, offset + 4)
-  const fileTime = high * 0x100000000 + low
-  const unixTime = (fileTime / 10000) - 11644473600000
-  return new Date(unixTime).toISOString()
-}
+function buildMessageFromEventData(eventId: number, eventData: Record<string, any>): string {
+  // Get base description
+  const baseDesc = EVENT_DESCRIPTIONS[eventId] || `Event ID ${eventId}`
 
-/**
- * Extract printable strings from buffer
- */
-function extractStringsFromBuffer(data: Uint8Array): string[] {
-  const strings: string[] = []
-  let current: number[] = []
-  const minLength = 4
+  // Add relevant event data
+  const parts: string[] = [baseDesc]
 
-  for (let i = 0; i < data.length; i++) {
-    const byte = data[i]
-    if (byte >= 32 && byte <= 126) {
-      current.push(byte)
-    } else {
-      if (current.length >= minLength) {
-        strings.push(String.fromCharCode(...current))
-      }
-      current = []
+  // Add key fields based on event type
+  const keyFields = ['SubjectUserName', 'TargetUserName', 'WorkstationName', 'IpAddress', 'CommandLine', 'ProcessName', 'ServiceName', 'TaskName']
+
+  for (const field of keyFields) {
+    if (eventData[field] && eventData[field] !== '-' && eventData[field] !== '') {
+      parts.push(`${field}: ${eventData[field]}`)
     }
   }
 
-  return strings
+  return parts.join(' | ')
 }
 
 /**
- * Generate sample EVTX events based on file characteristics
+ * Read 32-bit little-endian unsigned integer
  */
-function generateSampleEvents(fileSize: number, strings: string[]): EVTXEvent[] {
-  const events: EVTXEvent[] = []
-  const eventCount = Math.min(100, Math.floor(fileSize / 5000) + 10)
-  const now = Date.now()
-
-  // Common event types for a realistic security log
-  const eventTypes = [
-    { id: 4624, level: 'Information' as const, source: 'Security', message: 'An account was successfully logged on' },
-    { id: 4625, level: 'Warning' as const, source: 'Security', message: 'An account failed to log on' },
-    { id: 4634, level: 'Information' as const, source: 'Security', message: 'An account was logged off' },
-    { id: 4688, level: 'Information' as const, source: 'Security', message: 'A new process has been created' },
-    { id: 4672, level: 'Information' as const, source: 'Security', message: 'Special privileges assigned to new logon' },
-    { id: 4698, level: 'Warning' as const, source: 'Security', message: 'A scheduled task was created' },
-    { id: 7045, level: 'Information' as const, source: 'System', message: 'A service was installed in the system' },
-    { id: 4104, level: 'Warning' as const, source: 'PowerShell', message: 'PowerShell script block logging' },
-    { id: 1102, level: 'Critical' as const, source: 'Security', message: 'The audit log was cleared' },
-  ]
-
-  for (let i = 0; i < eventCount; i++) {
-    const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)]
-    const timestamp = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000) // Last 30 days
-
-    // Check if we can extract real data from strings
-    const relevantString = strings.find(s => s.includes('flag') || s.includes('CTF') || s.length > 30)
-    const messageAddition = relevantString ? ` [${relevantString.substring(0, 50)}]` : ''
-
-    events.push({
-      number: i + 1,
-      eventId: eventType.id,
-      level: eventType.level,
-      timestamp: timestamp.toISOString(),
-      source: eventType.source,
-      provider: `Microsoft-Windows-${eventType.source}`,
-      channel: eventType.source,
-      computer: 'WORKSTATION-' + Math.floor(Math.random() * 100),
-      message: eventType.message + messageAddition,
-      recordId: 1000 + i,
-      userName: `User${Math.floor(Math.random() * 5)}`,
-    })
-  }
-
-  return events
+function readUInt32LE(data: Uint8Array, offset: number): number {
+  return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24)
 }
 
 /**
@@ -974,7 +1087,7 @@ export function analyzeEVTX(buffer: ArrayBuffer, fileName: string): EVTXAnalysis
       fileName,
       fileSize: buffer.byteLength,
       parseTime,
-      parserType: 'JavaScript'
+      parserType: 'Native'
     }
   }
 }
@@ -1214,7 +1327,7 @@ export function mergeEVTXResults(results: EVTXAnalysisResult[]): EVTXAnalysisRes
       fileName: `${results.length} files merged`,
       fileSize: totalSize,
       parseTime: totalTime,
-      parserType: 'JavaScript',
+      parserType: 'Native',
       fileCount: results.length
     }
   }
