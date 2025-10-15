@@ -12,17 +12,20 @@ export interface PythonScript {
 
 /**
  * Parse metadata from Python script comments
+ * @param content - The script content
+ * @param filename - The script filename
+ * @param folderCategory - Optional category from folder structure
  */
-function parseScriptMetadata(content: string, filename: string): PythonScript {
+function parseScriptMetadata(content: string, filename: string, folderCategory?: string): PythonScript {
   const lines = content.split('\n')
 
   let title = filename.replace('.py', '').replace(/-/g, ' ')
   let description = ''
-  let category = 'Uncategorized'
+  let category = folderCategory || 'Uncategorized'
   let author = 'Unknown'
   let code = content
 
-  // Parse metadata from comments
+  // Parse metadata from comments (override folder category if specified)
   for (const line of lines) {
     if (line.startsWith('# TITLE:')) {
       title = line.replace('# TITLE:', '').trim()
@@ -34,9 +37,6 @@ function parseScriptMetadata(content: string, filename: string): PythonScript {
       author = line.replace('# AUTHOR:', '').trim()
     }
   }
-
-  // Remove metadata comments from code (optional - keep them for documentation)
-  // code = lines.filter(line => !line.startsWith('# TITLE:') && !line.startsWith('# DESCRIPTION:') && !line.startsWith('# CATEGORY:') && !line.startsWith('# AUTHOR:')).join('\n')
 
   return {
     id: filename.replace('.py', ''),
@@ -52,13 +52,15 @@ function parseScriptMetadata(content: string, filename: string): PythonScript {
 /**
  * Load all Python scripts from the /pythonScripts folder
  * Automatically discovers all .py files using Vite's import.meta.glob
+ * Supports category subfolders (e.g., /pythonScripts/Analysis/script.py)
  */
 export async function loadPythonScripts(): Promise<PythonScript[]> {
   const scripts: PythonScript[] = []
 
-  // Automatically discover all .py files in /public/pythonScripts
+  // Automatically discover all .py files in /public/pythonScripts and subdirectories
   // Using eager: true to load all scripts at build time
-  const scriptModules = import.meta.glob('../../public/pythonScripts/*.py', {
+  // Pattern /**/*.py matches files in root and all subdirectories
+  const scriptModules = import.meta.glob('../../public/pythonScripts/**/*.py', {
     query: '?raw',
     import: 'default',
     eager: true
@@ -66,12 +68,22 @@ export async function loadPythonScripts(): Promise<PythonScript[]> {
 
   for (const path in scriptModules) {
     try {
-      // Extract filename from path: '../../public/pythonScripts/string-extractor.py' -> 'string-extractor.py'
-      const filename = path.split('/').pop() || ''
+      // Extract filename and category from path
+      // e.g., '../../public/pythonScripts/Analysis/file-hash.py'
+      const pathParts = path.split('/')
+      const filename = pathParts.pop() || ''
+
+      // Get category from folder name (if in subfolder)
+      // e.g., 'Analysis' from '/pythonScripts/Analysis/file.py'
+      let folderCategory: string | undefined
+      const pythonScriptsIndex = pathParts.indexOf('pythonScripts')
+      if (pythonScriptsIndex !== -1 && pythonScriptsIndex < pathParts.length - 1) {
+        folderCategory = pathParts[pythonScriptsIndex + 1]
+      }
 
       // Get the script content (already loaded due to eager: true)
       const content = scriptModules[path] as string
-      const script = parseScriptMetadata(content, filename)
+      const script = parseScriptMetadata(content, filename, folderCategory)
       scripts.push(script)
     } catch (error) {
       console.warn(`Failed to load script from ${path}:`, error)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, History } from 'lucide-react'
+import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -40,7 +40,7 @@ const PythonForensics: React.FC = () => {
   const [tabs, setTabs] = useState<ScriptTab[]>([{
     id: 'default',
     name: 'script.py',
-    code: `# Python Forensics Environment
+    code: `# Python Scripts
 # Upload a file and run your analysis
 
 import hashlib
@@ -83,6 +83,7 @@ except FileNotFoundError:
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<any>(null)
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
@@ -420,6 +421,18 @@ _stderr_capture.output = []
     }
   }
 
+  const handleUndo = () => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'undo', null)
+    }
+  }
+
+  const handleRedo = () => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'redo', null)
+    }
+  }
+
   const revertToHistory = (entry: CodeHistoryEntry) => {
     updateActiveTabCode(entry.code)
     setShowHistory(false)
@@ -724,8 +737,11 @@ await micropip.install('${packageName}')
                   Python Editor
                 </h3>
                 <div className="flex gap-2">
-                  <Button onClick={() => setShowHistory(!showHistory)} variant="outline" size="sm" title="View history">
-                    <History className="h-4 w-4" />
+                  <Button onClick={handleUndo} variant="outline" size="sm" title="Undo (Ctrl+Z)">
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                  <Button onClick={handleRedo} variant="outline" size="sm" title="Redo (Ctrl+Y)">
+                    <Redo2 className="h-4 w-4" />
                   </Button>
                   <Button onClick={() => setShowSaveDialog(true)} variant="outline" size="sm">
                     <Save className="h-4 w-4 mr-2" />
@@ -747,30 +763,14 @@ await micropip.install('${packageName}')
                 </div>
               </div>
 
-              {showHistory && (
-                <div className="mb-3 p-3 border border-border rounded bg-muted/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold">Code History</h4>
-                    <Button onClick={() => setShowHistory(false)} variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {(codeHistory[activeTabId] || []).reverse().map((entry, index) => (
-                      <button key={index} onClick={() => revertToHistory(entry)} className="w-full text-left p-2 rounded text-xs hover:bg-muted/50 bg-muted/20 flex items-center justify-between">
-                        <span>{entry.label}</span>
-                        <span className="text-muted-foreground">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-                      </button>
-                    ))}
-                    {!(codeHistory[activeTabId]?.length) && (
-                      <div className="text-center text-muted-foreground text-xs py-2">No history yet</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="flex-1 border border-border rounded-lg overflow-hidden">
-                <Editor language="python" value={activeTab.code} onChange={(value) => updateActiveTabCode(value || '')} theme="vs-dark" options={{
+                <Editor
+                  language="python"
+                  value={activeTab.code}
+                  onChange={(value) => updateActiveTabCode(value || '')}
+                  onMount={(editor) => { editorRef.current = editor }}
+                  theme="vs-dark"
+                  options={{
                   minimap: { enabled: false },
                   fontSize: 13,
                   lineNumbers: 'on',

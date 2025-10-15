@@ -2,25 +2,41 @@
 
 This folder contains Python scripts that are dynamically loaded in the Python Forensics Environment.
 
+## Folder Structure
+
+Scripts are organized into category folders for better organization:
+
+```
+/pythonScripts/
+├── Analysis/       - File analysis scripts (hashing, signatures, etc.)
+├── Extraction/     - Data extraction scripts (strings, metadata, etc.)
+├── Forensics/      - Forensic analysis scripts (memory, disk, etc.)
+├── Decoding/       - Encoding/decoding scripts (base64, hex, etc.)
+└── README.md
+```
+
 ## How to Add New Scripts
 
-Simply add a new `.py` file to this folder - it will be automatically discovered and loaded!
+Simply add a new `.py` file to a category folder - it will be automatically discovered and loaded!
 
-1. Create a new `.py` file in this folder
-2. Add metadata comments at the top (optional but recommended):
+**Option 1: Use folder-based categories**
+1. Place your script in the appropriate category folder (e.g., `Analysis/my-script.py`)
+2. The category is automatically determined from the folder name
+3. No metadata comments required (but still recommended for descriptions)
+
+**Option 2: Use metadata comments**
+1. Add metadata comments at the top of your script:
 
 ```python
 # TITLE: Your Script Title
 # DESCRIPTION: Brief description of what the script does
-# CATEGORY: File Analysis | Malware Analysis | Decoding | Archive Analysis | Data Processing
+# CATEGORY: Custom Category (overrides folder category)
 # AUTHOR: Your Name
 
 # Your Python code here...
 ```
 
-3. The script will automatically appear in the Examples dropdown - no code changes needed!
-
-Scripts are automatically discovered at build time using Vite's `import.meta.glob` feature.
+Scripts are automatically discovered at build time using Vite's `import.meta.glob` feature with recursive subfolder support.
 
 ## Metadata Fields
 
@@ -66,9 +82,12 @@ except Exception as e:
 
 ## Current Scripts
 
-- string-extractor.py - Extract ASCII/Unicode strings
+```
+/Extraction/
+└── string-extractor.py - Extract ASCII/Unicode strings
+```
 
-All `.py` files in this folder are automatically loaded - no manual list maintenance required!
+All `.py` files in category folders are automatically loaded - no manual list maintenance required!
 
 ## Removing Scripts
 
