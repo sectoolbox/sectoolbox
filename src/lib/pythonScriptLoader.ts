@@ -57,15 +57,7 @@ export async function loadPythonScripts(): Promise<PythonScript[]> {
 
   // List of script files (you can auto-discover or hardcode)
   const scriptFiles = [
-    'file-hash.py',
-    'entropy-analysis.py',
-    'string-extractor.py',
-    'hex-dump.py',
-    'base64-decoder.py',
-    'zip-analyzer.py',
-    'json-beautifier.py',
-    'file-signature.py',
-    'pe-analyzer.py'
+    'string-extractor.py'
   ]
 
   for (const filename of scriptFiles) {
