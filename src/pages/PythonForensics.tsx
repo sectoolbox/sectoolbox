@@ -86,6 +86,11 @@ except FileNotFoundError:
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [filePreview, setFilePreview] = useState<string>('')
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [fileViewMode, setFileViewMode] = useState<'preview' | 'metadata' | 'hex'>('preview')
+  const [fileMetadata, setFileMetadata] = useState<any>(null)
+  const [hexData, setHexData] = useState<string>('')
+  const [editingMetadata, setEditingMetadata] = useState(false)
+  const [metadataEdits, setMetadataEdits] = useState<Record<string, string>>({})
 
   // Package Manager state
   const [showPackageManager, setShowPackageManager] = useState(false)
@@ -816,11 +821,149 @@ micropip.uninstall('${packageName}')
     }
   }
 
-  const previewFile = (filePath: string) => {
+  const extractMetadata = async (filePath: string) => {
+    if (!pyodide) return null
+
+    try {
+      const metadataJson = await pyodide.runPythonAsync(`
+import json
+import hashlib
+import os
+import struct
+from datetime import datetime
+
+file_path = '${filePath}'
+metadata = {}
+
+# Basic file stats
+try:
+    stat = os.stat(file_path)
+    metadata['size'] = stat.st_size
+    metadata['created'] = datetime.fromtimestamp(stat.st_ctime).isoformat()
+    metadata['modified'] = datetime.fromtimestamp(stat.st_mtime).isoformat()
+    metadata['accessed'] = datetime.fromtimestamp(stat.st_atime).isoformat()
+    metadata['mode'] = oct(stat.st_mode)
+except Exception as e:
+    metadata['stat_error'] = str(e)
+
+# Read file data
+with open(file_path, 'rb') as f:
+    data = f.read()
+
+metadata['actual_size'] = len(data)
+
+# File hashes
+metadata['md5'] = hashlib.md5(data).hexdigest()
+metadata['sha1'] = hashlib.sha1(data).hexdigest()
+metadata['sha256'] = hashlib.sha256(data).hexdigest()
+
+# File signature
+if len(data) >= 16:
+    metadata['magic_bytes'] = ' '.join(f'{b:02x}' for b in data[:16])
+
+    # File type detection
+    if data.startswith(b'\\xff\\xd8\\xff'):
+        metadata['file_type'] = 'JPEG Image'
+    elif data.startswith(b'\\x89PNG\\r\\n\\x1a\\n'):
+        metadata['file_type'] = 'PNG Image'
+    elif data.startswith(b'GIF8'):
+        metadata['file_type'] = 'GIF Image'
+    elif data.startswith(b'BM'):
+        metadata['file_type'] = 'BMP Image'
+    elif data.startswith(b'PK\\x03\\x04'):
+        metadata['file_type'] = 'ZIP Archive'
+    elif data.startswith(b'%PDF'):
+        metadata['file_type'] = 'PDF Document'
+    elif data.startswith(b'MZ'):
+        metadata['file_type'] = 'PE Executable'
+    elif data.startswith(b'\\x7fELF'):
+        metadata['file_type'] = 'ELF Executable'
+
+# Entropy calculation
+import math
+byte_counts = [0] * 256
+for byte in data:
+    byte_counts[byte] += 1
+entropy = 0
+for count in byte_counts:
+    if count > 0:
+        p = count / len(data)
+        entropy -= p * math.log2(p)
+metadata['entropy'] = round(entropy, 4)
+metadata['entropy_note'] = 'High (>7.5) = Encrypted/Compressed, Low (<5) = Plain text'
+
+# String extraction
+printable_strings = []
+current = []
+for byte in data[:50000]:
+    if 32 <= byte <= 126:
+        current.append(chr(byte))
+    else:
+        if len(current) >= 4:
+            printable_strings.append(''.join(current))
+        current = []
+metadata['strings_found'] = len(printable_strings)
+if printable_strings:
+    metadata['sample_strings'] = printable_strings[:30]
+
+# EXIF for images
+if metadata.get('file_type', '').endswith('Image'):
+    exif_data = {}
+    for search_str in [b'Make', b'Model', b'DateTime', b'Software', b'GPS', b'Copyright']:
+        idx = data.find(search_str)
+        if idx != -1:
+            exif_data[search_str.decode('ascii')] = f'Found at offset {idx}'
+    if exif_data:
+        metadata['exif_markers'] = exif_data
+
+# Hidden data detection
+null_count = data.count(b'\\x00')
+metadata['null_bytes'] = null_count
+metadata['null_percentage'] = round((null_count / len(data)) * 100, 2)
+
+# LSB analysis
+if len(data) > 1000:
+    lsb_bytes = [b & 1 for b in data[:1000]]
+    lsb_ones = sum(lsb_bytes)
+    metadata['lsb_ratio'] = round(lsb_ones / len(lsb_bytes), 4)
+    metadata['lsb_suspicious'] = abs(lsb_ones / len(lsb_bytes) - 0.5) > 0.1
+
+# Filename
+metadata['filename'] = os.path.basename(file_path)
+metadata['extension'] = os.path.splitext(file_path)[1]
+
+json.dumps(metadata)
+`)
+
+      return JSON.parse(metadataJson)
+    } catch (error) {
+      console.error('Metadata extraction error:', error)
+      return { error: String(error) }
+    }
+  }
+
+  const previewFile = async (filePath: string) => {
     if (!pyodide) return
     try {
       const data = pyodide.FS.readFile(filePath)
       const size = data.length
+
+      // Extract metadata using Python
+      const metadata = await extractMetadata(filePath)
+      setFileMetadata(metadata)
+
+      // Generate full hex dump
+      let hexDump = ''
+      for (let i = 0; i < size; i += 16) {
+        const hex = Array.from(data.slice(i, i + 16))
+          .map((b: number) => b.toString(16).padStart(2, '0'))
+          .join(' ')
+        const ascii = Array.from(data.slice(i, i + 16))
+          .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+          .join('')
+        hexDump += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
+      }
+      setHexData(hexDump)
 
       // Check if file is an image
       const fileName = filePath.split('/').pop()?.toLowerCase() || ''
@@ -870,6 +1013,7 @@ micropip.uninstall('${packageName}')
       }
 
       setSelectedFile(filePath)
+      setFileViewMode('preview')
     } catch (error) {
       console.error('Preview error:', error)
       toast.error('Failed to preview file')
@@ -887,6 +1031,8 @@ micropip.uninstall('${packageName}')
         setSelectedFile(null)
         setFilePreview('')
         setImagePreview('')
+        setFileMetadata(null)
+        setHexData('')
       }
       toast.success('File deleted')
     } catch (error) {
@@ -1111,7 +1257,7 @@ micropip.uninstall('${packageName}')
             Quick Guide & Commands
           </h3>
 
-          <div className="flex-1 space-y-2 text-[10px] text-muted-foreground overflow-y-auto max-h-32">
+          <div className="flex-1 space-y-2 text-[13px] text-muted-foreground overflow-y-auto max-h-32">
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">1.</span>
               Upload files or folders
@@ -1527,20 +1673,37 @@ micropip.uninstall('${packageName}')
                       )}
                     </div>
 
+                    {selectedFile && (
+                      <div className="flex gap-2 p-2 bg-muted/10 border-b border-border">
+                        <Button
+                          onClick={() => setFileViewMode('preview')}
+                          variant={fileViewMode === 'preview' ? 'default' : 'outline'}
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Preview
+                        </Button>
+                        <Button
+                          onClick={() => setFileViewMode('metadata')}
+                          variant={fileViewMode === 'metadata' ? 'default' : 'outline'}
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Metadata
+                        </Button>
+                        <Button
+                          onClick={() => setFileViewMode('hex')}
+                          variant={fileViewMode === 'hex' ? 'default' : 'outline'}
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Hex View
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex-1 overflow-y-auto p-4">
-                      {imagePreview ? (
-                        <div className="h-full flex items-center justify-center bg-black/50 rounded">
-                          <img
-                            src={imagePreview}
-                            alt={selectedFile?.split('/').pop() || 'Preview'}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
-                      ) : filePreview ? (
-                        <pre className="font-mono text-xs bg-black/50 p-4 rounded whitespace-pre-wrap break-words">
-                          {filePreview}
-                        </pre>
-                      ) : (
+                      {!selectedFile ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">
                           <div className="text-center">
                             <File className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -1548,7 +1711,228 @@ micropip.uninstall('${packageName}')
                             <p className="text-xs mt-2">Click on any file in the tree to view its contents</p>
                           </div>
                         </div>
-                      )}
+                      ) : fileViewMode === 'preview' ? (
+                        <>
+                          {imagePreview ? (
+                            <div className="h-full flex items-center justify-center bg-black/50 rounded">
+                              <img
+                                src={imagePreview}
+                                alt={selectedFile?.split('/').pop() || 'Preview'}
+                                className="max-w-full max-h-full object-contain"
+                              />
+                            </div>
+                          ) : filePreview ? (
+                            <pre className="font-mono text-xs bg-black/50 p-4 rounded whitespace-pre-wrap break-words">
+                              {filePreview}
+                            </pre>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-muted-foreground">
+                              <Loader2 className="h-8 w-8 animate-spin" />
+                            </div>
+                          )}
+                        </>
+                      ) : fileViewMode === 'metadata' ? (
+                        <div className="space-y-3">
+                          {fileMetadata ? (
+                            <>
+                              {fileMetadata.error ? (
+                                <div className="text-red-400 bg-red-900/20 p-4 rounded border border-red-500/30">
+                                  <p className="font-semibold mb-2">Error extracting metadata:</p>
+                                  <pre className="text-xs">{fileMetadata.error}</pre>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="bg-muted/20 p-4 rounded border border-border">
+                                    <h5 className="font-semibold text-sm text-accent mb-3">File Information</h5>
+                                    <div className="space-y-2 text-xs font-mono">
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Filename:</span>
+                                        <span className="text-right">{fileMetadata.filename}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Extension:</span>
+                                        <span className="text-right">{fileMetadata.extension || 'None'}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Size:</span>
+                                        <span className="text-right">{fileMetadata.actual_size?.toLocaleString()} bytes</span>
+                                      </div>
+                                      {fileMetadata.file_type && (
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">Type:</span>
+                                          <span className="text-right text-accent">{fileMetadata.file_type}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Mode:</span>
+                                        <span className="text-right">{fileMetadata.mode}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-muted/20 p-4 rounded border border-border">
+                                    <h5 className="font-semibold text-sm text-accent mb-3">Timestamps</h5>
+                                    <div className="space-y-2 text-xs font-mono">
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Created:</span>
+                                        <span className="text-right">{fileMetadata.created}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Modified:</span>
+                                        <span className="text-right">{fileMetadata.modified}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Accessed:</span>
+                                        <span className="text-right">{fileMetadata.accessed}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-muted/20 p-4 rounded border border-border">
+                                    <h5 className="font-semibold text-sm text-accent mb-3">Cryptographic Hashes</h5>
+                                    <div className="space-y-2 text-xs font-mono">
+                                      <div>
+                                        <span className="text-muted-foreground">MD5:</span>
+                                        <div className="mt-1 p-2 bg-black/30 rounded break-all">{fileMetadata.md5}</div>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">SHA1:</span>
+                                        <div className="mt-1 p-2 bg-black/30 rounded break-all">{fileMetadata.sha1}</div>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">SHA256:</span>
+                                        <div className="mt-1 p-2 bg-black/30 rounded break-all">{fileMetadata.sha256}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {fileMetadata.magic_bytes && (
+                                    <div className="bg-muted/20 p-4 rounded border border-border">
+                                      <h5 className="font-semibold text-sm text-accent mb-3">File Signature (Magic Bytes)</h5>
+                                      <div className="text-xs font-mono p-2 bg-black/30 rounded break-all">
+                                        {fileMetadata.magic_bytes}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="bg-muted/20 p-4 rounded border border-border">
+                                    <h5 className="font-semibold text-sm text-accent mb-3">Entropy Analysis</h5>
+                                    <div className="space-y-2 text-xs font-mono">
+                                      <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Entropy:</span>
+                                        <span className={`text-right font-bold ${fileMetadata.entropy > 7.5 ? 'text-red-400' : fileMetadata.entropy < 5 ? 'text-green-400' : 'text-yellow-400'}`}>
+                                          {fileMetadata.entropy}
+                                        </span>
+                                      </div>
+                                      <div className="text-muted-foreground text-[10px] italic">
+                                        {fileMetadata.entropy_note}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {fileMetadata.null_bytes !== undefined && (
+                                    <div className="bg-muted/20 p-4 rounded border border-border">
+                                      <h5 className="font-semibold text-sm text-accent mb-3">Hidden Data Detection</h5>
+                                      <div className="space-y-2 text-xs font-mono">
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">Null Bytes:</span>
+                                          <span className="text-right">{fileMetadata.null_bytes?.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">Null %:</span>
+                                          <span className={`text-right ${fileMetadata.null_percentage > 10 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                            {fileMetadata.null_percentage}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {fileMetadata.lsb_ratio !== undefined && (
+                                    <div className="bg-muted/20 p-4 rounded border border-border">
+                                      <h5 className="font-semibold text-sm text-accent mb-3">LSB Steganography Analysis</h5>
+                                      <div className="space-y-2 text-xs font-mono">
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">LSB Ratio:</span>
+                                          <span className={`text-right ${fileMetadata.lsb_suspicious ? 'text-red-400 font-bold' : 'text-green-400'}`}>
+                                            {fileMetadata.lsb_ratio}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">Suspicious:</span>
+                                          <span className={`text-right font-bold ${fileMetadata.lsb_suspicious ? 'text-red-400' : 'text-green-400'}`}>
+                                            {fileMetadata.lsb_suspicious ? 'YES - Possible steganography!' : 'No'}
+                                          </span>
+                                        </div>
+                                        <div className="text-muted-foreground text-[10px] italic">
+                                          Normal ratio is ~0.5. Deviation &gt; 0.1 may indicate hidden data in LSB.
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {fileMetadata.strings_found > 0 && (
+                                    <div className="bg-muted/20 p-4 rounded border border-border">
+                                      <h5 className="font-semibold text-sm text-accent mb-3">String Extraction</h5>
+                                      <div className="space-y-2 text-xs">
+                                        <div className="flex justify-between font-mono">
+                                          <span className="text-muted-foreground">Strings Found:</span>
+                                          <span className="text-right">{fileMetadata.strings_found}</span>
+                                        </div>
+                                        {fileMetadata.sample_strings && (
+                                          <div>
+                                            <p className="text-muted-foreground mb-2">Sample Strings (first 30):</p>
+                                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                                              {fileMetadata.sample_strings.map((str: string, idx: number) => (
+                                                <div key={idx} className="p-2 bg-black/30 rounded font-mono text-[10px] break-all">
+                                                  {str}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {fileMetadata.exif_markers && (
+                                    <div className="bg-muted/20 p-4 rounded border border-border">
+                                      <h5 className="font-semibold text-sm text-accent mb-3">EXIF Markers Found</h5>
+                                      <div className="space-y-2 text-xs font-mono">
+                                        {Object.entries(fileMetadata.exif_markers).map(([key, value]) => (
+                                          <div key={key} className="flex justify-between">
+                                            <span className="text-muted-foreground">{key}:</span>
+                                            <span className="text-right text-yellow-400">{String(value)}</span>
+                                          </div>
+                                        ))}
+                                        <div className="text-muted-foreground text-[10px] italic mt-2">
+                                          Note: Full EXIF extraction requires pillow package. These are raw marker positions.
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-muted-foreground">
+                              <Loader2 className="h-8 w-8 animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                      ) : fileViewMode === 'hex' ? (
+                        <div className="h-full">
+                          {hexData ? (
+                            <pre className="font-mono text-[10px] bg-black/50 p-4 rounded whitespace-pre leading-tight">
+                              {hexData}
+                            </pre>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-muted-foreground">
+                              <Loader2 className="h-8 w-8 animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </Panel>
