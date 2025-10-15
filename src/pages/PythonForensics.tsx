@@ -839,8 +839,8 @@ await micropip.install('${packageName}')
    ____ _  _ ___  ___  ____ ____ ___    _  _ ____    ____ _  _    ____ _ ___ _  _ _  _ ___    /
    [__  |  | |__] |__] |  | |__/  |     |  | [__     |  | |\\ |    | __ |  |  |__| |  | |__]  /
    ___] |__| |    |    |__| |  \\  |     |__| ___]    |__| | \\|    |__] |  |  |  | |__| |__] .
-                                                                                             `}
 
+`}
 <a href="https://github.com/sectoolbox/sectoolbox" target="_blank" rel="noopener noreferrer" className="text-cyan-400/70 hover:text-cyan-400 no-underline">
 ╰┈➤ https://github.com/sectoolbox/sectoolbox
 </a>
