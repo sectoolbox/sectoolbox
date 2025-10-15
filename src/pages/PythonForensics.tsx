@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle } from 'lucide-react'
+import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { Input } from '../components/ui/input'
 import Editor from '@monaco-editor/react'
 import { pythonExamples, exampleCategories, PythonExample } from '../lib/pythonExamples'
 import toast from 'react-hot-toast'
@@ -47,6 +48,9 @@ except FileNotFoundError:
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [scriptName, setScriptName] = useState('')
   const [installedPackages, setInstalledPackages] = useState<string[]>([])
+  const [outputFilter, setOutputFilter] = useState('')
+  const [autoScroll, setAutoScroll] = useState(true)
+  const [showExamples, setShowExamples] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
 
@@ -66,6 +70,13 @@ except FileNotFoundError:
       }
     }
   }, [])
+
+  // Auto-scroll output
+  useEffect(() => {
+    if (autoScroll && outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight
+    }
+  }, [output, autoScroll])
 
   const loadPyodide = async () => {
     try {
@@ -117,7 +128,7 @@ _stderr_capture = OutputCapture()
       setIsLoading(false)
 
       // Track installed packages
-      setInstalledPackages(['micropip', 'sys', 'io', 'os', 'hashlib', 're', 'json', 'base64', 'struct', 'datetime'])
+      setInstalledPackages(['micropip', 'sys', 'io', 'os', 'hashlib', 're', 'json', 'base64', 'struct', 'datetime', 'zipfile', 'tarfile'])
 
       toast.success('Python environment loaded successfully!')
     } catch (error) {
@@ -135,7 +146,7 @@ _stderr_capture = OutputCapture()
     }
 
     setIsRunning(true)
-    setOutput('Running...\n')
+    setOutput('>>> Running...\n')
 
     try {
       // Reset output capture
@@ -166,13 +177,6 @@ _stderr_capture.output = []
 
       setOutput(result || '✅ Code executed successfully (no output)')
 
-      // Scroll to bottom of output
-      setTimeout(() => {
-        if (outputRef.current) {
-          outputRef.current.scrollTop = outputRef.current.scrollHeight
-        }
-      }, 100)
-
     } catch (error: any) {
       const errorMessage = error.message || String(error)
       setOutput(`❌ Error:\n${errorMessage}`)
@@ -198,17 +202,16 @@ _stderr_capture.output = []
         setUploadedFiles(prev => [...prev, { name: file.name, size: file.size }])
         toast.success(`Uploaded: ${file.name}`)
 
+        // Auto-update code with the uploaded filename
+        const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
+        const newPath = `'/uploads/${file.name}'`
+        const updatedCode = code.replace(oldPattern, newPath)
+        setCode(updatedCode)
+
       } catch (error) {
         console.error('File upload error:', error)
         toast.error(`Failed to upload ${file.name}`)
       }
-    }
-
-    // Update code to reference the uploaded file
-    if (files.length > 0) {
-      const fileName = files[0].name
-      const newCode = code.replace("'/uploads/sample.bin'", `'/uploads/${fileName}'`)
-      setCode(newCode)
     }
   }
 
@@ -218,6 +221,7 @@ _stderr_capture.output = []
       setCode(example.code)
       setSelectedExample(exampleId)
       setOutput('')
+      setShowExamples(false)
       toast.success(`Loaded: ${example.title}`)
 
       // Show info if packages are required
@@ -289,11 +293,16 @@ _stderr_capture.output = []
     toast.success('Output downloaded')
   }
 
+  const copyOutput = () => {
+    navigator.clipboard.writeText(output)
+    toast.success('Output copied to clipboard')
+  }
+
   const installPackage = async (packageName: string) => {
     if (!pyodide) return
 
     try {
-      setOutput(`Installing ${packageName}...\n`)
+      setOutput(`>>> Installing ${packageName}...\n`)
       await pyodide.runPythonAsync(`
 import micropip
 await micropip.install('${packageName}')
@@ -310,6 +319,44 @@ await micropip.install('${packageName}')
   const filteredExamples = categoryFilter === 'All'
     ? pythonExamples
     : pythonExamples.filter(ex => ex.category === categoryFilter)
+
+  // Filter output based on search
+  const displayOutput = outputFilter.trim()
+    ? output.split('\n').filter(line =>
+        line.toLowerCase().includes(outputFilter.toLowerCase())
+      ).join('\n')
+    : output
+
+  // Syntax highlighting for output
+  const formatOutput = (text: string) => {
+    const lines = text.split('\n')
+    return lines.map((line, index) => {
+      let className = 'text-green-400'
+
+      // Error lines (red)
+      if (line.includes('Error') || line.includes('Exception') || line.includes('Traceback') || line.startsWith('❌')) {
+        className = 'text-red-400 font-semibold'
+      }
+      // Warning lines (yellow)
+      else if (line.includes('Warning') || line.includes('⚠️')) {
+        className = 'text-yellow-400'
+      }
+      // Success lines (green bright)
+      else if (line.includes('✅') || line.includes('Success')) {
+        className = 'text-green-300 font-semibold'
+      }
+      // Info lines (blue)
+      else if (line.startsWith('>>>') || line.startsWith('===')) {
+        className = 'text-blue-400'
+      }
+
+      return (
+        <div key={index} className={`${className} font-mono text-xs leading-relaxed hover:bg-white/5`}>
+          {line || '\u00A0'}
+        </div>
+      )
+    })
+  }
 
   if (isLoading) {
     return (
@@ -337,276 +384,338 @@ await micropip.install('${packageName}')
         </p>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Sidebar - File Manager & Examples */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* File Upload */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Upload className="h-4 w-4" />
+      {/* Tool Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Upload Files Card */}
+        <Card className="p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Upload className="h-4 w-4 text-accent" />
               Upload Files
             </h3>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              variant="outline"
-              className="w-full"
-              size="sm"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Choose Files
-            </Button>
-
-            {/* Uploaded Files List */}
             {uploadedFiles.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-muted-foreground">Uploaded ({uploadedFiles.length}):</p>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-muted/20 p-2 rounded text-xs">
-                      <div className="flex-1 truncate">
-                        <div className="font-mono truncate">{file.name}</div>
-                        <div className="text-muted-foreground">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteUploadedFile(file.name)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+              <span className="px-2 py-1 bg-accent/20 text-accent rounded-full text-xs font-bold">
+                {uploadedFiles.length}
+              </span>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            variant="outline"
+            className="w-full mb-3"
+            size="sm"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Choose Files
+          </Button>
+
+          {/* Uploaded Files List */}
+          <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
+            {uploadedFiles.map((file, index) => (
+              <div key={index} className="flex items-center justify-between bg-muted/20 p-2 rounded text-xs">
+                <div className="flex-1 truncate">
+                  <div className="font-mono truncate">{file.name}</div>
+                  <div className="text-muted-foreground">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => deleteUploadedFile(file.name)}
+                  className="h-6 w-6 p-0 ml-2"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            {uploadedFiles.length === 0 && (
+              <div className="text-center text-muted-foreground text-xs py-4">
+                No files uploaded yet
               </div>
             )}
-          </Card>
+          </div>
+        </Card>
 
-          {/* Example Scripts */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Example Scripts
+        {/* Example Scripts Card */}
+        <Card className="p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-accent" />
+              Examples
             </h3>
-
-            {/* Category Filter */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full mb-3 p-2 rounded bg-background border border-border text-sm"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExamples(!showExamples)}
+              className="h-6 px-2"
             >
-              {exampleCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              {showExamples ? 'Hide' : 'Show'}
+            </Button>
+          </div>
 
-            {/* Examples List */}
-            <div className="space-y-1 max-h-96 overflow-y-auto">
-              {filteredExamples.map(example => (
-                <button
-                  key={example.id}
-                  onClick={() => loadExample(example.id)}
-                  className={`w-full text-left p-2 rounded text-xs hover:bg-muted/50 transition-colors ${
-                    selectedExample === example.id ? 'bg-accent/20 border border-accent' : 'bg-muted/20'
-                  }`}
-                >
-                  <div className="font-medium">{example.title}</div>
-                  <div className="text-muted-foreground text-[10px] mt-1">
-                    {example.description}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </Card>
+          {showExamples ? (
+            <>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full mb-2 p-2 rounded bg-background border border-border text-xs"
+              >
+                {exampleCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
 
-          {/* Saved Scripts */}
-          {savedScripts.length > 0 && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <FolderOpen className="h-4 w-4" />
-                Saved Scripts
-              </h3>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {savedScripts.map((script, index) => (
-                  <div key={index} className="flex items-center justify-between bg-muted/20 p-2 rounded text-xs">
-                    <button
-                      onClick={() => loadSavedScript(script)}
-                      className="flex-1 text-left truncate hover:text-accent"
-                    >
-                      {script.name}
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteSavedScript(index)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+              <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
+                {filteredExamples.map(example => (
+                  <button
+                    key={example.id}
+                    onClick={() => loadExample(example.id)}
+                    className={`w-full text-left p-2 rounded text-xs hover:bg-muted/50 transition-colors ${
+                      selectedExample === example.id ? 'bg-accent/20 border border-accent' : 'bg-muted/20'
+                    }`}
+                  >
+                    <div className="font-medium truncate">{example.title}</div>
+                  </button>
                 ))}
               </div>
-            </Card>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center text-muted-foreground text-xs">
+              <BookOpen className="h-8 w-8 mb-2 opacity-50" />
+              <p>9 example scripts</p>
+              <p className="text-[10px] mt-1">Click "Show" to browse</p>
+            </div>
+          )}
+        </Card>
+
+        {/* Install Package Card */}
+        <Card className="p-4 flex flex-col">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Package className="h-4 w-4 text-accent" />
+            Install Package
+          </h3>
+
+          <input
+            type="text"
+            placeholder="Package name (e.g., pefile)"
+            className="w-full p-2 rounded bg-background border border-border text-xs mb-2"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const input = e.target as HTMLInputElement
+                if (input.value.trim()) {
+                  installPackage(input.value.trim())
+                  input.value = ''
+                }
+              }
+            }}
+          />
+
+          <div className="flex-1 space-y-1">
+            <div className="text-xs text-muted-foreground mb-1">Installed ({installedPackages.length}):</div>
+            <div className="max-h-20 overflow-y-auto space-y-1">
+              {installedPackages.slice(0, 10).map((pkg, index) => (
+                <div key={index} className="text-xs font-mono bg-muted/20 px-2 py-1 rounded">
+                  {pkg}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Quick Guide Card */}
+        <Card className="p-4 flex flex-col">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-accent" />
+            Quick Guide
+          </h3>
+
+          <div className="flex-1 space-y-2 text-xs text-muted-foreground">
+            <p className="flex items-start gap-2">
+              <span className="text-accent font-bold">1.</span>
+              Upload files to analyze
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-accent font-bold">2.</span>
+              Files accessible at <code className="bg-muted px-1 rounded text-[10px]">/uploads/</code>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-accent font-bold">3.</span>
+              Load example or write code
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-accent font-bold">4.</span>
+              Click <span className="text-accent">Run Script</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-accent font-bold">5.</span>
+              View results below
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Python Editor */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            Python Editor
+          </h3>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowSaveDialog(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save
+            </Button>
+            <Button
+              onClick={runCode}
+              disabled={isRunning}
+              size="sm"
+              className="bg-accent hover:bg-accent/90"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Run Script
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="border border-border rounded-lg overflow-hidden">
+          <Editor
+            height="500px"
+            defaultLanguage="python"
+            value={code}
+            onChange={(value) => setCode(value || '')}
+            theme="vs-dark"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineNumbers: 'on',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 4,
+              wordWrap: 'on',
+              padding: { top: 10, bottom: 10 }
+            }}
+          />
+        </div>
+      </Card>
+
+      {/* Output Terminal */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Terminal className="h-4 w-4" />
+            Output Terminal
+          </h3>
+          <div className="flex gap-2 items-center">
+            {/* Search/Filter */}
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Filter output..."
+                value={outputFilter}
+                onChange={(e) => setOutputFilter(e.target.value)}
+                className="pl-7 pr-2 h-7 w-40 text-xs"
+              />
+            </div>
+
+            {/* Auto-scroll toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAutoScroll(!autoScroll)}
+              className="h-7 w-7 p-0"
+              title={autoScroll ? 'Disable auto-scroll' : 'Enable auto-scroll'}
+            >
+              {autoScroll ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+            </Button>
+
+            {output && (
+              <>
+                <Button
+                  onClick={copyOutput}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  title="Copy output"
+                >
+                  <Code className="h-3 w-3" />
+                </Button>
+                <Button
+                  onClick={downloadOutput}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  title="Download output"
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
+                <Button
+                  onClick={clearOutput}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  title="Clear output"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div
+          ref={outputRef}
+          className="bg-black/90 p-4 rounded border border-border h-[400px] overflow-y-auto"
+        >
+          {displayOutput ? (
+            formatOutput(displayOutput)
+          ) : (
+            <div className="text-green-400/50 font-mono text-xs">
+              {'>>> Ready to execute Python code...'}
+            </div>
           )}
         </div>
 
-        {/* Center - Code Editor */}
-        <div className="lg:col-span-6 space-y-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Code className="h-4 w-4" />
-                Python Editor
-              </h3>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setShowSaveDialog(true)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save
-                </Button>
-                <Button
-                  onClick={runCode}
-                  disabled={isRunning}
-                  size="sm"
-                  className="bg-accent hover:bg-accent/90"
-                >
-                  {isRunning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Run Script
-                    </>
-                  )}
-                </Button>
-              </div>
+        {/* Output Stats */}
+        {output && (
+          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <div>
+              Lines: {output.split('\n').length} |
+              Characters: {output.length} |
+              {outputFilter && ` Filtered: ${displayOutput.split('\n').length} lines`}
             </div>
-
-            <div className="border border-border rounded-lg overflow-hidden">
-              <Editor
-                height="500px"
-                defaultLanguage="python"
-                value={code}
-                onChange={(value) => setCode(value || '')}
-                theme="vs-dark"
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 13,
-                  lineNumbers: 'on',
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  tabSize: 4,
-                  wordWrap: 'on'
-                }}
-              />
+            <div className="flex items-center gap-2">
+              <span className={autoScroll ? 'text-green-400' : 'text-muted-foreground'}>
+                Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
+              </span>
             </div>
-          </Card>
-        </div>
-
-        {/* Right - Output Terminal & Info */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Output Terminal */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Terminal className="h-4 w-4" />
-                Output
-              </h3>
-              <div className="flex gap-1">
-                {output && (
-                  <>
-                    <Button
-                      onClick={downloadOutput}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={clearOutput}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div
-              ref={outputRef}
-              className="bg-black/80 text-green-400 p-3 rounded font-mono text-xs h-[300px] overflow-y-auto whitespace-pre-wrap break-words"
-            >
-              {output || '>>> Ready to execute Python code...'}
-            </div>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Install Package
-            </h3>
-            <div className="space-y-2">
-              <input
-                type="text"
-                placeholder="Package name (e.g., pefile)"
-                className="w-full p-2 rounded bg-background border border-border text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const input = e.target as HTMLInputElement
-                    if (input.value.trim()) {
-                      installPackage(input.value.trim())
-                      input.value = ''
-                    }
-                  }
-                }}
-              />
-              <div className="text-xs text-muted-foreground">
-                Common packages: pefile, yara-python, dpkt, Pillow
-              </div>
-            </div>
-          </Card>
-
-          {/* Info Card */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              Quick Guide
-            </h3>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p>1. Upload your files using the upload button</p>
-              <p>2. Access files at: <code className="bg-muted px-1 rounded">/uploads/filename</code></p>
-              <p>3. Load an example or write custom code</p>
-              <p>4. Click "Run Script" to execute</p>
-              <p>5. View results in the output terminal</p>
-              <div className="pt-2 border-t border-border mt-3">
-                <p className="font-medium text-foreground mb-1">Pre-installed:</p>
-                <p>hashlib, re, json, base64, struct, datetime, zipfile</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+          </div>
+        )}
+      </Card>
 
       {/* Save Script Dialog */}
       {showSaveDialog && (
