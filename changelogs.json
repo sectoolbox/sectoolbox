@@ -1,5 +1,99 @@
 [
   {
+    "date": "2025-10-16",
+    "version": "v2.0.0",
+    "title": "Python Forensics Major Update - Advanced Features",
+    "description": "Complete overhaul of Python Forensics environment with file browser, visualization support, package management, and shell-like helper functions for CTF and forensics analysis.",
+    "changes": [
+      "Added File Browser/Explorer with tree view of uploaded files and folders",
+      "Download any file from virtual filesystem with one click",
+      "File preview with text display and hex dump for binary files",
+      "Delete files directly from file browser interface",
+      "Visualization Support: Display images directly in output using show_image() function",
+      "Automatic image detection and rendering (PNG, JPEG, GIF, BMP)",
+      "Package Manager UI with search functionality and one-click install",
+      "Popular CTF/Forensics packages pre-listed (pycryptodome, pillow, numpy, pefile, requests, etc.)",
+      "Uninstall capability for user-installed packages",
+      "Real-time package installation status with loading indicators",
+      "Shell-like helper functions: ls(), cat(), head(), tail(), grep(), hexdump(), tree(), pwd(), fileinfo()",
+      "Unix-like commands work seamlessly in Python environment",
+      "Split-panel interface for file browser and package manager",
+      "Resizable panels for optimal workspace customization"
+    ]
+  },
+  {
+    "date": "2025-10-15",
+    "version": "v1.9.5",
+    "title": "Python Forensics - Auto Filename Replacement",
+    "description": "Intelligent automatic filename replacement when uploading files to Python environment.",
+    "changes": [
+      "Auto-replace 'sample.bin' with actual uploaded filename in all script tabs",
+      "Smart regex matching handles both single and double quotes",
+      "Applies to all open tabs simultaneously when file is uploaded",
+      "Works with both file and folder uploads",
+      "Preserves relative paths for files in subdirectories"
+    ]
+  },
+  {
+    "date": "2025-10-15",
+    "version": "v1.9.4",
+    "title": "Python Forensics - Simplified File Paths",
+    "description": "Streamlined file path handling by changing Pyodide working directory to /uploads/.",
+    "changes": [
+      "Changed Pyodide working directory to /uploads/ for simpler paths",
+      "Scripts can now use simple paths like 'sample.bin' instead of '/uploads/sample.bin'",
+      "Updated all 17 CTF scripts to use simplified path format",
+      "Updated Quick Guide to reflect new path convention",
+      "More intuitive for CTF users familiar with standard command-line workflows"
+    ]
+  },
+  {
+    "date": "2025-10-15",
+    "version": "v1.9.3",
+    "title": "Python Forensics - Enhanced Terminal Banner",
+    "description": "Redesigned terminal idle screen with ASCII art banner and GitHub link.",
+    "changes": [
+      "Added custom ASCII art banner for SecToolbox branding",
+      "System initialization status display showing Pyodide version and tools count",
+      "GitHub repository link prominently displayed on idle screen",
+      "Cute ASCII cat art for visual appeal",
+      "Professional formatting with proper spacing and alignment",
+      "Green/cyan color scheme for terminal aesthetic"
+    ]
+  },
+  {
+    "date": "2025-10-15",
+    "version": "v1.9.2",
+    "title": "Python Forensics - 17 CTF Scripts Added",
+    "description": "Comprehensive collection of 17 CTF-focused forensics scripts organized by category.",
+    "changes": [
+      "Analysis category: file-hash.py, entropy-calculator.py, file-signature.py, hex-dump.py",
+      "Extraction category: string-extractor.py, url-extractor.py, email-extractor.py, ip-extractor.py, unicode-strings.py",
+      "Forensics category: metadata-extractor.py, steganography-detector.py, carved-file-extractor.py, xor-bruteforce.py",
+      "Decoding category: base64-decoder.py, hex-decoder.py, rot13-caesar.py, url-decode.py, multi-decoder.py",
+      "All scripts include metadata headers (TITLE, DESCRIPTION, CATEGORY, AUTHOR)",
+      "Full output display with no filtering to prevent information loss",
+      "Error handling for file not found scenarios",
+      "Optimized for CTF challenge analysis workflows"
+    ]
+  },
+  {
+    "date": "2025-10-14",
+    "version": "v1.9.1",
+    "title": "Python Forensics - Category Organization",
+    "description": "Reorganized Python scripts into category folders with automatic discovery and filtering.",
+    "changes": [
+      "Created folder structure: Analysis, Extraction, Forensics, Decoding categories",
+      "Automatic script discovery using Vite glob patterns (import.meta.glob)",
+      "Category filter dropdown for easy script navigation",
+      "Automatic category detection from folder names",
+      "Updated pythonScriptLoader.ts for recursive folder discovery",
+      "Replaced Code History with Undo/Redo buttons using Monaco Editor API",
+      "Removed pythonExamples.ts in favor of organized folder structure",
+      "Cleaner UI with category-based organization"
+    ]
+  },
+  {
     "date": "2025-10-12",
     "version": "v1.8.0",
     "title": "Mobile Optimization & Dashboard Enhancements",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2 } from 'lucide-react'
+import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2, File, ChevronRight, ChevronDown, FileText, Image as ImageIcon, Archive, FileCode, FileQuestion } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -80,6 +80,20 @@ except FileNotFoundError:
   const [scriptCategories, setScriptCategories] = useState<string[]>(['All'])
   const [isDragging, setIsDragging] = useState(false)
 
+  // File Browser state
+  const [showFileBrowser, setShowFileBrowser] = useState(false)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/uploads']))
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [filePreview, setFilePreview] = useState<string>('')
+
+  // Visualization state
+  const [visualizations, setVisualizations] = useState<Array<{type: string, data: string, name: string}>>([])
+
+  // Package Manager state
+  const [showPackageManager, setShowPackageManager] = useState(false)
+  const [packageSearch, setPackageSearch] = useState('')
+  const [isInstalling, setIsInstalling] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
@@ -133,6 +147,7 @@ except FileNotFoundError:
 
       pyodideModule.runPython(`
 import sys
+import os
 from io import StringIO
 
 class OutputCapture:
@@ -149,6 +164,172 @@ class OutputCapture:
 
 _stdout_capture = OutputCapture()
 _stderr_capture = OutputCapture()
+
+# Shell-like helper functions
+def ls(path='.'):
+    """List files in directory"""
+    try:
+        items = os.listdir(path)
+        for item in sorted(items):
+            full_path = os.path.join(path, item)
+            if os.path.isdir(full_path):
+                print(f"{item}/")
+            else:
+                size = os.path.getsize(full_path)
+                print(f"{item:<30} {size:>10} bytes")
+        return items
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
+def cat(filename):
+    """Display file contents"""
+    try:
+        with open(filename, 'rb') as f:
+            data = f.read()
+        try:
+            print(data.decode('utf-8'))
+        except:
+            print(f"Binary file ({len(data)} bytes)")
+            print("Use hexdump() to view binary data")
+    except Exception as e:
+        print(f"Error: {e}")
+
+def head(filename, n=10):
+    """Show first n lines of file"""
+    try:
+        with open(filename, 'r') as f:
+            for i, line in enumerate(f):
+                if i >= n:
+                    break
+                print(line.rstrip())
+    except Exception as e:
+        print(f"Error: {e}")
+
+def tail(filename, n=10):
+    """Show last n lines of file"""
+    try:
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+        for line in lines[-n:]:
+            print(line.rstrip())
+    except Exception as e:
+        print(f"Error: {e}")
+
+def grep(pattern, filename):
+    """Search for pattern in file"""
+    try:
+        import re
+        with open(filename, 'rb') as f:
+            data = f.read()
+        text = data.decode('utf-8', errors='ignore')
+        matches = []
+        for i, line in enumerate(text.split('\\n'), 1):
+            if re.search(pattern, line, re.IGNORECASE):
+                print(f"{i}: {line}")
+                matches.append((i, line))
+        if not matches:
+            print(f"No matches found for '{pattern}'")
+        return matches
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
+def hexdump(filename, length=256):
+    """Display hex dump of file"""
+    try:
+        with open(filename, 'rb') as f:
+            data = f.read(length)
+        for i in range(0, len(data), 16):
+            chunk = data[i:i+16]
+            hex_part = ' '.join(f'{b:02x}' for b in chunk)
+            ascii_part = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
+            print(f"{i:08x}  {hex_part:<48}  |{ascii_part}|")
+        if len(data) == length:
+            print(f"... (showing first {length} bytes)")
+    except Exception as e:
+        print(f"Error: {e}")
+
+def tree(path='.', prefix='', max_depth=3, _depth=0):
+    """Display directory tree"""
+    if _depth >= max_depth:
+        return
+    try:
+        items = sorted(os.listdir(path))
+        for i, item in enumerate(items):
+            is_last = i == len(items) - 1
+            full_path = os.path.join(path, item)
+            print(f"{prefix}{'└── ' if is_last else '├── '}{item}")
+            if os.path.isdir(full_path):
+                tree(full_path, prefix + ('    ' if is_last else '│   '), max_depth, _depth + 1)
+    except Exception as e:
+        print(f"Error: {e}")
+
+def pwd():
+    """Print working directory"""
+    cwd = os.getcwd()
+    print(cwd)
+    return cwd
+
+def fileinfo(filename):
+    """Show detailed file information"""
+    try:
+        import hashlib
+        stat = os.stat(filename)
+        with open(filename, 'rb') as f:
+            data = f.read()
+
+        print(f"File: {filename}")
+        print(f"Size: {stat.st_size} bytes")
+        print(f"MD5:  {hashlib.md5(data).hexdigest()}")
+        print(f"SHA1: {hashlib.sha1(data).hexdigest()}")
+
+        # Check if printable
+        printable = sum(1 for b in data if 32 <= b <= 126 or b in (9, 10, 13))
+        print(f"Printable: {printable/len(data)*100:.1f}%")
+
+        # File signature
+        if data.startswith(b'\\xff\\xd8\\xff'):
+            print("Type: JPEG image")
+        elif data.startswith(b'\\x89PNG'):
+            print("Type: PNG image")
+        elif data.startswith(b'PK\\x03\\x04'):
+            print("Type: ZIP archive")
+        elif data.startswith(b'%PDF'):
+            print("Type: PDF document")
+        elif data.startswith(b'MZ'):
+            print("Type: PE executable")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+def show_image(filename):
+    """Display an image in the output (PNG, JPEG, GIF)"""
+    try:
+        with open(filename, 'rb') as f:
+            data = f.read()
+        import base64
+        b64 = base64.b64encode(data).decode('utf-8')
+
+        # Check image type
+        img_type = 'png'
+        if data.startswith(b'\\xff\\xd8\\xff'):
+            img_type = 'jpeg'
+        elif data.startswith(b'GIF8'):
+            img_type = 'gif'
+        elif data.startswith(b'BM'):
+            img_type = 'bmp'
+
+        # Output special marker for image visualization
+        print(f"__IMAGE__:{filename}:data:image/{img_type};base64,{b64}")
+        print(f"[Image displayed: {filename}]")
+    except Exception as e:
+        print(f"Error displaying image: {e}")
+
+print("[*] Shell-like helper functions loaded:")
+print("    ls(), cat(), head(), tail(), grep(), hexdump()")
+print("    tree(), pwd(), fileinfo(), show_image()")
+print()
 `)
 
       try {
@@ -188,6 +369,7 @@ _stderr_capture = OutputCapture()
     saveToHistory(activeTabId, activeTab.code, 'Before run')
     setIsRunning(true)
     setOutput('>>> Running...\n')
+    setVisualizations([])
 
     try {
       await pyodide.runPythonAsync(`
@@ -210,6 +392,22 @@ _stderr_capture.output = []
       let result = ''
       if (stdout) result += stdout
       if (stderr) result += '\n' + stderr
+
+      // Extract image visualizations
+      const vizMatches = result.matchAll(/__IMAGE__:([^:]+):([^\\n]+)/g)
+      const newViz: Array<{type: string, data: string, name: string}> = []
+
+      for (const match of vizMatches) {
+        newViz.push({
+          type: 'image',
+          name: match[1],
+          data: match[2]
+        })
+        // Remove the marker from output
+        result = result.replace(match[0], '')
+      }
+
+      setVisualizations(newViz)
       setOutput(result || '✅ Code executed successfully (no output)')
     } catch (error: any) {
       setOutput(`❌ Error:\n${error.message || String(error)}`)
@@ -518,19 +716,293 @@ _stderr_capture.output = []
 
   const installPackage = async (packageName: string) => {
     if (!pyodide) return
+    setIsInstalling(true)
     try {
-      setOutput(`>>> Installing ${packageName}...\n`)
+      setOutput(prev => prev + `>>> Installing ${packageName}...\n`)
       await pyodide.runPythonAsync(`
 import micropip
 await micropip.install('${packageName}')
 `)
-      setInstalledPackages(prev => [...prev, packageName])
+      setInstalledPackages(prev => {
+        if (!prev.includes(packageName)) {
+          return [...prev, packageName]
+        }
+        return prev
+      })
       setOutput(prev => prev + `✅ ${packageName} installed successfully\n`)
       toast.success(`Installed: ${packageName}`)
     } catch (error: any) {
       setOutput(prev => prev + `❌ Failed to install ${packageName}: ${error.message}\n`)
       toast.error(`Failed to install ${packageName}`)
+    } finally {
+      setIsInstalling(false)
     }
+  }
+
+  const uninstallPackage = async (packageName: string) => {
+    if (!pyodide) return
+    try {
+      await pyodide.runPythonAsync(`
+import micropip
+micropip.uninstall('${packageName}')
+`)
+      setInstalledPackages(prev => prev.filter(p => p !== packageName))
+      setOutput(prev => prev + `✅ ${packageName} uninstalled successfully\n`)
+      toast.success(`Uninstalled: ${packageName}`)
+    } catch (error: any) {
+      setOutput(prev => prev + `❌ Failed to uninstall ${packageName}: ${error.message}\n`)
+      toast.error(`Failed to uninstall ${packageName}`)
+    }
+  }
+
+  // Popular CTF/Forensics packages
+  const popularPackages = [
+    { name: 'pycryptodome', description: 'Cryptographic library' },
+    { name: 'pillow', description: 'Image processing' },
+    { name: 'numpy', description: 'Numerical computing' },
+    { name: 'requests', description: 'HTTP library' },
+    { name: 'beautifulsoup4', description: 'HTML/XML parsing' },
+    { name: 'pefile', description: 'PE file parser' },
+    { name: 'pyzipper', description: 'ZIP file handling' },
+  ]
+
+  // File Browser Functions
+  interface FileTreeNode {
+    name: string
+    path: string
+    isDirectory: boolean
+    size?: number
+    children?: FileTreeNode[]
+  }
+
+  const buildFileTree = (): FileTreeNode => {
+    if (!pyodide) return { name: 'uploads', path: '/uploads', isDirectory: true, children: [] }
+
+    const root: FileTreeNode = { name: 'uploads', path: '/uploads', isDirectory: true, children: [] }
+
+    const processDirectory = (dirPath: string, node: FileTreeNode) => {
+      try {
+        const items = pyodide.FS.readdir(dirPath)
+
+        for (const item of items) {
+          if (item === '.' || item === '..') continue
+
+          const fullPath = dirPath === '/uploads' ? `/uploads/${item}` : `${dirPath}/${item}`
+
+          try {
+            const stat = pyodide.FS.stat(fullPath)
+            const isDir = pyodide.FS.isDir(stat.mode)
+
+            const childNode: FileTreeNode = {
+              name: item,
+              path: fullPath,
+              isDirectory: isDir,
+              size: isDir ? undefined : stat.size,
+              children: isDir ? [] : undefined
+            }
+
+            if (isDir && expandedFolders.has(fullPath)) {
+              processDirectory(fullPath, childNode)
+            }
+
+            node.children!.push(childNode)
+          } catch (e) {
+            console.error(`Error processing ${fullPath}:`, e)
+          }
+        }
+
+        // Sort: directories first, then files
+        node.children!.sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1
+          if (!a.isDirectory && b.isDirectory) return 1
+          return a.name.localeCompare(b.name)
+        })
+      } catch (e) {
+        console.error(`Error reading directory ${dirPath}:`, e)
+      }
+    }
+
+    processDirectory('/uploads', root)
+    return root
+  }
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(path)) {
+        newSet.delete(path)
+      } else {
+        newSet.add(path)
+      }
+      return newSet
+    })
+  }
+
+  const downloadFile = (filePath: string) => {
+    if (!pyodide) return
+    try {
+      const data = pyodide.FS.readFile(filePath)
+      const blob = new Blob([data], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filePath.split('/').pop() || 'file'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Downloaded: ${filePath.split('/').pop()}`)
+    } catch (error) {
+      console.error('Download error:', error)
+      toast.error('Failed to download file')
+    }
+  }
+
+  const previewFile = (filePath: string) => {
+    if (!pyodide) return
+    try {
+      const data = pyodide.FS.readFile(filePath)
+      const size = data.length
+
+      // Check if file is text
+      let preview = ''
+      const printable = data.filter((b: number) => (b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13).length
+      const ratio = printable / size
+
+      if (ratio > 0.7 && size < 100000) {
+        // Text file
+        const decoder = new TextDecoder('utf-8', { fatal: false })
+        preview = decoder.decode(data)
+        if (preview.length > 5000) {
+          preview = preview.substring(0, 5000) + '\n\n... (truncated, file is too large)'
+        }
+      } else {
+        // Binary file - show hex dump
+        preview = 'Binary file - Hex dump (first 512 bytes):\n\n'
+        const maxBytes = Math.min(512, size)
+        for (let i = 0; i < maxBytes; i += 16) {
+          const hex = Array.from(data.slice(i, i + 16))
+            .map((b: number) => b.toString(16).padStart(2, '0'))
+            .join(' ')
+          const ascii = Array.from(data.slice(i, i + 16))
+            .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+            .join('')
+          preview += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
+        }
+        if (size > 512) {
+          preview += `\n... (showing first 512 of ${size} bytes)`
+        }
+      }
+
+      setFilePreview(preview)
+      setSelectedFile(filePath)
+    } catch (error) {
+      console.error('Preview error:', error)
+      toast.error('Failed to preview file')
+    }
+  }
+
+  const deleteFile = (filePath: string) => {
+    if (!pyodide) return
+    if (!confirm(`Delete ${filePath.split('/').pop()}?`)) return
+
+    try {
+      pyodide.FS.unlink(filePath)
+      setUploadedFiles(prev => prev.filter(f => `/uploads/${f.path}` !== filePath))
+      if (selectedFile === filePath) {
+        setSelectedFile(null)
+        setFilePreview('')
+      }
+      toast.success('File deleted')
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete file')
+    }
+  }
+
+  const getFileIcon = (fileName: string, isDirectory: boolean) => {
+    if (isDirectory) return <FolderOpen className="h-4 w-4 text-yellow-400" />
+
+    const ext = fileName.split('.').pop()?.toLowerCase()
+
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || '')) {
+      return <ImageIcon className="h-4 w-4 text-purple-400" />
+    }
+    if (['zip', 'tar', 'gz', 'rar', '7z'].includes(ext || '')) {
+      return <Archive className="h-4 w-4 text-orange-400" />
+    }
+    if (['py', 'js', 'ts', 'html', 'css', 'json', 'xml'].includes(ext || '')) {
+      return <FileCode className="h-4 w-4 text-green-400" />
+    }
+    if (['txt', 'md', 'log', 'csv'].includes(ext || '')) {
+      return <FileText className="h-4 w-4 text-blue-400" />
+    }
+
+    return <FileQuestion className="h-4 w-4 text-gray-400" />
+  }
+
+  const renderFileTree = (node: FileTreeNode, depth: number = 0): JSX.Element => {
+    const isExpanded = expandedFolders.has(node.path)
+    const isSelected = selectedFile === node.path
+
+    return (
+      <div key={node.path}>
+        <div
+          className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-accent/20 border-l-2 border-accent' : ''}`}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          onClick={() => {
+            if (node.isDirectory) {
+              toggleFolder(node.path)
+            } else {
+              previewFile(node.path)
+            }
+          }}
+        >
+          {node.isDirectory && (
+            isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
+          )}
+          {!node.isDirectory && <span className="w-3" />}
+          {getFileIcon(node.name, node.isDirectory)}
+          <span className="flex-1 text-xs font-mono truncate">{node.name}</span>
+          {!node.isDirectory && node.size !== undefined && (
+            <span className="text-xs text-muted-foreground">{(node.size / 1024).toFixed(1)} KB</span>
+          )}
+          {!node.isDirectory && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  downloadFile(node.path)
+                }}
+                title="Download"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  deleteFile(node.path)
+                }}
+                title="Delete"
+              >
+                <Trash2 className="h-3 w-3 text-red-400" />
+              </Button>
+            </div>
+          )}
+        </div>
+        {node.isDirectory && isExpanded && node.children && node.children.length > 0 && (
+          <div>
+            {node.children.map(child => renderFileTree(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   const filteredExamples = categoryFilter === 'All'
@@ -715,6 +1187,17 @@ await micropip.install('${packageName}')
         </Card>
       </div>
 
+      <div className="flex justify-center gap-3 mb-4 flex-shrink-0">
+        <Button onClick={() => setShowFileBrowser(true)} variant="outline" size="sm">
+          <FolderOpen className="h-4 w-4 mr-2" />
+          Open File Browser
+        </Button>
+        <Button onClick={() => setShowPackageManager(true)} variant="outline" size="sm">
+          <Package className="h-4 w-4 mr-2" />
+          Package Manager
+        </Button>
+      </div>
+
       <div className="flex-1 min-h-0">
         <PanelGroup direction="horizontal">
           <Panel defaultSize={50} minSize={30}>
@@ -833,9 +1316,32 @@ await micropip.install('${packageName}')
                 </div>
               </div>
 
-              <div ref={outputRef} className="flex-1 bg-black/90 p-4 rounded border border-border overflow-y-auto">
+              <div ref={outputRef} className="flex-1 bg-black/90 p-4 rounded border border-border overflow-y-auto space-y-4">
                 {displayOutput ? (
-                  formatOutput(displayOutput)
+                  <>
+                    {formatOutput(displayOutput)}
+                    {visualizations.length > 0 && (
+                      <div className="mt-4 space-y-4 border-t border-accent/30 pt-4">
+                        <div className="text-accent font-semibold text-sm">Visualizations:</div>
+                        {visualizations.map((viz, idx) => (
+                          <div key={idx} className="border border-accent/20 rounded p-3 bg-black/50">
+                            <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                              <ImageIcon className="h-3 w-3" />
+                              {viz.name}
+                            </div>
+                            {viz.type === 'image' && (
+                              <img
+                                src={viz.data}
+                                alt={viz.name}
+                                className="max-w-full h-auto rounded border border-accent/10"
+                                style={{ maxHeight: '500px' }}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <pre className="text-green-400/60 font-mono text-[16px] leading-tight">
 {`System initialized...
@@ -892,6 +1398,230 @@ await micropip.install('${packageName}')
             <div className="flex gap-2 justify-end">
               <Button onClick={() => setShowSaveDialog(false)} variant="outline" size="sm">Cancel</Button>
               <Button onClick={saveScript} size="sm">Save</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showPackageManager && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl h-[75vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-xl flex items-center gap-2">
+                <Package className="h-5 w-5 text-accent" />
+                Package Manager
+              </h3>
+              <Button onClick={() => setShowPackageManager(false)} variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search or enter package name to install..."
+                  value={packageSearch}
+                  onChange={(e) => setPackageSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && packageSearch.trim()) {
+                      installPackage(packageSearch.trim())
+                      setPackageSearch('')
+                    }
+                  }}
+                  className="pl-10"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Press Enter to install. Packages are downloaded from PyPI via micropip.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-hidden p-4">
+              <PanelGroup direction="vertical">
+                <Panel defaultSize={60} minSize={40}>
+                  <div className="h-full flex flex-col">
+                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <Package className="h-4 w-4 text-accent" />
+                      Popular Forensics & CTF Packages
+                    </h4>
+                    <div className="flex-1 overflow-y-auto space-y-2">
+                      {popularPackages
+                        .filter(pkg =>
+                          packageSearch === '' ||
+                          pkg.name.toLowerCase().includes(packageSearch.toLowerCase()) ||
+                          pkg.description.toLowerCase().includes(packageSearch.toLowerCase())
+                        )
+                        .map(pkg => {
+                          const isInstalled = installedPackages.includes(pkg.name)
+                          return (
+                            <div
+                              key={pkg.name}
+                              className="flex items-center justify-between p-3 bg-muted/20 rounded border border-border hover:border-accent/30 transition-colors"
+                            >
+                              <div className="flex-1">
+                                <div className="font-mono font-semibold text-sm flex items-center gap-2">
+                                  {pkg.name}
+                                  {isInstalled && (
+                                    <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                                      Installed
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">{pkg.description}</div>
+                              </div>
+                              <Button
+                                onClick={() => installPackage(pkg.name)}
+                                disabled={isInstalling || isInstalled}
+                                size="sm"
+                                variant={isInstalled ? 'outline' : 'default'}
+                                className="ml-4"
+                              >
+                                {isInstalling ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : isInstalled ? (
+                                  'Installed'
+                                ) : (
+                                  'Install'
+                                )}
+                              </Button>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                </Panel>
+
+                <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize my-2" />
+
+                <Panel defaultSize={40} minSize={30}>
+                  <div className="h-full flex flex-col">
+                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <Package className="h-4 w-4 text-green-400" />
+                      Installed Packages ({installedPackages.length})
+                    </h4>
+                    <div className="flex-1 overflow-y-auto space-y-1">
+                      {installedPackages.map(pkg => (
+                        <div
+                          key={pkg}
+                          className="flex items-center justify-between p-2 bg-muted/10 rounded text-xs hover:bg-muted/20 transition-colors"
+                        >
+                          <span className="font-mono">{pkg}</span>
+                          {!['micropip', 'sys', 'io', 'os', 'hashlib', 're', 'json', 'base64', 'struct', 'datetime', 'zipfile', 'tarfile'].includes(pkg) && (
+                            <Button
+                              onClick={() => uninstallPackage(pkg)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-red-400 hover:text-red-300"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              <div>
+                Packages are installed via micropip from PyPI
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-accent">Tip:</span>
+                Core packages cannot be uninstalled
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showFileBrowser && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-6xl h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-xl flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-accent" />
+                File Browser - /uploads/
+              </h3>
+              <Button onClick={() => setShowFileBrowser(false)} variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              <PanelGroup direction="horizontal">
+                <Panel defaultSize={40} minSize={25}>
+                  <div className="h-full overflow-y-auto p-4 border-r border-border">
+                    <div className="space-y-1 group">
+                      {buildFileTree().children && buildFileTree().children.length > 0 ? (
+                        buildFileTree().children.map(child => renderFileTree(child, 0))
+                      ) : (
+                        <div className="text-center text-muted-foreground text-sm py-8">
+                          <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                          <p>No files uploaded yet</p>
+                          <p className="text-xs mt-2">Upload files to get started</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Panel>
+
+                <PanelResizeHandle className="w-2 bg-border hover:bg-accent transition-colors cursor-col-resize" />
+
+                <Panel defaultSize={60} minSize={30}>
+                  <div className="h-full flex flex-col">
+                    <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        <File className="h-4 w-4" />
+                        {selectedFile ? selectedFile.split('/').pop() : 'File Preview'}
+                      </h4>
+                      {selectedFile && (
+                        <div className="flex gap-2">
+                          <Button onClick={() => downloadFile(selectedFile)} variant="outline" size="sm">
+                            <Download className="h-3 w-3 mr-2" />
+                            Download
+                          </Button>
+                          <Button onClick={() => deleteFile(selectedFile)} variant="outline" size="sm" className="text-red-400 hover:text-red-300">
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4">
+                      {filePreview ? (
+                        <pre className="font-mono text-xs bg-black/50 p-4 rounded whitespace-pre-wrap break-words">
+                          {filePreview}
+                        </pre>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                          <div className="text-center">
+                            <File className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                            <p>Select a file to preview</p>
+                            <p className="text-xs mt-2">Click on any file in the tree to view its contents</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              <div>
+                Total files: {uploadedFiles.length} |
+                Total size: {(uploadedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-accent">Tip:</span>
+                Click file to preview | Download or delete using buttons
+              </div>
             </div>
           </Card>
         </div>
