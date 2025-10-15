@@ -772,7 +772,7 @@ await micropip.install('${packageName}')
                   theme="vs-dark"
                   options={{
                   minimap: { enabled: false },
-                  fontSize: 13,
+                  fontSize: 17,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
@@ -837,8 +837,8 @@ await micropip.install('${packageName}')
 |+| Premade Tools Loaded | 17 forensic tools ready
 
    ____ _  _ ___  ___  ____ ____ ___    _  _ ____    ____ _  _    ____ _ ___ _  _ _  _ ___    /
-   [__  |  | |__] |__] |  | |__/  |     |  | [__     |  | |\\ |    | __ |  |  |__| |  | |__]  /
-   ___] |__| |    |    |__| |  \\  |     |__| ___]    |__| | \\|    |__] |  |  |  | |__| |__] .
+   [__  |  | |__] |__] |  | |__/  |     |  | [__     |  | |\ |    | __ |  |  |__| |  | |__]  /
+   ___] |__| |    |    |__| |  \  |     |__| ___]    |__| | \|    |__] |  |  |  | |__| |__] .
 
 `}
 <a href="https://github.com/sectoolbox/sectoolbox" target="_blank" rel="noopener noreferrer" className="text-cyan-400/70 hover:text-cyan-400 no-underline">
@@ -847,24 +847,24 @@ await micropip.install('${packageName}')
 {`
            ___   .--.
      .--.-"   "-' .- |
-    / .-,\`          .'
-    \\   \`           \\
-     '.            ! \\
+    / .-,`          .'
+    \   `           \
+     '.            ! \
        |     !  .--.  |
-       \\        '--'  /.____
-      /\`-.     \\__,'.'      \`\\
-   __/   \\\`-.____.-' \`\\      /
-   | \`---\`'-'._/-\`     \\----'    _
-   |,-'\`  /             |    _.-' \`\\
-  .'     /              |--'\`     / |
- /      /\\              \`         | |
- |   .\\/  \\      .--. __          \\ |
-  '-'      '._       /  \`\\         /
-              \`\\    '     |------'\`
-                \\  |      |
-                 \\        /
+       \        '--'  /.____
+      /`-.     \__,'.'      `\
+   __/   \`-.____.-' `\      /
+   | `---`'-'._/-`     \----'    _
+   |,-'`  /             |    _.-' `\
+  .'     /              |--'`     / |
+ /      /\              `         | |
+ |   .\/  \      .--. __          \ |
+  '-'      '._       /  `\         /
+              `\    '     |------'`
+                \  |      |
+                 \        /
                   '._  _.'
-                     \`\`
+                     ``
 `}
                   </pre>
                 )}
