@@ -561,158 +561,169 @@ await micropip.install('${packageName}')
         </Card>
       </div>
 
-      {/* Python Editor */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center gap-2">
-            <Code className="h-4 w-4" />
-            Python Editor
-          </h3>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowSaveDialog(true)}
-              variant="outline"
-              size="sm"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save
-            </Button>
-            <Button
-              onClick={runCode}
-              disabled={isRunning}
-              size="sm"
-              className="bg-accent hover:bg-accent/90"
-            >
-              {isRunning ? (
+      {/* Python Editor and Output Terminal - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Python Editor */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Code className="h-4 w-4" />
+              Python Editor
+            </h3>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowSaveDialog(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+              <Button
+                onClick={runCode}
+                disabled={isRunning}
+                size="sm"
+                className="bg-accent hover:bg-accent/90"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Run Script
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="border border-border rounded-lg overflow-hidden">
+            <Editor
+              height="600px"
+              defaultLanguage="python"
+              value={code}
+              onChange={(value) => setCode(value || '')}
+              theme="vs-dark"
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 4,
+                wordWrap: 'on',
+                padding: { top: 10, bottom: 10 },
+                find: {
+                  addExtraSpaceOnTop: false,
+                  autoFindInSelection: 'never',
+                  seedSearchStringFromSelection: 'always'
+                }
+              }}
+            />
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Press <kbd className="px-1.5 py-0.5 bg-muted rounded border border-border">Ctrl+F</kbd> to find, <kbd className="px-1.5 py-0.5 bg-muted rounded border border-border">Ctrl+H</kbd> to find & replace
+          </div>
+        </Card>
+
+        {/* Output Terminal */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Terminal className="h-4 w-4" />
+              Output Terminal
+            </h3>
+            <div className="flex gap-2 items-center">
+              {/* Search/Filter */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Filter output..."
+                  value={outputFilter}
+                  onChange={(e) => setOutputFilter(e.target.value)}
+                  className="pl-7 pr-2 h-7 w-40 text-xs"
+                />
+              </div>
+
+              {/* Auto-scroll toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAutoScroll(!autoScroll)}
+                className="h-7 w-7 p-0"
+                title={autoScroll ? 'Disable auto-scroll' : 'Enable auto-scroll'}
+              >
+                {autoScroll ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+              </Button>
+
+              {output && (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Run Script
+                  <Button
+                    onClick={copyOutput}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    title="Copy output"
+                  >
+                    <Code className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    onClick={downloadOutput}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    title="Download output"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    onClick={clearOutput}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    title="Clear output"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </>
               )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="border border-border rounded-lg overflow-hidden">
-          <Editor
-            height="500px"
-            defaultLanguage="python"
-            value={code}
-            onChange={(value) => setCode(value || '')}
-            theme="vs-dark"
-            options={{
-              minimap: { enabled: false },
-              fontSize: 13,
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              tabSize: 4,
-              wordWrap: 'on',
-              padding: { top: 10, bottom: 10 }
-            }}
-          />
-        </div>
-      </Card>
-
-      {/* Output Terminal */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center gap-2">
-            <Terminal className="h-4 w-4" />
-            Output Terminal
-          </h3>
-          <div className="flex gap-2 items-center">
-            {/* Search/Filter */}
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Filter output..."
-                value={outputFilter}
-                onChange={(e) => setOutputFilter(e.target.value)}
-                className="pl-7 pr-2 h-7 w-40 text-xs"
-              />
             </div>
+          </div>
 
-            {/* Auto-scroll toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setAutoScroll(!autoScroll)}
-              className="h-7 w-7 p-0"
-              title={autoScroll ? 'Disable auto-scroll' : 'Enable auto-scroll'}
-            >
-              {autoScroll ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-            </Button>
-
-            {output && (
-              <>
-                <Button
-                  onClick={copyOutput}
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  title="Copy output"
-                >
-                  <Code className="h-3 w-3" />
-                </Button>
-                <Button
-                  onClick={downloadOutput}
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  title="Download output"
-                >
-                  <Download className="h-3 w-3" />
-                </Button>
-                <Button
-                  onClick={clearOutput}
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  title="Clear output"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </>
+          <div
+            ref={outputRef}
+            className="bg-black/90 p-4 rounded border border-border h-[600px] overflow-y-auto"
+          >
+            {displayOutput ? (
+              formatOutput(displayOutput)
+            ) : (
+              <div className="text-green-400/50 font-mono text-xs">
+                {'>>> Ready to execute Python code...'}
+              </div>
             )}
           </div>
-        </div>
 
-        <div
-          ref={outputRef}
-          className="bg-black/90 p-4 rounded border border-border h-[400px] overflow-y-auto"
-        >
-          {displayOutput ? (
-            formatOutput(displayOutput)
-          ) : (
-            <div className="text-green-400/50 font-mono text-xs">
-              {'>>> Ready to execute Python code...'}
+          {/* Output Stats */}
+          {output && (
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <div>
+                Lines: {output.split('\n').length} |
+                Characters: {output.length} |
+                {outputFilter && ` Filtered: ${displayOutput.split('\n').length} lines`}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={autoScroll ? 'text-green-400' : 'text-muted-foreground'}>
+                  Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
+                </span>
+              </div>
             </div>
           )}
-        </div>
-
-        {/* Output Stats */}
-        {output && (
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <div>
-              Lines: {output.split('\n').length} |
-              Characters: {output.length} |
-              {outputFilter && ` Filtered: ${displayOutput.split('\n').length} lines`}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={autoScroll ? 'text-green-400' : 'text-muted-foreground'}>
-                Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
-              </span>
-            </div>
-          </div>
-        )}
-      </Card>
+        </Card>
+      </div>
 
       {/* Save Script Dialog */}
       {showSaveDialog && (
