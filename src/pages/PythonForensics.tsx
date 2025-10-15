@@ -97,6 +97,10 @@ except FileNotFoundError:
   const [packageSearch, setPackageSearch] = useState('')
   const [isInstalling, setIsInstalling] = useState(false)
 
+  // Scripts Browser state
+  const [showScriptsBrowser, setShowScriptsBrowser] = useState(false)
+  const [scriptSearchQuery, setScriptSearchQuery] = useState('')
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
@@ -1297,9 +1301,13 @@ json.dumps(metadata)
       </div>
 
       <div className="flex justify-center gap-3 mb-4 flex-shrink-0">
+        <Button onClick={() => setShowScriptsBrowser(true)} variant="outline" size="sm">
+          <BookOpen className="h-4 w-4 mr-2" />
+          Scripts
+        </Button>
         <Button onClick={() => setShowFileBrowser(true)} variant="outline" size="sm">
           <FolderOpen className="h-4 w-4 mr-2" />
-          Open File Browser
+          File Browser
         </Button>
         <Button onClick={() => setShowPackageManager(true)} variant="outline" size="sm">
           <Package className="h-4 w-4 mr-2" />
@@ -1953,6 +1961,122 @@ json.dumps(metadata)
               <div className="flex items-center gap-2">
                 <span className="text-accent">Tip:</span>
                 Click file to preview | Download or delete using buttons
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showScriptsBrowser && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-6xl h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-xl flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-accent" />
+                Python Scripts Browser
+              </h3>
+              <Button onClick={() => setShowScriptsBrowser(false)} variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 border-b border-border">
+              <div className="flex gap-3 items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search scripts..."
+                    value={scriptSearchQuery}
+                    onChange={(e) => setScriptSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="p-2 rounded bg-background border border-border text-sm min-w-[150px]"
+                >
+                  {scriptCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pythonScripts
+                  .filter(script => {
+                    const matchesCategory = categoryFilter === 'All' || script.category === categoryFilter
+                    const matchesSearch = scriptSearchQuery === '' ||
+                      script.title.toLowerCase().includes(scriptSearchQuery.toLowerCase()) ||
+                      script.description.toLowerCase().includes(scriptSearchQuery.toLowerCase())
+                    return matchesCategory && matchesSearch
+                  })
+                  .map(script => (
+                    <Card
+                      key={script.id}
+                      className={`p-4 cursor-pointer transition-all hover:border-accent/50 hover:shadow-lg ${selectedExample === script.id ? 'border-accent bg-accent/5' : 'border-border'}`}
+                      onClick={() => {
+                        loadExample(script.id)
+                        setShowScriptsBrowser(false)
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-semibold text-sm line-clamp-1">{script.title}</h4>
+                        <span className="px-2 py-0.5 bg-accent/20 text-accent text-[10px] rounded-full ml-2 flex-shrink-0">
+                          {script.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{script.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {script.code.split('\n').length} lines
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            loadExample(script.id)
+                            setShowScriptsBrowser(false)
+                          }}
+                        >
+                          Load Script
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+              </div>
+
+              {pythonScripts.filter(script => {
+                const matchesCategory = categoryFilter === 'All' || script.category === categoryFilter
+                const matchesSearch = scriptSearchQuery === '' ||
+                  script.title.toLowerCase().includes(scriptSearchQuery.toLowerCase()) ||
+                  script.description.toLowerCase().includes(scriptSearchQuery.toLowerCase())
+                return matchesCategory && matchesSearch
+              }).length === 0 && (
+                <div className="text-center text-muted-foreground py-12">
+                  <BookOpen className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-semibold mb-2">No scripts found</p>
+                  <p className="text-sm">Try adjusting your search or category filter</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              <div>
+                Showing {pythonScripts.filter(script => {
+                  const matchesCategory = categoryFilter === 'All' || script.category === categoryFilter
+                  const matchesSearch = scriptSearchQuery === '' ||
+                    script.title.toLowerCase().includes(scriptSearchQuery.toLowerCase()) ||
+                    script.description.toLowerCase().includes(scriptSearchQuery.toLowerCase())
+                  return matchesCategory && matchesSearch
+                }).length} of {pythonScripts.length} scripts
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-accent">Tip:</span>
+                Click any script card to load it instantly
               </div>
             </div>
           </Card>
