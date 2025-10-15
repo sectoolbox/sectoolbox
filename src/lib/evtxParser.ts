@@ -85,12 +85,15 @@ function parseEVTXChunk(data: Uint8Array, offset: number, startEventNumber: numb
   // Verify chunk signature
   const chunkSig = String.fromCharCode(...chunkData.slice(0, 7))
   if (chunkSig !== 'ElfChnk') {
+    console.warn(`Invalid chunk signature at offset ${offset}: "${chunkSig}"`)
     return events
   }
 
   // Event records start at offset 128 (0x80) in the chunk
   let recordOffset = 128
   let eventNumber = startEventNumber
+  let recordsFound = 0
+  let recordsParsed = 0
 
   while (recordOffset + 24 < chunkData.length) {
     // Check for event record signature (0x2a2a0000 = "**\0\0")
@@ -98,6 +101,8 @@ function parseEVTXChunk(data: Uint8Array, offset: number, startEventNumber: numb
         chunkData[recordOffset + 1] === 0x2a &&
         chunkData[recordOffset + 2] === 0x00 &&
         chunkData[recordOffset + 3] === 0x00) {
+
+      recordsFound++
 
       try {
         // Read record size
@@ -110,6 +115,7 @@ function parseEVTXChunk(data: Uint8Array, offset: number, startEventNumber: numb
           const event = parseEventFromRecord(recordData, eventNumber++)
           if (event) {
             events.push(event)
+            recordsParsed++
           }
 
           recordOffset += recordSize
@@ -122,6 +128,10 @@ function parseEVTXChunk(data: Uint8Array, offset: number, startEventNumber: numb
     } else {
       recordOffset += 4
     }
+  }
+
+  if (recordsFound > 0) {
+    console.log(`Chunk at offset ${offset}: found ${recordsFound} records, successfully parsed ${recordsParsed} events`)
   }
 
   return events
@@ -141,12 +151,22 @@ function parseEventFromRecord(recordData: Uint8Array, eventNumber: number): EVTX
     }
 
     if (!xml) {
+      // Log first time we see this to avoid spam
+      if (eventNumber === 1) {
+        console.warn('Failed to extract XML from first event record. Record size:', recordData.length)
+        // Show first 100 bytes as hex to debug
+        const preview = Array.from(recordData.slice(0, 100))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join(' ')
+        console.log('Record preview (hex):', preview)
+      }
       return null
     }
 
     // Parse XML to extract event data
     return parseXMLEvent(xml, eventNumber)
   } catch (err) {
+    console.warn(`Error parsing event ${eventNumber}:`, err)
     return null
   }
 }
