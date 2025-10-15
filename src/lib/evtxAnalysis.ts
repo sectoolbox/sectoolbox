@@ -1,6 +1,8 @@
 // EVTX Analysis Library
 // Comprehensive Windows Event Log parsing and analysis for forensics and CTF
 
+import { parseEVTXBinary } from './evtxParser'
+
 export interface EVTXEvent {
   number: number
   eventId: number
@@ -201,169 +203,10 @@ const EVENT_DESCRIPTIONS: Record<number, string> = {
 
 /**
  * Parse EVTX file and extract events
+ * Uses real binary parser with XML extraction
  */
 export function parseEVTX(buffer: ArrayBuffer): EVTXEvent[] {
-  const events: EVTXEvent[] = []
-  const data = new Uint8Array(buffer)
-
-  // Check EVTX magic signature
-  const magic = String.fromCharCode(...data.slice(0, 8))
-  if (magic !== 'ElfFile\0') {
-    console.warn('Not a valid EVTX file (missing magic signature), attempting parse anyway...')
-  }
-
-  // Since we're using JavaScript parsing (real EVTX parsing is complex),
-  // we'll extract what we can and generate meaningful sample data
-  const fileSize = buffer.byteLength
-
-  // Extract strings from the file to find event-like patterns
-  const strings = extractStringsFromBuffer(data)
-
-  // Parse events based on patterns found in the binary
-  let eventNumber = 1
-  let foundRealEvents = false
-
-  // Look for common EVTX patterns and structures
-  for (let i = 0; i < data.length - 100; i++) {
-    // Look for Event Record signature (0x2a2a0000)
-    if (data[i] === 0x2a && data[i+1] === 0x2a && data[i+2] === 0x00 && data[i+3] === 0x00) {
-      try {
-        const event = parseEventRecord(data, i, eventNumber++)
-        if (event) {
-          events.push(event)
-          foundRealEvents = true
-        }
-      } catch (e) {
-        // Skip invalid records
-      }
-    }
-  }
-
-  // If no events found, generate representative sample data
-  if (!foundRealEvents || events.length < 10) {
-    console.log('Generating sample EVTX events based on file characteristics...')
-    const sampleEvents = generateSampleEvents(fileSize, strings)
-    events.push(...sampleEvents)
-  }
-
-  return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-}
-
-/**
- * Parse individual event record from binary data
- */
-function parseEventRecord(data: Uint8Array, offset: number, eventNumber: number): EVTXEvent | null {
-  try {
-    // Read event record header
-    const recordId = readUInt32LE(data, offset + 8)
-    const timestamp = readFileTime(data, offset + 16)
-
-    // Extract basic event data
-    const event: EVTXEvent = {
-      number: eventNumber,
-      eventId: (recordId % 10000) || 4624, // Approximate
-      level: 'Information',
-      timestamp: timestamp,
-      source: 'Security',
-      provider: 'Microsoft-Windows-Security-Auditing',
-      channel: 'Security',
-      computer: 'FORENSICS-PC',
-      message: 'Event data extracted from EVTX',
-      recordId: recordId
-    }
-
-    return event
-  } catch (e) {
-    return null
-  }
-}
-
-/**
- * Read 32-bit little-endian integer
- */
-function readUInt32LE(data: Uint8Array, offset: number): number {
-  return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24)
-}
-
-/**
- * Read Windows FILETIME and convert to ISO string
- */
-function readFileTime(data: Uint8Array, offset: number): string {
-  const low = readUInt32LE(data, offset)
-  const high = readUInt32LE(data, offset + 4)
-  const fileTime = high * 0x100000000 + low
-  const unixTime = (fileTime / 10000) - 11644473600000
-  return new Date(unixTime).toISOString()
-}
-
-/**
- * Extract printable strings from buffer
- */
-function extractStringsFromBuffer(data: Uint8Array): string[] {
-  const strings: string[] = []
-  let current: number[] = []
-  const minLength = 4
-
-  for (let i = 0; i < data.length; i++) {
-    const byte = data[i]
-    if (byte >= 32 && byte <= 126) {
-      current.push(byte)
-    } else {
-      if (current.length >= minLength) {
-        strings.push(String.fromCharCode(...current))
-      }
-      current = []
-    }
-  }
-
-  return strings
-}
-
-/**
- * Generate sample EVTX events based on file characteristics
- */
-function generateSampleEvents(fileSize: number, strings: string[]): EVTXEvent[] {
-  const events: EVTXEvent[] = []
-  const eventCount = Math.min(100, Math.floor(fileSize / 5000) + 10)
-  const now = Date.now()
-
-  // Common event types for a realistic security log
-  const eventTypes = [
-    { id: 4624, level: 'Information' as const, source: 'Security', message: 'An account was successfully logged on' },
-    { id: 4625, level: 'Warning' as const, source: 'Security', message: 'An account failed to log on' },
-    { id: 4634, level: 'Information' as const, source: 'Security', message: 'An account was logged off' },
-    { id: 4688, level: 'Information' as const, source: 'Security', message: 'A new process has been created' },
-    { id: 4672, level: 'Information' as const, source: 'Security', message: 'Special privileges assigned to new logon' },
-    { id: 4698, level: 'Warning' as const, source: 'Security', message: 'A scheduled task was created' },
-    { id: 7045, level: 'Information' as const, source: 'System', message: 'A service was installed in the system' },
-    { id: 4104, level: 'Warning' as const, source: 'PowerShell', message: 'PowerShell script block logging' },
-    { id: 1102, level: 'Critical' as const, source: 'Security', message: 'The audit log was cleared' },
-  ]
-
-  for (let i = 0; i < eventCount; i++) {
-    const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)]
-    const timestamp = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000) // Last 30 days
-
-    // Check if we can extract real data from strings
-    const relevantString = strings.find(s => s.includes('flag') || s.includes('CTF') || s.length > 30)
-    const messageAddition = relevantString ? ` [${relevantString.substring(0, 50)}]` : ''
-
-    events.push({
-      number: i + 1,
-      eventId: eventType.id,
-      level: eventType.level,
-      timestamp: timestamp.toISOString(),
-      source: eventType.source,
-      provider: `Microsoft-Windows-${eventType.source}`,
-      channel: eventType.source,
-      computer: 'WORKSTATION-' + Math.floor(Math.random() * 100),
-      message: eventType.message + messageAddition,
-      recordId: 1000 + i,
-      userName: `User${Math.floor(Math.random() * 5)}`,
-    })
-  }
-
-  return events
+  return parseEVTXBinary(buffer)
 }
 
 /**
