@@ -727,6 +727,9 @@ micropip.uninstall('${packageName}')
     { name: 'beautifulsoup4', description: 'HTML/XML parsing' },
     { name: 'pefile', description: 'PE file parser' },
     { name: 'pyzipper', description: 'ZIP file handling' },
+    { name: 'pathlib', description: 'Object-oriented filesystem paths' },
+    { name: 'piexif', description: 'EXIF data manipulation for images' },
+    { name: 'exifread', description: 'Read EXIF metadata from images' },
   ]
 
   // File Browser Functions
@@ -892,19 +895,22 @@ for count in byte_counts:
 metadata['entropy'] = round(entropy, 4)
 metadata['entropy_note'] = 'High (>7.5) = Encrypted/Compressed, Low (<5) = Plain text'
 
-# String extraction
+# String extraction - Extract ALL strings from entire file
 printable_strings = []
 current = []
-for byte in data[:50000]:
+for byte in data:
     if 32 <= byte <= 126:
         current.append(chr(byte))
     else:
         if len(current) >= 4:
             printable_strings.append(''.join(current))
         current = []
+# Don't forget last string if file ends with printable chars
+if len(current) >= 4:
+    printable_strings.append(''.join(current))
 metadata['strings_found'] = len(printable_strings)
 if printable_strings:
-    metadata['sample_strings'] = printable_strings[:30]
+    metadata['all_strings'] = printable_strings
 
 # EXIF for images
 if metadata.get('file_type', '').endswith('Image'):
@@ -1876,14 +1882,14 @@ json.dumps(metadata)
                                       <h5 className="font-semibold text-sm text-accent mb-3">String Extraction</h5>
                                       <div className="space-y-2 text-xs">
                                         <div className="flex justify-between font-mono">
-                                          <span className="text-muted-foreground">Strings Found:</span>
+                                          <span className="text-muted-foreground">Total Strings Found:</span>
                                           <span className="text-right">{fileMetadata.strings_found}</span>
                                         </div>
-                                        {fileMetadata.sample_strings && (
+                                        {fileMetadata.all_strings && (
                                           <div>
-                                            <p className="text-muted-foreground mb-2">Sample Strings (first 30):</p>
-                                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                                              {fileMetadata.sample_strings.map((str: string, idx: number) => (
+                                            <p className="text-muted-foreground mb-2">All Strings:</p>
+                                            <div className="space-y-1 max-h-96 overflow-y-auto">
+                                              {fileMetadata.all_strings.map((str: string, idx: number) => (
                                                 <div key={idx} className="p-2 bg-black/30 rounded font-mono text-[10px] break-all">
                                                   {str}
                                                 </div>
