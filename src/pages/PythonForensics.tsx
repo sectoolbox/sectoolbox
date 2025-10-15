@@ -833,13 +833,14 @@ await micropip.install('${packageName}')
                 ) : (
                   <pre className="text-green-400/60 font-mono text-[10px] leading-tight">
 {`System initialized...
-~ Pyodide Version      | v0.28.3 loaded
-~ Premade Tools Loaded | 17 forensic tools ready
+|+| Pyodide Version      | v0.28.3 loaded
+|+| Premade Tools Loaded | 17 forensic tools ready
 
    ____ _  _ ___  ___  ____ ____ ___    _  _ ____    ____ _  _    ____ _ ___ _  _ _  _ ___    /
    [__  |  | |__] |__] |  | |__/  |     |  | [__     |  | |\\ |    | __ |  |  |__| |  | |__]  /
    ___] |__| |    |    |__| |  \\  |     |__| ___]    |__| | \\|    |__] |  |  |  | |__| |__] .
                                                                                              `}
+
 <a href="https://github.com/sectoolbox/sectoolbox" target="_blank" rel="noopener noreferrer" className="text-cyan-400/70 hover:text-cyan-400 no-underline">
 ╰┈➤ https://github.com/sectoolbox/sectoolbox
 </a>
