@@ -282,9 +282,11 @@ _stderr_capture.output = []
           setLastUploadedFilename(file.name)
           toast.success(`Uploaded: ${fullPath}`)
 
-          const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
-          const newPath = `'/uploads/${fullPath}'`
-          updateActiveTabCode(activeTab.code.replace(oldPattern, newPath))
+          // Replace 'sample.bin' with uploaded filename in all tabs
+          setTabs(prevTabs => prevTabs.map(tab => ({
+            ...tab,
+            code: tab.code.replace(/(['"])sample\.bin\1/g, `$1${fullPath}$1`)
+          })))
         } catch (error) {
           console.error('File upload error:', error)
           toast.error(`Failed to upload ${file.name}`)
@@ -315,9 +317,11 @@ _stderr_capture.output = []
         setLastUploadedFilename(file.name)
         toast.success(`Uploaded: ${file.name}`)
 
-        const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
-        const newPath = `'/uploads/${file.name}'`
-        updateActiveTabCode(activeTab.code.replace(oldPattern, newPath))
+        // Replace 'sample.bin' with uploaded filename in all tabs
+        setTabs(prevTabs => prevTabs.map(tab => ({
+          ...tab,
+          code: tab.code.replace(/(['"])sample\.bin\1/g, `$1${file.name}$1`)
+        })))
       } catch (error) {
         console.error('File upload error:', error)
         toast.error(`Failed to upload ${file.name}`)
@@ -358,9 +362,8 @@ _stderr_capture.output = []
   const loadExample = (exampleId: string) => {
     const example = pythonScripts.find(ex => ex.id === exampleId)
     if (example) {
-      const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
-      const newPath = `'/uploads/${lastUploadedFilename}'`
-      const updatedCode = example.code.replace(oldPattern, newPath)
+      // Replace 'sample.bin' with the last uploaded filename
+      const updatedCode = example.code.replace(/(['"])sample\.bin\1/g, `$1${lastUploadedFilename}$1`)
 
       const newTab: ScriptTab = {
         id: `example-${Date.now()}`,
