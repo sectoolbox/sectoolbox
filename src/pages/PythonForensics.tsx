@@ -578,7 +578,7 @@ await micropip.install('${packageName}')
           Python Forensics Environment
         </h1>
         <p className="text-muted-foreground max-w-3xl mx-auto">
-          Full Python environment running in your browser. Upload files, run forensics scripts, and analyze data with pre-installed libraries.
+          Python environment running locally in your browser. Upload files, run scripts & and analyze data!
         </p>
       </div>
 
