@@ -85,9 +85,7 @@ except FileNotFoundError:
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/uploads']))
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [filePreview, setFilePreview] = useState<string>('')
-
-  // Visualization state
-  const [visualizations, setVisualizations] = useState<Array<{type: string, data: string, name: string}>>([])
+  const [imagePreview, setImagePreview] = useState<string>('')
 
   // Package Manager state
   const [showPackageManager, setShowPackageManager] = useState(false)
@@ -235,18 +233,17 @@ def grep(pattern, filename):
         print(f"Error: {e}")
         return []
 
-def hexdump(filename, length=256):
-    """Display hex dump of file"""
+def hexdump(filename):
+    """Display hex dump of entire file"""
     try:
         with open(filename, 'rb') as f:
-            data = f.read(length)
+            data = f.read()
+        print(f"Hex dump of {filename} ({len(data)} bytes):\\n")
         for i in range(0, len(data), 16):
             chunk = data[i:i+16]
             hex_part = ' '.join(f'{b:02x}' for b in chunk)
             ascii_part = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
             print(f"{i:08x}  {hex_part:<48}  |{ascii_part}|")
-        if len(data) == length:
-            print(f"... (showing first {length} bytes)")
     except Exception as e:
         print(f"Error: {e}")
 
@@ -303,32 +300,9 @@ def fileinfo(filename):
     except Exception as e:
         print(f"Error: {e}")
 
-def show_image(filename):
-    """Display an image in the output (PNG, JPEG, GIF)"""
-    try:
-        with open(filename, 'rb') as f:
-            data = f.read()
-        import base64
-        b64 = base64.b64encode(data).decode('utf-8')
-
-        # Check image type
-        img_type = 'png'
-        if data.startswith(b'\\xff\\xd8\\xff'):
-            img_type = 'jpeg'
-        elif data.startswith(b'GIF8'):
-            img_type = 'gif'
-        elif data.startswith(b'BM'):
-            img_type = 'bmp'
-
-        # Output special marker for image visualization
-        print(f"__IMAGE__:{filename}:data:image/{img_type};base64,{b64}")
-        print(f"[Image displayed: {filename}]")
-    except Exception as e:
-        print(f"Error displaying image: {e}")
-
 print("[*] Shell-like helper functions loaded:")
 print("    ls(), cat(), head(), tail(), grep(), hexdump()")
-print("    tree(), pwd(), fileinfo(), show_image()")
+print("    tree(), pwd(), fileinfo()")
 print()
 `)
 
@@ -369,7 +343,6 @@ print()
     saveToHistory(activeTabId, activeTab.code, 'Before run')
     setIsRunning(true)
     setOutput('>>> Running...\n')
-    setVisualizations([])
 
     try {
       await pyodide.runPythonAsync(`
@@ -393,21 +366,6 @@ _stderr_capture.output = []
       if (stdout) result += stdout
       if (stderr) result += '\n' + stderr
 
-      // Extract image visualizations
-      const vizMatches = result.matchAll(/__IMAGE__:([^:]+):([^\\n]+)/g)
-      const newViz: Array<{type: string, data: string, name: string}> = []
-
-      for (const match of vizMatches) {
-        newViz.push({
-          type: 'image',
-          name: match[1],
-          data: match[2]
-        })
-        // Remove the marker from output
-        result = result.replace(match[0], '')
-      }
-
-      setVisualizations(newViz)
       setOutput(result || '✅ Code executed successfully (no output)')
     } catch (error: any) {
       setOutput(`❌ Error:\n${error.message || String(error)}`)
@@ -864,37 +822,53 @@ micropip.uninstall('${packageName}')
       const data = pyodide.FS.readFile(filePath)
       const size = data.length
 
-      // Check if file is text
-      let preview = ''
-      const printable = data.filter((b: number) => (b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13).length
-      const ratio = printable / size
+      // Check if file is an image
+      const fileName = filePath.split('/').pop()?.toLowerCase() || ''
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => fileName.endsWith(`.${ext}`))
 
-      if (ratio > 0.7 && size < 100000) {
-        // Text file
-        const decoder = new TextDecoder('utf-8', { fatal: false })
-        preview = decoder.decode(data)
-        if (preview.length > 5000) {
-          preview = preview.substring(0, 5000) + '\n\n... (truncated, file is too large)'
-        }
+      if (isImage || data.length >= 4 && (
+        (data[0] === 0xFF && data[1] === 0xD8 && data[2] === 0xFF) || // JPEG
+        (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) || // PNG
+        (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) || // GIF
+        (data[0] === 0x42 && data[1] === 0x4D) // BMP
+      )) {
+        // Display image
+        let mimeType = 'image/png'
+        if (data[0] === 0xFF && data[1] === 0xD8) mimeType = 'image/jpeg'
+        else if (data[0] === 0x47 && data[1] === 0x49) mimeType = 'image/gif'
+        else if (data[0] === 0x42 && data[1] === 0x4D) mimeType = 'image/bmp'
+
+        const blob = new Blob([data], { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        setImagePreview(url)
+        setFilePreview('')
       } else {
-        // Binary file - show hex dump
-        preview = 'Binary file - Hex dump (first 512 bytes):\n\n'
-        const maxBytes = Math.min(512, size)
-        for (let i = 0; i < maxBytes; i += 16) {
-          const hex = Array.from(data.slice(i, i + 16))
-            .map((b: number) => b.toString(16).padStart(2, '0'))
-            .join(' ')
-          const ascii = Array.from(data.slice(i, i + 16))
-            .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
-            .join('')
-          preview += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
+        // Check if file is text
+        setImagePreview('')
+        let preview = ''
+        const printable = data.filter((b: number) => (b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13).length
+        const ratio = printable / size
+
+        if (ratio > 0.7) {
+          // Text file - show ALL content
+          const decoder = new TextDecoder('utf-8', { fatal: false })
+          preview = decoder.decode(data)
+        } else {
+          // Binary file - show FULL hex dump
+          preview = `Binary file - Full hex dump (${size} bytes):\n\n`
+          for (let i = 0; i < size; i += 16) {
+            const hex = Array.from(data.slice(i, i + 16))
+              .map((b: number) => b.toString(16).padStart(2, '0'))
+              .join(' ')
+            const ascii = Array.from(data.slice(i, i + 16))
+              .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+              .join('')
+            preview += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
+          }
         }
-        if (size > 512) {
-          preview += `\n... (showing first 512 of ${size} bytes)`
-        }
+        setFilePreview(preview)
       }
 
-      setFilePreview(preview)
       setSelectedFile(filePath)
     } catch (error) {
       console.error('Preview error:', error)
@@ -912,6 +886,7 @@ micropip.uninstall('${packageName}')
       if (selectedFile === filePath) {
         setSelectedFile(null)
         setFilePreview('')
+        setImagePreview('')
       }
       toast.success('File deleted')
     } catch (error) {
@@ -1060,7 +1035,7 @@ micropip.uninstall('${packageName}')
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-shrink-0">
         <Card className="p-4 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2">
@@ -1132,44 +1107,18 @@ micropip.uninstall('${packageName}')
 
         <Card className="p-4 flex flex-col">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Package className="h-4 w-4 text-accent" />
-            Install Package
-          </h3>
-
-          <input type="text" placeholder="Package name (e.g., pefile)" className="w-full p-2 rounded bg-background border border-border text-xs mb-2" onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const input = e.target as HTMLInputElement
-              if (input.value.trim()) {
-                installPackage(input.value.trim())
-                input.value = ''
-              }
-            }
-          }} />
-
-          <div className="flex-1 space-y-1">
-            <div className="text-xs text-muted-foreground mb-1">Installed ({installedPackages.length}):</div>
-            <div className="max-h-20 overflow-y-auto space-y-1">
-              {installedPackages.slice(0, 10).map((pkg, index) => (
-                <div key={index} className="text-xs font-mono bg-muted/20 px-2 py-1 rounded">{pkg}</div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-accent" />
-            Quick Guide
+            Quick Guide & Commands
           </h3>
 
-          <div className="flex-1 space-y-2 text-xs text-muted-foreground">
+          <div className="flex-1 space-y-2 text-[10px] text-muted-foreground overflow-y-auto max-h-32">
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">1.</span>
               Upload files or folders
             </p>
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">2.</span>
-              Use simple paths like <code className="bg-muted px-1 rounded text-[10px]">sample.bin</code>
+              Use simple paths like <code className="bg-muted px-1 rounded">sample.bin</code>
             </p>
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">3.</span>
@@ -1179,10 +1128,18 @@ micropip.uninstall('${packageName}')
               <span className="text-accent font-bold">4.</span>
               Click <span className="text-accent">Run Script</span>
             </p>
-            <p className="flex items-start gap-2">
-              <span className="text-accent font-bold">5.</span>
-              View results in output panel
-            </p>
+            <div className="border-t border-border pt-2 mt-2">
+              <p className="text-accent font-bold mb-1">Shell Commands:</p>
+              <p><code className="bg-muted px-1 rounded">ls()</code> - List files</p>
+              <p><code className="bg-muted px-1 rounded">cat('file')</code> - Display contents</p>
+              <p><code className="bg-muted px-1 rounded">head('file', 10)</code> - First 10 lines</p>
+              <p><code className="bg-muted px-1 rounded">tail('file', 10)</code> - Last 10 lines</p>
+              <p><code className="bg-muted px-1 rounded">grep('pattern', 'file')</code> - Search</p>
+              <p><code className="bg-muted px-1 rounded">hexdump('file')</code> - Hex view</p>
+              <p><code className="bg-muted px-1 rounded">tree()</code> - Directory tree</p>
+              <p><code className="bg-muted px-1 rounded">pwd()</code> - Working directory</p>
+              <p><code className="bg-muted px-1 rounded">fileinfo('file')</code> - File details</p>
+            </div>
           </div>
         </Card>
       </div>
@@ -1316,32 +1273,9 @@ micropip.uninstall('${packageName}')
                 </div>
               </div>
 
-              <div ref={outputRef} className="flex-1 bg-black/90 p-4 rounded border border-border overflow-y-auto space-y-4">
+              <div ref={outputRef} className="flex-1 bg-black/90 p-4 rounded border border-border overflow-y-auto">
                 {displayOutput ? (
-                  <>
-                    {formatOutput(displayOutput)}
-                    {visualizations.length > 0 && (
-                      <div className="mt-4 space-y-4 border-t border-accent/30 pt-4">
-                        <div className="text-accent font-semibold text-sm">Visualizations:</div>
-                        {visualizations.map((viz, idx) => (
-                          <div key={idx} className="border border-accent/20 rounded p-3 bg-black/50">
-                            <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-                              <ImageIcon className="h-3 w-3" />
-                              {viz.name}
-                            </div>
-                            {viz.type === 'image' && (
-                              <img
-                                src={viz.data}
-                                alt={viz.name}
-                                className="max-w-full h-auto rounded border border-accent/10"
-                                style={{ maxHeight: '500px' }}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  formatOutput(displayOutput)
                 ) : (
                   <pre className="text-green-400/60 font-mono text-[16px] leading-tight">
 {`System initialized...
@@ -1594,7 +1528,15 @@ micropip.uninstall('${packageName}')
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4">
-                      {filePreview ? (
+                      {imagePreview ? (
+                        <div className="h-full flex items-center justify-center bg-black/50 rounded">
+                          <img
+                            src={imagePreview}
+                            alt={selectedFile?.split('/').pop() || 'Preview'}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
+                      ) : filePreview ? (
                         <pre className="font-mono text-xs bg-black/50 p-4 rounded whitespace-pre-wrap break-words">
                           {filePreview}
                         </pre>
