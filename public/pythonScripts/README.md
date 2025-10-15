@@ -4,11 +4,13 @@ This folder contains Python scripts that are dynamically loaded in the Python Fo
 
 ## How to Add New Scripts
 
+Simply add a new `.py` file to this folder - it will be automatically discovered and loaded!
+
 1. Create a new `.py` file in this folder
-2. Add metadata comments at the top:
+2. Add metadata comments at the top (optional but recommended):
 
 ```python
-# TITLE: 🎯 Your Script Title
+# TITLE: Your Script Title
 # DESCRIPTION: Brief description of what the script does
 # CATEGORY: File Analysis | Malware Analysis | Decoding | Archive Analysis | Data Processing
 # AUTHOR: Your Name
@@ -16,7 +18,9 @@ This folder contains Python scripts that are dynamically loaded in the Python Fo
 # Your Python code here...
 ```
 
-3. The script will automatically appear in the Examples dropdown
+3. The script will automatically appear in the Examples dropdown - no code changes needed!
+
+Scripts are automatically discovered at build time using Vite's `import.meta.glob` feature.
 
 ## Metadata Fields
 
@@ -62,21 +66,15 @@ except Exception as e:
 
 ## Current Scripts
 
-- file-hash.py - Calculate MD5, SHA1, SHA256 hashes
-- entropy-analysis.py - Detect encryption/packing
 - string-extractor.py - Extract ASCII/Unicode strings
-- hex-dump.py - Display hex dump
-- base64-decoder.py - Find and decode Base64
-- zip-analyzer.py - Analyze ZIP archives
-- json-beautifier.py - Prettify JSON data
-- file-signature.py - Identify file types
-- pe-analyzer.py - Analyze PE executables
+
+All `.py` files in this folder are automatically loaded - no manual list maintenance required!
 
 ## Removing Scripts
 
 To remove a script:
-1. Delete the `.py` file from this folder
-2. Remove it from `src/lib/pythonScriptLoader.ts` scriptFiles array
+1. Simply delete the `.py` file from this folder
+2. That's it! The script will no longer be loaded (automatic discovery)
 
 ## Dependencies
 
