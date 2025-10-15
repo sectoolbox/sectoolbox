@@ -57,11 +57,19 @@ export function parseEVTXBinary(buffer: ArrayBuffer): EVTXEvent[] {
  * Parse EVTX file header
  */
 function parseEVTXHeader(data: Uint8Array): { chunkCount: number; nextRecordId: number } {
-  const firstChunk = readUInt64LE(data, 0x10)
-  const lastChunk = readUInt64LE(data, 0x18)
+  // Calculate chunk count based on file size
+  const fileSize = data.length
+  const headerSize = 4096
+  const chunkSize = 65536 // 64KB
+
+  // Number of chunks = (fileSize - headerSize) / chunkSize
+  const dataSize = fileSize - headerSize
+  const chunkCount = Math.floor(dataSize / chunkSize)
+
+  // Get next record ID from header (offset 0x20, 8 bytes)
   const nextRecordId = readUInt64LE(data, 0x20)
 
-  const chunkCount = Number(lastChunk - firstChunk) + 1
+  console.log(`File size: ${fileSize} bytes, Data size: ${dataSize} bytes, Chunk count: ${chunkCount}`)
 
   return { chunkCount, nextRecordId }
 }
