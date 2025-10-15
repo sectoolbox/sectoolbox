@@ -456,15 +456,6 @@ export const toolsDatabase: Tool[] = [
     operations: ['analyze', 'extract', 'investigate']
   },
   {
-    id: 'evtx-analyzer',
-    name: 'Windows Event Log Analyzer',
-    description: 'Parse and analyze Windows .evtx event log files',
-    category: 'Digital Forensics',
-    path: '/evtx',
-    keywords: ['evtx', 'event', 'log', 'windows', 'timeline', 'security'],
-    operations: ['parse', 'analyze', 'timeline']
-  },
-  {
     id: 'file-carver',
     name: 'File Carver',
     description: 'Recover deleted files using file signature analysis',

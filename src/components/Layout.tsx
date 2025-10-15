@@ -152,13 +152,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       keywords: ['disk', 'file', 'recovery', 'investigation', 'evidence']
     },
     {
-      path: '/evtx',
-      label: 'EVTX Analysis',
-      icon: BarChart3,
-      description: 'Windows Event Log analysis and threat detection',
-      keywords: ['evtx', 'event', 'log', 'windows', 'forensics', 'security']
-    },
-    {
       path: '/memory',
       label: 'Memory Forensics',
       icon: HardDrive,

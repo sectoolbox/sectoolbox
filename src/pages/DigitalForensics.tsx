@@ -10,7 +10,6 @@ import {
   Clock,
   HardDrive,
   AlertTriangle,
-  Shield,
   Activity,
   Network,
   Layers,
@@ -21,12 +20,10 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Input } from '../components/ui/input'
-import { 
-  EvtxAnalyzer, 
-  MemoryAnalyzer, 
-  DiskImageAnalyzer, 
+import {
+  MemoryAnalyzer,
+  DiskImageAnalyzer,
   ForensicsUtils,
-  type EventRecord,
   type ProcessEntry,
   type NetworkConnection,
   type CarvedFile
@@ -198,31 +195,8 @@ const DigitalForensics: React.FC = () => {
 
       // Perform specialized analysis based on file type with timeout protection
       const ANALYSIS_TIMEOUT = 60000 // 60 seconds
-      
-      if (fileType === 'Windows Event Log (EVTX)' || fileExtension === 'evtx') {
-        console.log('Performing EVTX analysis...')
-        try {
-          results.evtxAnalysis = await Promise.race([
-            analyzeEvtxFile(buffer),
-            new Promise<any>((_, reject) => 
-              setTimeout(() => reject(new Error('EVTX analysis timeout')), ANALYSIS_TIMEOUT)
-            )
-          ])
-          results.analysis.fileType = 'Windows Event Log (EVTX)'
-        } catch (error) {
-          console.warn('EVTX analysis failed:', error)
-          results.evtxAnalysis = { 
-            error: `EVTX analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            totalEvents: 0,
-            events: [],
-            timeline: [],
-            securityEvents: [],
-            eventCategories: {},
-            eventLevels: {}
-          }
-        }
-      } 
-      else if (fileType === 'Memory Dump' || isMemoryDump(file.name)) {
+
+      if (fileType === 'Memory Dump' || isMemoryDump(file.name)) {
         console.log('Performing memory dump analysis...')
         try {
           results.memoryAnalysis = await Promise.race([
@@ -401,8 +375,6 @@ const DigitalForensics: React.FC = () => {
 
       // Check file signatures (case-insensitive)
       const sig = signature.toUpperCase()
-      if (sig.startsWith('454C4646494C45')) return 'Windows Event Log (EVTX)'
-      if (fileName.endsWith('.evtx')) return 'Windows Event Log (EVTX)'
       if (fileName.endsWith('.dmp') || fileName.endsWith('.mem')) return 'Memory Dump'
       if (fileName.endsWith('.dd') || fileName.endsWith('.raw') || fileName.endsWith('.e01')) return 'Disk Image'
       if (sig.startsWith('4D5A')) return 'Executable (PE)'
@@ -427,40 +399,6 @@ const DigitalForensics: React.FC = () => {
   const isDiskImage = (fileName: string): boolean => {
     const diskExtensions = ['.dd', '.raw', '.e01', '.ex01', '.img', '.001']
     return diskExtensions.some(ext => fileName.toLowerCase().endsWith(ext))
-  }
-
-  // EVTX Analysis
-  const analyzeEvtxFile = async (buffer: ArrayBuffer) => {
-    try {
-      const header = EvtxAnalyzer.parseHeader(buffer)
-      const events = await EvtxAnalyzer.extractEvents(buffer)
-      
-      // Use enhanced CTF analysis for comprehensive information
-      const ctfAnalysis = EvtxAnalyzer.analyzeEvtxForCTF(events)
-
-      return {
-        header,
-        totalEvents: events.length,
-        events: events.slice(0, 100), // Limit display to first 100 events
-        timeline: ctfAnalysis.timeline.slice(0, 50),
-        securityEvents: ctfAnalysis.securityEvents.slice(0, 25),
-        eventCategories: categorizeEvents(events),
-        eventLevels: countEventLevels(events),
-        // Enhanced CTF analysis results
-        suspiciousActivity: ctfAnalysis.suspiciousActivity.slice(0, 50),
-        userAccounts: ctfAnalysis.userAccounts.slice(0, 30),
-        networkActivity: ctfAnalysis.networkActivity.slice(0, 30),
-        systemChanges: ctfAnalysis.systemChanges.slice(0, 30),
-        powerShellActivity: ctfAnalysis.powerShellActivity.slice(0, 30),
-        processActivity: ctfAnalysis.processActivity.slice(0, 50),
-        fileActivity: ctfAnalysis.fileActivity.slice(0, 50),
-        registryActivity: ctfAnalysis.registryActivity.slice(0, 30),
-        detailedStats: ctfAnalysis.detailedStats
-      }
-    } catch (error) {
-      console.error('EVTX analysis failed:', error)
-      return { error: `EVTX parsing failed: ${error}` }
-    }
   }
 
   // Memory Dump Analysis  
@@ -541,9 +479,9 @@ const DigitalForensics: React.FC = () => {
       // Limit buffer size for string extraction to prevent memory issues
       const maxSize = Math.min(buffer.byteLength, 1024 * 1024) // 1MB max
       const limitedBuffer = buffer.slice(0, maxSize)
-      
+
       const strings: string[] = []
-      
+
       // Try UTF-8 decoding first
       try {
         const text = new TextDecoder('utf-8', { fatal: false }).decode(limitedBuffer)
@@ -559,7 +497,7 @@ const DigitalForensics: React.FC = () => {
       } catch (utf8Error) {
         console.warn('UTF-8 string extraction failed:', utf8Error)
       }
-      
+
       // Try UTF-16LE decoding for Windows files
       try {
         const text16 = new TextDecoder('utf-16le', { fatal: false }).decode(limitedBuffer)
@@ -575,55 +513,17 @@ const DigitalForensics: React.FC = () => {
       } catch (utf16Error) {
         console.warn('UTF-16LE string extraction failed:', utf16Error)
       }
-      
+
       // Deduplicate and filter strings
       const uniqueStrings = [...new Set(strings)]
         .filter(s => s && s.length >= 4 && s.length <= 200)
         .filter(s => !/^[\x00-\x1f]*$/.test(s)) // Remove control character strings
         .filter(s => /[a-zA-Z0-9]/.test(s)) // Must contain at least one alphanumeric character
-      
+
       return allStrings ? uniqueStrings.slice(0, 1000) : uniqueStrings.slice(0, 200) // More strings when requested
     } catch (error) {
       console.warn('String extraction failed:', error)
       return []
-    }
-  }
-
-  const categorizeEvents = (events: EventRecord[]) => {
-    try {
-      const categories: Record<string, number> = {}
-      events.forEach(event => {
-        try {
-          const category = EvtxAnalyzer.categorizeEvent(event.channel, event.eventId)
-          categories[category] = (categories[category] || 0) + 1
-        } catch (error) {
-          console.warn('Failed to categorize event:', error)
-          categories['Unknown'] = (categories['Unknown'] || 0) + 1
-        }
-      })
-      return categories
-    } catch (error) {
-      console.warn('Event categorization failed:', error)
-      return { 'Unknown': events.length }
-    }
-  }
-
-  const countEventLevels = (events: EventRecord[]) => {
-    try {
-      const levels: Record<string, number> = {}
-      events.forEach(event => {
-        try {
-          const level = event.level || 'Unknown'
-          levels[level] = (levels[level] || 0) + 1
-        } catch (error) {
-          console.warn('Failed to count event level:', error)
-          levels['Unknown'] = (levels['Unknown'] || 0) + 1
-        }
-      })
-      return levels
-    } catch (error) {
-      console.warn('Event level counting failed:', error)
-      return { 'Unknown': events.length }
     }
   }
 
@@ -907,10 +807,9 @@ const DigitalForensics: React.FC = () => {
   const getTabStyle = () => {
     try {
       let count = 4 // overview, hashes, strings, hex
-      if (analysisResults?.evtxAnalysis) count++
       if (analysisResults?.memoryAnalysis) count++
       if (analysisResults?.diskAnalysis) count++
-      
+
       // Use responsive grid with proper Tailwind classes
       if (count <= 4) return 'grid grid-cols-2 md:grid-cols-4 w-full'
       if (count <= 5) return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full'
@@ -1003,7 +902,7 @@ const DigitalForensics: React.FC = () => {
           Digital Forensics
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Forensic analysis for EVTX files, memory dumps, disk images, and digital evidence
+          Forensic analysis for memory dumps, disk images, and digital evidence
         </p>
       </div>
 
@@ -1062,7 +961,7 @@ const DigitalForensics: React.FC = () => {
                 Drop file here or click to browse
               </h3>
               <p className="text-muted-foreground">
-                Supports EVTX files, memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 1.5GB)
+                Supports memory dumps (.dmp, .mem), disk images (.dd, .e01), and general files (max 1.5GB)
               </p>
             </div>
           </div>
@@ -1078,16 +977,6 @@ const DigitalForensics: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {selectedFile.name.toLowerCase().endsWith('.evtx') && (
-                <Button
-                  onClick={() => navigate('/evtx', { state: { evtxFile: selectedFile } })}
-                  variant="outline"
-                  size="sm"
-                >
-                  <FileWarning className="h-4 w-4 mr-2" />
-                  EVTX Analysis
-                </Button>
-              )}
               {(selectedFile.name.toLowerCase().endsWith('.dmp') ||
                 selectedFile.name.toLowerCase().endsWith('.mem') ||
                 selectedFile.name.toLowerCase().endsWith('.raw') ||
@@ -1145,7 +1034,6 @@ const DigitalForensics: React.FC = () => {
               <TabsList className={getTabStyle()}>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="hashes">Hashes</TabsTrigger>
-                {analysisResults.evtxAnalysis && <TabsTrigger value="events">Event Log</TabsTrigger>}
                 {analysisResults.memoryAnalysis && <TabsTrigger value="memory">Memory</TabsTrigger>}
                 {analysisResults.diskAnalysis && <TabsTrigger value="disk">Disk</TabsTrigger>}
                 <TabsTrigger value="strings">Strings</TabsTrigger>
@@ -1191,12 +1079,6 @@ const DigitalForensics: React.FC = () => {
                         <span className="text-muted-foreground">File Type:</span>
                         <span className="font-mono text-sm">{analysisResults.analysis.fileType}</span>
                       </div>
-                      {analysisResults.evtxAnalysis && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Events Found:</span>
-                          <span className="font-mono text-sm">{analysisResults.evtxAnalysis.totalEvents}</span>
-                        </div>
-                      )}
                       {analysisResults.memoryAnalysis && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Processes Found:</span>
@@ -1242,237 +1124,6 @@ const DigitalForensics: React.FC = () => {
                   </div>
                 </div>
               </TabsContent>
-
-              {/* EVTX Analysis Results */}
-              {analysisResults.evtxAnalysis && (
-                <TabsContent value="events" className="space-y-4">
-                  <div className="space-y-4">
-                    <h3 className="font-medium flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Windows Event Log Analysis
-                    </h3>
-                    
-                    {/* Comprehensive Statistics */}
-                    {analysisResults.evtxAnalysis.detailedStats && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Total Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.totalEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Security Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.securityEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Suspicious Events</div>
-                          <div className="text-xl font-mono text-red-400">{analysisResults.evtxAnalysis.detailedStats.suspiciousEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Time Span (hrs)</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.timeSpan}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">PowerShell Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.powerShellEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Process Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.processEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">File Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.fileEvents}</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3">
-                          <div className="text-sm text-muted-foreground">Network Events</div>
-                          <div className="text-xl font-mono">{analysisResults.evtxAnalysis.detailedStats.networkEvents}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Suspicious Activity */}
-                    {analysisResults.evtxAnalysis.suspiciousActivity && analysisResults.evtxAnalysis.suspiciousActivity.length > 0 && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-red-400">Suspicious Activity Detected</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.suspiciousActivity.slice(0, 10).map((activity: any, index: number) => (
-                            <div key={index} className="border-l-2 border-red-500 pl-3 py-1">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm text-red-300">
-                                    {activity.processName || activity.service || activity.scriptContent?.substring(0, 50) || 'Suspicious Activity'}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">{activity.timestamp?.toLocaleString()}</div>
-                                </div>
-                                <div className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">
-                                  Event {activity.eventId}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* PowerShell Activity */}
-                    {analysisResults.evtxAnalysis.powerShellActivity && analysisResults.evtxAnalysis.powerShellActivity.length > 0 && (
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-blue-400">PowerShell Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.powerShellActivity.slice(0, 8).map((ps: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${ps.suspicious ? 'border-red-500' : 'border-blue-500'} pl-3 py-1`}>
-                              <div className="font-mono text-sm break-all">{ps.scriptContent || 'PowerShell Script'}</div>
-                              <div className="text-xs text-muted-foreground">{ps.timestamp?.toLocaleString()}</div>
-                              {ps.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Process Activity */}
-                    {analysisResults.evtxAnalysis.processActivity && analysisResults.evtxAnalysis.processActivity.length > 0 && (
-                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-green-400">Process Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.processActivity.slice(0, 10).map((proc: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${proc.suspicious ? 'border-red-500' : 'border-green-500'} pl-3 py-1`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm">{proc.processName}</div>
-                                  {proc.commandLine && <div className="text-xs text-muted-foreground break-all">{proc.commandLine}</div>}
-                                  <div className="text-xs text-muted-foreground">{proc.timestamp?.toLocaleString()}</div>
-                                </div>
-                                {proc.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Network Activity */}
-                    {analysisResults.evtxAnalysis.networkActivity && analysisResults.evtxAnalysis.networkActivity.length > 0 && (
-                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-purple-400">Network Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.networkActivity.slice(0, 10).map((net: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${net.suspicious ? 'border-red-500' : 'border-purple-500'} pl-3 py-1`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm">{net.sourceIP} → {net.destIP}:{net.destPort}</div>
-                                  <div className="text-xs text-muted-foreground">{net.timestamp?.toLocaleString()}</div>
-                                </div>
-                                {net.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* User Account Activity */}
-                    {analysisResults.evtxAnalysis.userAccounts && analysisResults.evtxAnalysis.userAccounts.length > 0 && (
-                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-yellow-400">User Account Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.userAccounts.slice(0, 10).map((user: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${user.suspicious ? 'border-red-500' : 'border-yellow-500'} pl-3 py-1`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm">{user.username}@{user.domain}</div>
-                                  <div className="text-xs text-muted-foreground">{user.action}</div>
-                                  <div className="text-xs text-muted-foreground">{user.timestamp?.toLocaleString()}</div>
-                                </div>
-                                {user.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* File Activity */}
-                    {analysisResults.evtxAnalysis.fileActivity && analysisResults.evtxAnalysis.fileActivity.length > 0 && (
-                      <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-cyan-400">File Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.fileActivity.slice(0, 10).map((file: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${file.suspicious ? 'border-red-500' : 'border-cyan-500'} pl-3 py-1`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm break-all">{file.objectName}</div>
-                                  <div className="text-xs text-muted-foreground">{file.timestamp?.toLocaleString()}</div>
-                                </div>
-                                {file.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Registry Activity */}
-                    {analysisResults.evtxAnalysis.registryActivity && analysisResults.evtxAnalysis.registryActivity.length > 0 && (
-                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
-                        <h4 className="font-medium mb-2 text-orange-400">Registry Activity</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {analysisResults.evtxAnalysis.registryActivity.slice(0, 10).map((reg: any, index: number) => (
-                            <div key={index} className={`border-l-2 ${reg.suspicious ? 'border-red-500' : 'border-orange-500'} pl-3 py-1`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm break-all">{reg.registryKey}</div>
-                                  {reg.valueName && <div className="text-xs text-muted-foreground">{reg.valueName}</div>}
-                                  <div className="text-xs text-muted-foreground">{reg.timestamp?.toLocaleString()}</div>
-                                </div>
-                                {reg.suspicious && <div className="text-xs text-red-400">⚠ Suspicious</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Event Categories */}
-                    <div className="bg-muted/20 rounded-lg p-3">
-                      <h4 className="font-medium mb-2">Event Categories</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {Object.entries(analysisResults.evtxAnalysis.eventCategories).map(([category, count]) => (
-                          <div key={category} className="flex justify-between">
-                            <span className="text-sm">{category}:</span>
-                            <span className="font-mono text-sm">{count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Recent Events */}
-                    <div className="bg-muted/20 rounded-lg p-3">
-                      <h4 className="font-medium mb-2">Recent Events (First 10)</h4>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {analysisResults.evtxAnalysis.events.slice(0, 10).map((event: EventRecord, index: number) => (
-                          <div key={index} className="border-l-2 border-accent pl-3 py-2">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="font-mono text-sm">Event ID: {event.eventId}</div>
-                                <div className="text-xs text-muted-foreground">{event.channel} - {event.level}</div>
-                                <div className="text-xs text-muted-foreground">{event.timeCreated.toLocaleString()}</div>
-                              </div>
-                              <div className={`px-2 py-1 rounded text-xs ${
-                                event.level === 'Error' ? 'bg-red-500/20 text-red-400' :
-                                event.level === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                                'bg-blue-500/20 text-blue-400'
-                              }`}>
-                                {event.level}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              )}
 
               {/* Memory Analysis Results */}
               {analysisResults.memoryAnalysis && (
