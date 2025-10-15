@@ -837,14 +837,16 @@ await micropip.install('${packageName}')
 |+| Pyodide Version | v0.28.3
 |+| Premade Tools   | 17 
 
+
 ★ 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 𝘂𝘀 𝗼𝗻 𝗚𝗶𝘁𝗵𝘂𝗯! ★
+
 `}
 <a href="https://github.com/sectoolbox/sectoolbox" target="_blank" rel="noopener noreferrer" className="text-cyan-400/70 hover:text-cyan-400 no-underline">
 ╰┈➤ https://github.com/sectoolbox/sectoolbox
 </a>
 {`
 
-            ╱|、
+             ╱|、
             (˚ˎ 。7   what is that...
             |、˜〵          
             じしˍ,)ノ
