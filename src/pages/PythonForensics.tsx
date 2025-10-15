@@ -832,7 +832,9 @@ await micropip.install('${packageName}')
                   formatOutput(displayOutput)
                 ) : (
                   <div className="text-green-400/50 font-mono text-xs">
-                    {'>>> Ready to execute Python code... support us by giving a star on Github! https://github.com/sectoolbox/sectoolbox/'}
+                    {'$ Ready to execute Python code...'}
+                    {'$ Support us by giving a star on Github:'}
+                    {'>>> https://github.com/sectoolbox/sectoolbox/'}
                   </div>
                 )}
               </div>
