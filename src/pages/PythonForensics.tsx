@@ -50,7 +50,7 @@ except FileNotFoundError:
   const [installedPackages, setInstalledPackages] = useState<string[]>([])
   const [outputFilter, setOutputFilter] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
-  const [showExamples, setShowExamples] = useState(false)
+  const [lastUploadedFilename, setLastUploadedFilename] = useState<string>('sample.bin')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
 
@@ -200,9 +200,13 @@ _stderr_capture.output = []
         pyodide.FS.writeFile(`/uploads/${file.name}`, uint8Array)
 
         setUploadedFiles(prev => [...prev, { name: file.name, size: file.size }])
+
+        // Store the last uploaded filename globally
+        setLastUploadedFilename(file.name)
+
         toast.success(`Uploaded: ${file.name}`)
 
-        // Auto-update code with the uploaded filename
+        // Auto-update current code with the uploaded filename
         const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
         const newPath = `'/uploads/${file.name}'`
         const updatedCode = code.replace(oldPattern, newPath)
@@ -218,10 +222,14 @@ _stderr_capture.output = []
   const loadExample = (exampleId: string) => {
     const example = pythonExamples.find(ex => ex.id === exampleId)
     if (example) {
-      setCode(example.code)
+      // Replace filename in example code with the last uploaded filename
+      const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
+      const newPath = `'/uploads/${lastUploadedFilename}'`
+      const updatedCode = example.code.replace(oldPattern, newPath)
+
+      setCode(updatedCode)
       setSelectedExample(exampleId)
       setOutput('')
-      setShowExamples(false)
       toast.success(`Loaded: ${example.title}`)
 
       // Show info if packages are required
@@ -453,49 +461,31 @@ await micropip.install('${packageName}')
               <BookOpen className="h-4 w-4 text-accent" />
               Examples
             </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowExamples(!showExamples)}
-              className="h-6 px-2"
-            >
-              {showExamples ? 'Hide' : 'Show'}
-            </Button>
           </div>
 
-          {showExamples ? (
-            <>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full mb-2 p-2 rounded bg-background border border-border text-xs"
-              >
-                {exampleCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full mb-2 p-2 rounded bg-background border border-border text-xs"
+          >
+            {exampleCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
 
-              <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
-                {filteredExamples.map(example => (
-                  <button
-                    key={example.id}
-                    onClick={() => loadExample(example.id)}
-                    className={`w-full text-left p-2 rounded text-xs hover:bg-muted/50 transition-colors ${
-                      selectedExample === example.id ? 'bg-accent/20 border border-accent' : 'bg-muted/20'
-                    }`}
-                  >
-                    <div className="font-medium truncate">{example.title}</div>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center text-muted-foreground text-xs">
-              <BookOpen className="h-8 w-8 mb-2 opacity-50" />
-              <p>9 example scripts</p>
-              <p className="text-[10px] mt-1">Click "Show" to browse</p>
-            </div>
-          )}
+          <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
+            {filteredExamples.map(example => (
+              <button
+                key={example.id}
+                onClick={() => loadExample(example.id)}
+                className={`w-full text-left p-2 rounded text-xs hover:bg-muted/50 transition-colors ${
+                  selectedExample === example.id ? 'bg-accent/20 border border-accent' : 'bg-muted/20'
+                }`}
+              >
+                <div className="font-medium truncate">{example.title}</div>
+              </button>
+            ))}
+          </div>
         </Card>
 
         {/* Install Package Card */}
