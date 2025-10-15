@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import Editor from '@monaco-editor/react'
-import { pythonExamples, exampleCategories, PythonExample } from '../lib/pythonExamples'
+import { loadPythonScripts, getScriptCategories, PythonScript } from '../lib/pythonScriptLoader'
 import toast from 'react-hot-toast'
 
 // Pyodide types
@@ -51,13 +51,29 @@ except FileNotFoundError:
   const [outputFilter, setOutputFilter] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
   const [lastUploadedFilename, setLastUploadedFilename] = useState<string>('sample.bin')
+  const [pythonScripts, setPythonScripts] = useState<PythonScript[]>([])
+  const [scriptCategories, setScriptCategories] = useState<string[]>(['All'])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
 
   // Initialize Pyodide
   useEffect(() => {
     loadPyodide()
+    loadScripts()
   }, [])
+
+  // Load Python scripts from folder
+  const loadScripts = async () => {
+    try {
+      const scripts = await loadPythonScripts()
+      setPythonScripts(scripts)
+      const categories = getScriptCategories(scripts)
+      setScriptCategories(categories)
+    } catch (error) {
+      console.error('Failed to load Python scripts:', error)
+      toast.error('Failed to load example scripts')
+    }
+  }
 
   // Load saved scripts from localStorage
   useEffect(() => {
@@ -220,7 +236,7 @@ _stderr_capture.output = []
   }
 
   const loadExample = (exampleId: string) => {
-    const example = pythonExamples.find(ex => ex.id === exampleId)
+    const example = pythonScripts.find(ex => ex.id === exampleId)
     if (example) {
       // Replace filename in example code with the last uploaded filename
       const oldPattern = /['"]\/uploads\/[^'"]+['"]/g
@@ -231,15 +247,6 @@ _stderr_capture.output = []
       setSelectedExample(exampleId)
       setOutput('')
       toast.success(`Loaded: ${example.title}`)
-
-      // Show info if packages are required
-      if (example.requiredPackages && example.requiredPackages.length > 0) {
-        toast(
-          `This script requires: ${example.requiredPackages.join(', ')}\n` +
-          `Install with: await micropip.install('${example.requiredPackages[0]}')`,
-          { duration: 5000 }
-        )
-      }
     }
   }
 
@@ -325,8 +332,8 @@ await micropip.install('${packageName}')
   }
 
   const filteredExamples = categoryFilter === 'All'
-    ? pythonExamples
-    : pythonExamples.filter(ex => ex.category === categoryFilter)
+    ? pythonScripts
+    : pythonScripts.filter(ex => ex.category === categoryFilter)
 
   // Filter output based on search
   const displayOutput = outputFilter.trim()
@@ -468,7 +475,7 @@ await micropip.install('${packageName}')
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="w-full mb-2 p-2 rounded bg-background border border-border text-xs"
           >
-            {exampleCategories.map(cat => (
+            {scriptCategories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
