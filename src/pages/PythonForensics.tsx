@@ -46,7 +46,7 @@ const PythonForensics: React.FC = () => {
 import hashlib
 
 # Example: Calculate file hash
-file_path = '/uploads/sample.bin'
+file_path = 'sample.bin'
 
 try:
     with open(file_path, 'rb') as f:
@@ -154,6 +154,9 @@ _stderr_capture = OutputCapture()
       try {
         pyodideModule.FS.mkdir('/uploads')
       } catch (e) {}
+
+      // Change working directory to /uploads/ so scripts can use simple paths
+      pyodideModule.FS.chdir('/uploads')
 
       setPyodide(pyodideModule)
       setLoadingStatus('Ready!')
@@ -691,7 +694,7 @@ await micropip.install('${packageName}')
             </p>
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">2.</span>
-              Files accessible at <code className="bg-muted px-1 rounded text-[10px]">/uploads/</code>
+              Use simple paths like <code className="bg-muted px-1 rounded text-[10px]">sample.bin</code>
             </p>
             <p className="flex items-start gap-2">
               <span className="text-accent font-bold">3.</span>

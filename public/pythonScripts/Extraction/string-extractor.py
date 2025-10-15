@@ -1,7 +1,7 @@
 # simple_strings.py
 import re
 
-file_path = '/uploads/sample.bin'
+file_path = 'sample.bin'
 
 with open(file_path, 'rb') as f:
     data = f.read()

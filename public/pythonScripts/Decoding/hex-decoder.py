@@ -5,7 +5,7 @@
 
 import re
 
-file_path = '/uploads/sample.bin'
+file_path = 'sample.bin'
 
 try:
     with open(file_path, 'rb') as f:

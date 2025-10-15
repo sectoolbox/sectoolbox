@@ -3,7 +3,7 @@
 # CATEGORY: Analysis
 # AUTHOR: Sectoolbox
 
-file_path = '/uploads/sample.bin'
+file_path = 'sample.bin'
 
 # Common file signatures
 signatures = {
