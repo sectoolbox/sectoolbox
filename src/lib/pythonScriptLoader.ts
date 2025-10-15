@@ -51,25 +51,30 @@ function parseScriptMetadata(content: string, filename: string): PythonScript {
 
 /**
  * Load all Python scripts from the /pythonScripts folder
+ * Automatically discovers all .py files using Vite's import.meta.glob
  */
 export async function loadPythonScripts(): Promise<PythonScript[]> {
   const scripts: PythonScript[] = []
 
-  // List of script files (you can auto-discover or hardcode)
-  const scriptFiles = [
-    'string-extractor.py'
-  ]
+  // Automatically discover all .py files in /public/pythonScripts
+  // Using eager: true to load all scripts at build time
+  const scriptModules = import.meta.glob('../../public/pythonScripts/*.py', {
+    query: '?raw',
+    import: 'default',
+    eager: true
+  })
 
-  for (const filename of scriptFiles) {
+  for (const path in scriptModules) {
     try {
-      const response = await fetch(`/pythonScripts/${filename}`)
-      if (response.ok) {
-        const content = await response.text()
-        const script = parseScriptMetadata(content, filename)
-        scripts.push(script)
-      }
+      // Extract filename from path: '../../public/pythonScripts/string-extractor.py' -> 'string-extractor.py'
+      const filename = path.split('/').pop() || ''
+
+      // Get the script content (already loaded due to eager: true)
+      const content = scriptModules[path] as string
+      const script = parseScriptMetadata(content, filename)
+      scripts.push(script)
     } catch (error) {
-      console.warn(`Failed to load script: ${filename}`, error)
+      console.warn(`Failed to load script from ${path}:`, error)
     }
   }
 
