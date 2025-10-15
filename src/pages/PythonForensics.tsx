@@ -772,7 +772,7 @@ await micropip.install('${packageName}')
                   theme="vs-dark"
                   options={{
                   minimap: { enabled: false },
-                  fontSize: 17,
+                  fontSize: 13,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
@@ -831,40 +831,26 @@ await micropip.install('${packageName}')
                 {displayOutput ? (
                   formatOutput(displayOutput)
                 ) : (
-                  <pre className="text-green-400/60 font-mono text-[10px] leading-tight">
+                  <pre className="text-green-400/60 font-mono text-[14px] leading-tight">
 {`System initialized...
 |+| Pyodide Version      | v0.28.3 loaded
 |+| Premade Tools Loaded | 17 forensic tools ready
 
-   ____ _  _ ___  ___  ____ ____ ___    _  _ ____    ____ _  _    ____ _ ___ _  _ _  _ ___    /
-   [__  |  | |__] |__] |  | |__/  |     |  | [__     |  | |\ |    | __ |  |  |__| |  | |__]  /
-   ___] |__| |    |    |__| |  \  |     |__| ___]    |__| | \|    |__] |  |  |  | |__| |__] .
+   __                                  __                 
+  (_     _  _  _  _|_      _   _  _   / _ .|_|__|   |_ |  
+  __)|_||_)|_)(_)| |_  |_|_)  (_)| )  \__)||_|  ||_||_).  
+        |  |  
 
 `}
 <a href="https://github.com/sectoolbox/sectoolbox" target="_blank" rel="noopener noreferrer" className="text-cyan-400/70 hover:text-cyan-400 no-underline">
 ╰┈➤ https://github.com/sectoolbox/sectoolbox
 </a>
 {`
-           ___   .--.
-     .--.-"   "-' .- |
-    / .-,`          .'
-    \   `           \
-     '.            ! \
-       |     !  .--.  |
-       \        '--'  /.____
-      /`-.     \__,'.'      `\
-   __/   \`-.____.-' `\      /
-   | `---`'-'._/-`     \----'    _
-   |,-'`  /             |    _.-' `\
-  .'     /              |--'`     / |
- /      /\              `         | |
- |   .\/  \      .--. __          \ |
-  '-'      '._       /  `\         /
-              `\    '     |------'`
-                \  |      |
-                 \        /
-                  '._  _.'
-                     ``
+              ╱|、
+            (˚ˎ 。7
+            |、˜〵          
+            じしˍ,)ノ
+            
 `}
                   </pre>
                 )}
