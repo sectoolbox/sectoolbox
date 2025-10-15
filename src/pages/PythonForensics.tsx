@@ -466,7 +466,7 @@ await micropip.install('${packageName}')
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-accent" />
-              Examples
+              Scripts
             </h3>
           </div>
 
