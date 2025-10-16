@@ -102,6 +102,9 @@ except FileNotFoundError:
   const [showScriptsBrowser, setShowScriptsBrowser] = useState(false)
   const [scriptSearchQuery, setScriptSearchQuery] = useState('')
 
+  // Quick Guide state
+  const [showQuickGuide, setShowQuickGuide] = useState(false)
+
   // Text size control
   const [fontSize, setFontSize] = useState(14)
 
@@ -1258,116 +1261,21 @@ json.dumps(metadata)
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-shrink-0">
-        <Card className="p-4 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Upload className="h-4 w-4 text-accent" />
-              Upload Files
-            </h3>
-            {uploadedFiles.length > 0 && (
-              <span className="px-2 py-1 bg-accent/20 text-accent rounded-full text-xs font-bold">{uploadedFiles.length}</span>
-            )}
-          </div>
+      <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
+      <input ref={folderInputRef} type="file" webkitdirectory="" directory="" onChange={handleFolderUpload} className="hidden" />
 
-          <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
-          <input ref={folderInputRef} type="file" webkitdirectory="" directory="" onChange={handleFolderUpload} className="hidden" />
-
-          <div className="space-y-2 mb-3">
-            <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Choose Files
-            </Button>
-            <Button onClick={() => folderInputRef.current?.click()} variant="outline" className="w-full" size="sm">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Choose Folder
-            </Button>
-          </div>
-
-          <div className="text-xs text-center text-muted-foreground mb-2">or drag & drop files/folders</div>
-
-          <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
-            {uploadedFiles.map((file, index) => (
-              <div key={index} className="flex items-center justify-between bg-muted/20 p-2 rounded text-xs">
-                <div className="flex-1 truncate">
-                  <div className="font-mono truncate">{file.path}</div>
-                  <div className="text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</div>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => deleteUploadedFile(file.path)} className="h-6 w-6 p-0 ml-2">
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-            {uploadedFiles.length === 0 && (
-              <div className="text-center text-muted-foreground text-xs py-4">No files uploaded yet</div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-accent" />
-              Scripts
-            </h3>
-          </div>
-
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full mb-2 p-2 rounded bg-background border border-border text-xs">
-            {scriptCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-
-          <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
-            {filteredExamples.map(example => (
-              <button key={example.id} onClick={() => loadExample(example.id)} className={`w-full text-left p-2 rounded text-xs hover:bg-muted/50 transition-colors ${selectedExample === example.id ? 'bg-accent/20 border border-accent' : 'bg-muted/20'}`}>
-                <div className="font-medium truncate">{example.title}</div>
-              </button>
-            ))}
-            {filteredExamples.length === 0 && (
-              <div className="text-center text-muted-foreground text-xs py-4">No scripts available</div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-accent" />
-            Quick Guide & Commands
-          </h3>
-
-          <div className="flex-1 space-y-2 text-[13px] text-muted-foreground overflow-y-auto max-h-32">
-            <p className="flex items-start gap-2">
-              <span className="text-accent font-bold">1.</span>
-              Upload files or folders
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-accent font-bold">2.</span>
-              Use simple paths like <code className="bg-muted px-1 rounded">sample.bin</code>
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-accent font-bold">3.</span>
-              Load example or write code
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-accent font-bold">4.</span>
-              Click <span className="text-accent">Run Script</span>
-            </p>
-            <div className="border-t border-border pt-2 mt-2">
-              <p className="text-accent font-bold mb-1">Shell Commands:</p>
-              <p><code className="bg-muted px-1 rounded">ls()</code> - List files</p>
-              <p><code className="bg-muted px-1 rounded">cat('file')</code> - Display contents</p>
-              <p><code className="bg-muted px-1 rounded">head('file', 10)</code> - First 10 lines</p>
-              <p><code className="bg-muted px-1 rounded">tail('file', 10)</code> - Last 10 lines</p>
-              <p><code className="bg-muted px-1 rounded">grep('pattern', 'file')</code> - Search</p>
-              <p><code className="bg-muted px-1 rounded">hexdump('file')</code> - Hex view</p>
-              <p><code className="bg-muted px-1 rounded">tree()</code> - Directory tree</p>
-              <p><code className="bg-muted px-1 rounded">pwd()</code> - Working directory</p>
-              <p><code className="bg-muted px-1 rounded">fileinfo('file')</code> - File details</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="flex justify-center gap-3 mb-4 flex-shrink-0 items-center">
+      <div className="flex justify-center gap-3 mb-4 flex-shrink-0 items-center flex-wrap">
+        <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm">
+          <Upload className="h-4 w-4 mr-2" />
+          Upload File
+          {uploadedFiles.length > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 bg-accent/20 text-accent rounded-full text-xs font-bold">{uploadedFiles.length}</span>
+          )}
+        </Button>
+        <Button onClick={() => folderInputRef.current?.click()} variant="outline" size="sm">
+          <FolderOpen className="h-4 w-4 mr-2" />
+          Upload Folder
+        </Button>
         <Button onClick={() => setShowScriptsBrowser(true)} variant="outline" size="sm">
           <BookOpen className="h-4 w-4 mr-2" />
           Scripts
@@ -1379,6 +1287,10 @@ json.dumps(metadata)
         <Button onClick={() => setShowPackageManager(true)} variant="outline" size="sm">
           <Package className="h-4 w-4 mr-2" />
           Package Manager
+        </Button>
+        <Button onClick={() => setShowQuickGuide(true)} variant="outline" size="sm">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          Quick Guide
         </Button>
 
         <div className="flex items-center gap-2 ml-auto border-l border-border pl-4">
@@ -2169,6 +2081,116 @@ json.dumps(metadata)
               <div className="flex items-center gap-2">
                 <span className="text-accent">Tip:</span>
                 Click any script card to load it instantly
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showQuickGuide && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-xl flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-accent" />
+                Quick Guide & Commands
+              </h3>
+              <Button onClick={() => setShowQuickGuide(false)} variant="ghost" size="sm">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-accent flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-xs">1</span>
+                  Upload Files or Folders
+                </h4>
+                <p className="text-sm text-muted-foreground pl-8">
+                  Use the Upload File or Upload Folder buttons, or drag and drop files directly onto the page.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-accent flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-xs">2</span>
+                  Use Simple Paths
+                </h4>
+                <p className="text-sm text-muted-foreground pl-8">
+                  Reference uploaded files with simple names like <code className="px-1.5 py-0.5 bg-muted rounded text-xs">sample.bin</code> or relative paths.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-accent flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-xs">3</span>
+                  Load Example or Write Code
+                </h4>
+                <p className="text-sm text-muted-foreground pl-8">
+                  Browse example scripts from the Scripts button or write your own Python code in the editor.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-accent flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-xs">4</span>
+                  Run Your Script
+                </h4>
+                <p className="text-sm text-muted-foreground pl-8">
+                  Click the <span className="text-accent font-semibold">Run Script</span> button to execute your Python code.
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <h4 className="font-semibold text-accent mb-4">Shell-like Helper Functions</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">ls()</code>
+                    <p className="text-xs text-muted-foreground mt-1">List files in directory</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">cat('file')</code>
+                    <p className="text-xs text-muted-foreground mt-1">Display file contents</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">head('file', 10)</code>
+                    <p className="text-xs text-muted-foreground mt-1">Show first 10 lines</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">tail('file', 10)</code>
+                    <p className="text-xs text-muted-foreground mt-1">Show last 10 lines</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">grep('pattern', 'file')</code>
+                    <p className="text-xs text-muted-foreground mt-1">Search for pattern</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">hexdump('file')</code>
+                    <p className="text-xs text-muted-foreground mt-1">Display hex view</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">tree()</code>
+                    <p className="text-xs text-muted-foreground mt-1">Show directory tree</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded">
+                    <code className="text-accent">pwd()</code>
+                    <p className="text-xs text-muted-foreground mt-1">Print working directory</p>
+                  </div>
+                  <div className="bg-muted/20 p-3 rounded col-span-full">
+                    <code className="text-accent">fileinfo('file')</code>
+                    <p className="text-xs text-muted-foreground mt-1">Display detailed file information (hashes, type, etc.)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              <div>
+                Python 3.11 via Pyodide | Runs locally in your browser
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-accent">Tip:</span>
+                Use File Browser to explore uploaded files
               </div>
             </div>
           </Card>
