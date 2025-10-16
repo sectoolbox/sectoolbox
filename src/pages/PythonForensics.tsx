@@ -1169,7 +1169,7 @@ json.dumps(metadata)
   }
 
   return (
-    <div className="p-6 space-y-4 h-screen flex flex-col" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div className="p-6 h-screen flex flex-col" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {isDragging && (
         <div className="fixed inset-0 bg-accent/20 border-4 border-dashed border-accent z-50 flex items-center justify-center pointer-events-none">
           <div className="text-center">
@@ -1179,7 +1179,10 @@ json.dumps(metadata)
         </div>
       )}
 
-      <div className="text-center space-y-2 flex-shrink-0">
+      <PanelGroup direction="vertical">
+        <Panel defaultSize={35} minSize={20}>
+          <div className="space-y-4">
+            <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Code className="h-8 w-8 text-accent" />
           Python Forensics Environment
@@ -1325,9 +1328,13 @@ json.dumps(metadata)
           />
         </div>
       </div>
+          </div>
+        </Panel>
 
-      <div className="flex-1 min-h-0">
-        <PanelGroup direction="vertical">
+        <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize my-2" />
+
+        <Panel defaultSize={65} minSize={40}>
+          <PanelGroup direction="horizontal">
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 overflow-x-auto">
@@ -1409,7 +1416,7 @@ json.dumps(metadata)
             </Card>
           </Panel>
 
-          <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize" />
+          <PanelResizeHandle className="w-2 bg-border hover:bg-accent transition-colors cursor-col-resize" />
 
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
@@ -1489,8 +1496,9 @@ json.dumps(metadata)
               )}
             </Card>
           </Panel>
-        </PanelGroup>
-      </div>
+          </PanelGroup>
+        </Panel>
+      </PanelGroup>
 
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
