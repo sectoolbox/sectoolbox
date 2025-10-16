@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input'
 import Editor from '@monaco-editor/react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { loadPythonScripts, getScriptCategories, PythonScript } from '../lib/pythonScriptLoader'
+import { initPyodide } from '../lib/pyodideManager'
 import toast from 'react-hot-toast'
 
 // Pyodide types
@@ -120,6 +121,28 @@ except FileNotFoundError:
   useEffect(() => {
     loadPyodide()
     loadScripts()
+
+    // Restore state from localStorage
+    const savedTabs = localStorage.getItem('sectoolbox_python_tabs')
+    const savedOutput = localStorage.getItem('sectoolbox_python_output')
+    const savedActiveTab = localStorage.getItem('sectoolbox_python_activeTab')
+
+    if (savedTabs) {
+      try {
+        const parsedTabs = JSON.parse(savedTabs)
+        setTabs(parsedTabs)
+      } catch (e) {
+        console.error('Failed to restore tabs:', e)
+      }
+    }
+
+    if (savedOutput) {
+      setOutput(savedOutput)
+    }
+
+    if (savedActiveTab) {
+      setActiveTabId(savedActiveTab)
+    }
   }, [])
 
   const loadScripts = async () => {
@@ -180,17 +203,48 @@ except FileNotFoundError:
     }
   }, [output, autoScroll])
 
+  // Auto-save state to localStorage
+  useEffect(() => {
+    const saveInterval = setInterval(() => {
+      try {
+        localStorage.setItem('sectoolbox_python_tabs', JSON.stringify(tabs))
+        localStorage.setItem('sectoolbox_python_output', output)
+        localStorage.setItem('sectoolbox_python_activeTab', activeTabId)
+      } catch (e) {
+        console.error('Failed to save state:', e)
+      }
+    }, 3000) // Save every 3 seconds
+
+    return () => clearInterval(saveInterval)
+  }, [tabs, output, activeTabId])
+
   const loadPyodide = async () => {
     try {
-      setLoadingStatus('Loading Python environment...')
-      const pyodideModule = await (window as any).loadPyodide({
-        indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.3/full/'
+      const pyodideModule = await initPyodide((status) => {
+        setLoadingStatus(status)
       })
 
-      setLoadingStatus('Installing core packages...')
-      await pyodideModule.loadPackage(['micropip'])
+      // If this is a cached instance, we still need to set component state
+      setPyodide(pyodideModule)
+      setLoadingStatus('Ready!')
+      setIsLoading(false)
+      setInstalledPackages(['micropip', 'sys', 'io', 'os', 'hashlib', 're', 'json', 'base64', 'struct', 'datetime', 'zipfile', 'tarfile'])
 
-      pyodideModule.runPython(`
+      // Only show success toast if not already cached
+      const wasCached = pyodideModule !== null
+      if (!wasCached) {
+        toast.success('Python environment loaded successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to load Pyodide:', error)
+      setOutput(`❌ Failed to load Python environment: ${error}`)
+      setIsLoading(false)
+      toast.error('Failed to load Python environment')
+    }
+  }
+
+  // Placeholder for old Python code (now in pyodideManager.ts)
+  const _oldPythonCode = `
 import sys
 import os
 from io import StringIO
@@ -346,27 +400,7 @@ def fileinfo(filename):
 
     except Exception as e:
         print(f"Error: {e}")
-`)
-
-      try {
-        pyodideModule.FS.mkdir('/uploads')
-      } catch (e) {}
-
-      // Change working directory to /uploads/ so scripts can use simple paths
-      pyodideModule.FS.chdir('/uploads')
-
-      setPyodide(pyodideModule)
-      setLoadingStatus('Ready!')
-      setIsLoading(false)
-      setInstalledPackages(['micropip', 'sys', 'io', 'os', 'hashlib', 're', 'json', 'base64', 'struct', 'datetime', 'zipfile', 'tarfile'])
-      toast.success('Python environment loaded successfully!')
-    } catch (error) {
-      console.error('Failed to load Pyodide:', error)
-      setOutput(`❌ Failed to load Python environment: ${error}`)
-      setIsLoading(false)
-      toast.error('Failed to load Python environment')
-    }
-  }
+`
 
   const saveToHistory = (tabId: string, code: string, label: string) => {
     const entry: CodeHistoryEntry = { timestamp: Date.now(), code, label }
