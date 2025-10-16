@@ -1214,9 +1214,10 @@ json.dumps(metadata)
         </div>
       )}
 
-      <PanelGroup direction="vertical">
-        <Panel defaultSize={35} minSize={20}>
-          <div className="space-y-4">
+      <div className="flex-1" style={{ minHeight: '800px' }}>
+        <PanelGroup direction="vertical">
+          <Panel defaultSize={35} minSize={20}>
+            <div className="space-y-4">
             <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Code className="h-8 w-8 text-accent" />
@@ -1544,7 +1545,8 @@ json.dumps(metadata)
           </div>
           </div>
         </Panel>
-      </PanelGroup>
+        </PanelGroup>
+      </div>
 
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
