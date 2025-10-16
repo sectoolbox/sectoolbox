@@ -101,6 +101,9 @@ except FileNotFoundError:
   const [showScriptsBrowser, setShowScriptsBrowser] = useState(false)
   const [scriptSearchQuery, setScriptSearchQuery] = useState('')
 
+  // Text size control
+  const [fontSize, setFontSize] = useState(14)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
@@ -308,11 +311,6 @@ def fileinfo(filename):
 
     except Exception as e:
         print(f"Error: {e}")
-
-print("[*] Shell-like helper functions loaded:")
-print("    ls(), cat(), head(), tail(), grep(), hexdump()")
-print("    tree(), pwd(), fileinfo()")
-print()
 `)
 
       try {
@@ -1153,7 +1151,7 @@ json.dumps(metadata)
       else if (line.includes('✅') || line.includes('Success')) className = 'text-green-300 font-semibold'
       else if (line.startsWith('>>>') || line.startsWith('===')) className = 'text-blue-400'
 
-      return <div key={index} className={`${className} font-mono text-xs leading-relaxed hover:bg-white/5`}>{line || '\u00A0'}</div>
+      return <div key={index} className={`${className} font-mono leading-relaxed hover:bg-white/5`} style={{ fontSize: `${fontSize}px` }}>{line || '\u00A0'}</div>
     })
   }
 
@@ -1300,7 +1298,7 @@ json.dumps(metadata)
         </Card>
       </div>
 
-      <div className="flex justify-center gap-3 mb-4 flex-shrink-0">
+      <div className="flex justify-center gap-3 mb-4 flex-shrink-0 items-center">
         <Button onClick={() => setShowScriptsBrowser(true)} variant="outline" size="sm">
           <BookOpen className="h-4 w-4 mr-2" />
           Scripts
@@ -1313,10 +1311,23 @@ json.dumps(metadata)
           <Package className="h-4 w-4 mr-2" />
           Package Manager
         </Button>
+
+        <div className="flex items-center gap-2 ml-4 border-l border-border pl-4">
+          <label htmlFor="fontSize" className="text-xs text-muted-foreground whitespace-nowrap">Text Size:</label>
+          <Input
+            id="fontSize"
+            type="number"
+            min="8"
+            max="32"
+            value={fontSize}
+            onChange={(e) => setFontSize(Math.max(8, Math.min(32, parseInt(e.target.value) || 14)))}
+            className="w-16 h-8 text-xs text-center"
+          />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0">
-        <PanelGroup direction="horizontal">
+        <PanelGroup direction="vertical">
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 overflow-x-auto">
@@ -1378,7 +1389,7 @@ json.dumps(metadata)
                   theme="vs-dark"
                   options={{
                   minimap: { enabled: false },
-                  fontSize: 13,
+                  fontSize: fontSize,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
@@ -1398,7 +1409,7 @@ json.dumps(metadata)
             </Card>
           </Panel>
 
-          <PanelResizeHandle className="w-2 bg-border hover:bg-accent transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize" />
 
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
@@ -1437,11 +1448,11 @@ json.dumps(metadata)
                 {displayOutput ? (
                   formatOutput(displayOutput)
                 ) : (
-                  <pre className="text-green-400/60 font-mono text-[16px] leading-tight">
+                  <pre className="text-green-400/60 font-mono leading-tight" style={{ fontSize: `${fontSize}px` }}>
 {`System initialized...
 
 |+| Pyodide Version | v0.28.3
-|+| Premade Tools   | 17 
+|+| Premade Tools   | 17
 
 
 ★ 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 𝘂𝘀 𝗼𝗻 𝗚𝗶𝘁𝗵𝘂𝗯! ★
