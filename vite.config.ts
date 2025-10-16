@@ -9,6 +9,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    sourcemap: false, // Disable source maps to avoid Monaco Editor source map warnings
+  },
   server: {
     port: 3000,
     strictPort: true,

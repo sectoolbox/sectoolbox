@@ -106,7 +106,8 @@ except FileNotFoundError:
   const [showQuickGuide, setShowQuickGuide] = useState(false)
 
   // Text size control
-  const [fontSize, setFontSize] = useState(14)
+  const [editorFontSize, setEditorFontSize] = useState(14)
+  const [terminalFontSize, setTerminalFontSize] = useState(14)
 
   // Panel height control for bottom resize
   const [panelHeight, setPanelHeight] = useState(600)
@@ -1223,7 +1224,7 @@ json.dumps(metadata)
       else if (line.includes('✅') || line.includes('Success')) className = 'text-green-300 font-semibold'
       else if (line.startsWith('>>>') || line.startsWith('===')) className = 'text-blue-400'
 
-      return <div key={index} className={`${className} font-mono leading-relaxed hover:bg-white/5`} style={{ fontSize: `${fontSize}px` }}>{line || '\u00A0'}</div>
+      return <div key={index} className={`${className} font-mono leading-relaxed hover:bg-white/5`} style={{ fontSize: `${terminalFontSize}px` }}>{line || '\u00A0'}</div>
     })
   }
 
@@ -1250,16 +1251,6 @@ json.dumps(metadata)
           </div>
         </div>
       )}
-
-      <div className="text-center space-y-2 flex-shrink-0">
-        <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
-          <Code className="h-8 w-8 text-accent" />
-          Python Forensics Environment
-        </h1>
-        <p className="text-muted-foreground max-w-3xl mx-auto">
-          Python environment running locally in your browser. Upload files, run scripts & and analyze data!
-        </p>
-      </div>
 
       <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" onChange={handleFolderUpload} className="hidden" />
@@ -1292,22 +1283,6 @@ json.dumps(metadata)
           <AlertCircle className="h-4 w-4 mr-2" />
           Quick Guide
         </Button>
-
-        <div className="flex items-center gap-2 ml-auto border-l border-border pl-4">
-          <label htmlFor="fontSize" className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-            Text Size:
-          </label>
-          <Input
-            id="fontSize"
-            type="number"
-            min="8"
-            max="32"
-            value={fontSize}
-            onChange={(e) => setFontSize(Math.max(8, Math.min(32, parseInt(e.target.value) || 14)))}
-            className="w-16 h-8 text-xs text-center [color-scheme:dark] bg-background hover:bg-accent/10 transition-colors"
-          />
-          <span className="text-xs text-muted-foreground">px</span>
-        </div>
       </div>
 
       <div style={{ height: `${panelHeight}px`, display: 'flex', flexDirection: 'column' }}>
@@ -1337,7 +1312,22 @@ json.dumps(metadata)
                   <Code className="h-4 w-4" />
                   Python Editor
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <div className="flex items-center gap-2 border-r border-border pr-2">
+                    <label htmlFor="editorFontSize" className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                      Text Size:
+                    </label>
+                    <Input
+                      id="editorFontSize"
+                      type="number"
+                      min="8"
+                      max="32"
+                      value={editorFontSize}
+                      onChange={(e) => setEditorFontSize(Math.max(8, Math.min(32, parseInt(e.target.value) || 14)))}
+                      className="w-16 h-8 text-xs text-center [color-scheme:dark] bg-background hover:bg-accent/10 transition-colors"
+                    />
+                    <span className="text-xs text-muted-foreground">px</span>
+                  </div>
                   <Button onClick={handleUndo} variant="outline" size="sm" title="Undo (Ctrl+Z)">
                     <Undo2 className="h-4 w-4" />
                   </Button>
@@ -1373,7 +1363,7 @@ json.dumps(metadata)
                   theme="vs-dark"
                   options={{
                   minimap: { enabled: false },
-                  fontSize: fontSize,
+                  fontSize: editorFontSize,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
@@ -1403,6 +1393,21 @@ json.dumps(metadata)
                   Output Terminal
                 </h3>
                 <div className="flex gap-2 items-center">
+                  <div className="flex items-center gap-2 border-r border-border pr-2">
+                    <label htmlFor="terminalFontSize" className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                      Text Size:
+                    </label>
+                    <Input
+                      id="terminalFontSize"
+                      type="number"
+                      min="8"
+                      max="32"
+                      value={terminalFontSize}
+                      onChange={(e) => setTerminalFontSize(Math.max(8, Math.min(32, parseInt(e.target.value) || 14)))}
+                      className="w-16 h-7 text-xs text-center [color-scheme:dark] bg-background hover:bg-accent/10 transition-colors"
+                    />
+                    <span className="text-xs text-muted-foreground">px</span>
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                     <Input type="text" placeholder="Filter output..." value={outputFilter} onChange={(e) => setOutputFilter(e.target.value)} className="pl-7 pr-2 h-7 w-40 text-xs" />
@@ -1432,7 +1437,7 @@ json.dumps(metadata)
                 {displayOutput ? (
                   formatOutput(displayOutput)
                 ) : (
-                  <pre className="text-green-400/60 font-mono leading-tight" style={{ fontSize: `${fontSize}px` }}>
+                  <pre className="text-green-400/60 font-mono leading-tight" style={{ fontSize: `${terminalFontSize}px` }}>
 {`System initialized...
 
 |+| Pyodide Version | v0.28.3
