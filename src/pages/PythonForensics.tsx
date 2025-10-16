@@ -1347,8 +1347,10 @@ json.dumps(metadata)
           Package Manager
         </Button>
 
-        <div className="flex items-center gap-2 ml-4 border-l border-border pl-4">
-          <label htmlFor="fontSize" className="text-xs text-muted-foreground whitespace-nowrap">Text Size:</label>
+        <div className="flex items-center gap-2 ml-auto border-l border-border pl-4">
+          <label htmlFor="fontSize" className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+            Text Size:
+          </label>
           <Input
             id="fontSize"
             type="number"
@@ -1356,8 +1358,9 @@ json.dumps(metadata)
             max="32"
             value={fontSize}
             onChange={(e) => setFontSize(Math.max(8, Math.min(32, parseInt(e.target.value) || 14)))}
-            className="w-16 h-8 text-xs text-center"
+            className="w-16 h-8 text-xs text-center [color-scheme:dark] bg-background hover:bg-accent/10 transition-colors"
           />
+          <span className="text-xs text-muted-foreground">px</span>
         </div>
       </div>
 
