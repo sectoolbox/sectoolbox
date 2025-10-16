@@ -1214,11 +1214,7 @@ json.dumps(metadata)
         </div>
       )}
 
-      <div className="flex-1" style={{ minHeight: '800px' }}>
-        <PanelGroup direction="vertical">
-          <Panel defaultSize={35} minSize={20}>
-            <div className="space-y-4">
-            <div className="text-center space-y-2">
+      <div className="text-center space-y-2 flex-shrink-0">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Code className="h-8 w-8 text-accent" />
           Python Forensics Environment
@@ -1364,14 +1360,9 @@ json.dumps(metadata)
           />
         </div>
       </div>
-          </div>
-        </Panel>
 
-        <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize my-2" />
-
-        <Panel defaultSize={65} minSize={40}>
-          <div style={{ height: `${panelHeight}px`, display: 'flex', flexDirection: 'column' }}>
-            <PanelGroup direction="horizontal">
+      <div style={{ height: `${panelHeight}px`, display: 'flex', flexDirection: 'column' }}>
+        <PanelGroup direction="horizontal">
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 overflow-x-auto">
@@ -1535,17 +1526,14 @@ json.dumps(metadata)
           </Panel>
           </PanelGroup>
 
-          {/* Bottom resize handle */}
-          <div
-            onMouseDown={handleResizeStart}
-            className="h-3 bg-border hover:bg-accent transition-colors cursor-row-resize flex items-center justify-center"
-            style={{ userSelect: 'none' }}
-          >
-            <div className="w-12 h-1 bg-muted-foreground/30 rounded"></div>
-          </div>
-          </div>
-        </Panel>
-        </PanelGroup>
+        {/* Bottom resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className="h-3 bg-border hover:bg-accent transition-colors cursor-row-resize flex items-center justify-center"
+          style={{ userSelect: 'none' }}
+        >
+          <div className="w-12 h-1 bg-muted-foreground/30 rounded"></div>
+        </div>
       </div>
 
       {showSaveDialog && (
