@@ -1,6 +1,51 @@
 [
   {
     "date": "2025-10-16",
+    "version": "v2.0.3",
+    "title": "Python Forensics UI Polish & Source Map Fix",
+    "description": "Improved Python Forensics interface with independent text size controls, centered toolbar, and cleaner layout.",
+    "changes": [
+      "Split text size controls: separate adjustments for Python Editor and Output Terminal",
+      "Centered toolbar buttons for better visual balance",
+      "Removed header text and description for cleaner, more focused interface",
+      "Fixed Monaco Editor source map 404 warnings by disabling source maps in build",
+      "Independent font sizing for editor and terminal (8px-32px range)",
+      "Text size controls integrated directly into editor and terminal headers",
+      "Improved UI consistency with border separators"
+    ]
+  },
+  {
+    "date": "2025-10-16",
+    "version": "v2.0.2",
+    "title": "Python Forensics UI Refactoring",
+    "description": "Refactored Python Forensics interface by removing clutter and converting info boxes to accessible button-based popups.",
+    "changes": [
+      "Removed three card-based info boxes (Upload Files, Scripts, Quick Guide)",
+      "Split file upload into separate 'Upload File' and 'Upload Folder' buttons",
+      "Added file count badge to Upload File button showing number of uploaded files",
+      "Created comprehensive Quick Guide popup with numbered steps and command reference",
+      "Quick Guide popup includes 9 shell-like command cards with descriptions",
+      "Cleaner toolbar with all functionality accessible via compact buttons",
+      "More screen space dedicated to editor and terminal panels"
+    ]
+  },
+  {
+    "date": "2025-10-16",
+    "version": "v2.0.1",
+    "title": "Python Forensics Persistence & Performance",
+    "description": "Implemented persistent Pyodide instance with localStorage state management for improved performance.",
+    "changes": [
+      "Global singleton Pyodide manager caches instance across page navigation",
+      "Pyodide loads only once per browser session instead of on every /python visit",
+      "Auto-save tabs, code, and output to localStorage every 3 seconds",
+      "Auto-restore previous session state on page load or navigation return",
+      "5-10 second initial load, then instant access on subsequent visits",
+      "localStorage keys: sectoolbox_python_tabs, sectoolbox_python_output, sectoolbox_python_activeTab",
+      "Safe concurrent access handling for Pyodide initialization"
+    ]
+  },
+  {
+    "date": "2025-10-16",
     "version": "v2.0.0",
     "title": "Python Forensics Major Update - Advanced Features",
     "description": "Complete overhaul of Python Forensics environment with file browser, visualization support, package management, and shell-like helper functions for CTF and forensics analysis.",
