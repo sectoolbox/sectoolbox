@@ -17,6 +17,7 @@
 ## Features
 
 ### Digital Forensics Suite
+- **Python Forensics** - Full Python 3.11 environment with Pyodide, 17 pre-built CTF scripts, package manager, file browser with metadata extraction
 - **Image Analysis** - EXIF extraction, steganography detection, hex viewer, QR code scanning, bit plane analysis
 - **Audio Analysis** - Spectral analysis, DTMF detection, hidden data extraction, waveform visualization
 - **PCAP Analysis** - Network packet inspection, protocol analysis, traffic visualization, conversation tracking
@@ -50,6 +51,36 @@
 - **Classical Ciphers** - Caesar, Vigenere, ROT13, Atbash, Affine
 - **Frequency Analysis** - Statistical cryptanalysis for encrypted text
 - **Modern Crypto** - JWT decoder, RSA tools
+
+### Python Forensics Environment
+- **Full Python 3.11 Runtime** - Pyodide WebAssembly environment running entirely in browser
+- **17 Pre-built CTF Scripts** - Ready-to-use scripts for common forensics tasks
+  - File analysis, steganography detection, data extraction
+  - Cryptography, encoding/decoding, binary analysis
+  - Network analysis, hash cracking helpers
+- **Package Manager** - One-click installation of forensics libraries
+  - pycryptodome, pillow, numpy, requests, beautifulsoup4
+  - pefile, pyzipper, pathlib, piexif, exifread
+- **Scripts Browser** - Large modal interface to browse and load scripts instantly
+- **File Browser** - Advanced file management with three viewing modes:
+  - **Preview Mode** - View text files, images, hex dumps
+  - **Metadata Mode** - Comprehensive forensics analysis:
+    - File hashes (MD5, SHA1, SHA256)
+    - Magic bytes and file type detection
+    - Entropy analysis (detect encryption/compression)
+    - String extraction (all strings found in file)
+    - EXIF marker detection for images
+    - LSB steganography analysis
+    - Hidden data detection (null bytes, suspicious patterns)
+  - **Hex View** - Full hex dump with ASCII representation
+- **Shell-like Helper Functions** - Familiar commands in Python:
+  - `ls()`, `cat()`, `head()`, `tail()`, `grep()`, `hexdump()`
+  - `tree()`, `pwd()`, `fileinfo()`
+- **Monaco Editor** - Full-featured code editor with syntax highlighting
+- **Multi-tab Support** - Work on multiple scripts simultaneously
+- **File Upload** - Drag & drop files or folders for analysis
+- **Undo/Redo** - Full history tracking for code changes
+- **No Truncation** - View complete results (no "showing first X bytes")
 
 ### Advanced Features
 - **Real-time Analysis** - Instant results as you work with live processing
@@ -94,10 +125,13 @@ Visit `http://localhost:5173` to access the application.
 - Build Tool: Vite 7
 - Styling: Tailwind CSS + shadcn/ui components
 - Routing: React Router 7
+- Python Runtime: Pyodide 0.28.3 (Python 3.11 in WebAssembly)
+- Code Editor: Monaco Editor (VS Code editor component)
 - Charts: Recharts for data visualization
 - Icons: Lucide React
 - Image Processing: ExifReader, zbar-wasm for QR codes
 - File Handling: JSZip, file-saver
+- UI Components: react-resizable-panels for split views
 - Deployment: Vercel with serverless functions
 ```
 
@@ -115,6 +149,7 @@ sectoolbox/
 │   │   └── Footer.tsx     # Footer with links
 │   ├── pages/            # Main application pages
 │   │   ├── Dashboard.tsx
+│   │   ├── PythonForensics.tsx    # Python environment with Pyodide
 │   │   ├── ImageAnalysis.tsx
 │   │   ├── AudioAnalysis.tsx
 │   │   ├── PcapAnalysis.tsx
@@ -131,7 +166,11 @@ sectoolbox/
 │   │   ├── pcapAnalysis.ts
 │   │   ├── audioAnalysis.ts
 │   │   ├── imageAnalysis.ts
+│   │   ├── pythonScriptLoader.ts  # Python script management
 │   │   └── toolsDatabase.ts
+│   ├── data/             # Static data files
+│   │   ├── pythonScripts.json     # 17 pre-built Python scripts
+│   │   └── changelogs.json        # Application changelog
 │   └── hooks/            # Custom React hooks
 ├── public/               # Static assets
 └── package.json
@@ -151,13 +190,29 @@ Join our community:
 
 ## Roadmap
 
+### Completed ✅
+- ✅ Python forensics environment with full Python 3.11 support
+- ✅ File browser with advanced metadata extraction
+- ✅ Package manager for forensics libraries
+- ✅ 17 pre-built CTF scripts across multiple categories
+- ✅ Monaco code editor integration
+- ✅ Multi-tab script editing
+- ✅ Comprehensive file analysis (hashes, entropy, strings, LSB analysis)
+
+### In Progress 🚧
 - Binary analysis and reverse engineering tools
 - Extended memory forensics with Volatility integration
-- Custom payload builder
-- Report generation system
+- More Python forensics packages and scripts
+- WASM-compiled forensics tools (binwalk, foremost)
+
+### Planned 📋
+- Custom payload builder for web exploitation
+- Report generation system with export templates
 - Plugin system for community extensions
 - API documentation
-- Website documentation
+- Comprehensive user documentation
+- Script sharing platform
+- Collaborative analysis features
 
 ---
 
