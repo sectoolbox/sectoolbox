@@ -104,6 +104,12 @@ except FileNotFoundError:
   // Text size control
   const [fontSize, setFontSize] = useState(14)
 
+  // Panel height control for bottom resize
+  const [panelHeight, setPanelHeight] = useState(600)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeStartY = useRef(0)
+  const resizeStartHeight = useRef(0)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
@@ -138,6 +144,35 @@ except FileNotFoundError:
       }
     }
   }, [])
+
+  // Handle bottom panel resize
+  const handleResizeStart = (e: React.MouseEvent) => {
+    setIsResizing(true)
+    resizeStartY.current = e.clientY
+    resizeStartHeight.current = panelHeight
+  }
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - resizeStartY.current
+      const newHeight = Math.max(300, resizeStartHeight.current + deltaY)
+      setPanelHeight(newHeight)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
 
   useEffect(() => {
     if (autoScroll && outputRef.current) {
@@ -1169,7 +1204,7 @@ json.dumps(metadata)
   }
 
   return (
-    <div className="p-6 h-screen flex flex-col" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div className="p-6 min-h-screen flex flex-col" onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       {isDragging && (
         <div className="fixed inset-0 bg-accent/20 border-4 border-dashed border-accent z-50 flex items-center justify-center pointer-events-none">
           <div className="text-center">
@@ -1334,7 +1369,8 @@ json.dumps(metadata)
         <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors cursor-row-resize my-2" />
 
         <Panel defaultSize={65} minSize={40}>
-          <PanelGroup direction="horizontal">
+          <div style={{ height: `${panelHeight}px`, display: 'flex', flexDirection: 'column' }}>
+            <PanelGroup direction="horizontal">
           <Panel defaultSize={50} minSize={30}>
             <Card className="p-4 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 overflow-x-auto">
@@ -1497,6 +1533,16 @@ json.dumps(metadata)
             </Card>
           </Panel>
           </PanelGroup>
+
+          {/* Bottom resize handle */}
+          <div
+            onMouseDown={handleResizeStart}
+            className="h-3 bg-border hover:bg-accent transition-colors cursor-row-resize flex items-center justify-center"
+            style={{ userSelect: 'none' }}
+          >
+            <div className="w-12 h-1 bg-muted-foreground/30 rounded"></div>
+          </div>
+          </div>
         </Panel>
       </PanelGroup>
 
