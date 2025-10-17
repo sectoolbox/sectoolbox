@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import {
-  ArrowLeft,
   Upload,
   Activity,
   AlertTriangle,
@@ -37,7 +36,6 @@ import {
 } from '../lib/memoryForensics'
 
 const MemoryForensics: React.FC = () => {
-  const navigate = useNavigate()
   const location = useLocation()
   const [file, setFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -219,20 +217,9 @@ const MemoryForensics: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/forensics')}
-              className="mb-2"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Forensics
-            </Button>
-          </div>
           <h1 className="text-2xl font-bold flex items-center space-x-2">
             <Database className="w-6 h-6 text-accent" />
-            <span>Memory Forensics & Threat Hunting</span>
+            <span>Memory Analysis & Threat Hunting</span>
           </h1>
           <p className="text-muted-foreground mt-1">
             Advanced memory dump analysis for incident response and attack chain reconstruction

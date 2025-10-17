@@ -128,40 +128,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       description: 'Scan and analyze directory structures',
       keywords: ['directory', 'files', 'scan', 'bulk']
     },
-  ]
-
-  const securityTools: NavItem[] = [
-    {
-      path: '/crypto',
-      label: 'Cryptography',
-      icon: Lock,
-      description: 'Encryption, decryption, and cipher tools',
-      keywords: ['encryption', 'decryption', 'cipher', 'hash', 'base64', 'rsa', 'aes']
-    },
-    {
-      path: '/forensics',
-      label: 'Digital Forensics',
-      icon: HardDrive,
-      description: 'Forensic analysis and data recovery',
-      keywords: ['disk', 'file', 'recovery', 'investigation', 'evidence']
-    },
     {
       path: '/memory',
-      label: 'Memory Forensics',
+      label: 'Memory Analysis',
       icon: HardDrive,
       description: 'Memory dump analysis and artifact extraction',
       keywords: ['memory', 'dump', 'volatility', 'ram', 'forensics', 'process']
     },
-    {
-      path: '/python',
-      label: 'Python Environment',
-      icon: Code,
-      description: 'Browser-based Python for forensics scripting',
-      keywords: ['python', 'script', 'code', 'analysis', 'programming', 'pyodide']
-    },
   ]
 
-  const standaloneItems: NavItem[] = [
+  const securityTools: NavItem[] = [
     {
       path: '/network',
       label: 'Network',
@@ -175,6 +151,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: Shield,
       description: 'Threat intelligence and malware analysis',
       keywords: ['virustotal', 'hibp', 'malware', 'phishing', 'abuse', 'threat']
+    },
+    {
+      path: '/crypto',
+      label: 'Cryptography',
+      icon: Lock,
+      description: 'Encryption, decryption, and cipher tools',
+      keywords: ['encryption', 'decryption', 'cipher', 'hash', 'base64', 'rsa', 'aes']
+    },
+  ]
+
+  const standaloneItems: NavItem[] = [
+    {
+      path: '/python',
+      label: 'Python',
+      icon: Code,
+      description: 'Browser-based Python for forensics scripting',
+      keywords: ['python', 'script', 'code', 'analysis', 'programming', 'pyodide']
     },
   ]
 

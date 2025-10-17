@@ -7,7 +7,6 @@ const PcapAnalysis = lazy(() => import('./pages/PcapAnalysis'))
 const USBPcapAnalysis = lazy(() => import('./pages/USBPcapAnalysis'))
 const ImageAnalysis = lazy(() => import('./pages/ImageAnalysis'))
 const CryptoTools = lazy(() => import('./pages/CryptoTools'))
-const DigitalForensics = lazy(() => import('./pages/DigitalForensics'))
 const MemoryForensics = lazy(() => import('./pages/MemoryForensics'))
 const FolderScanner = lazy(() => import('./pages/FolderScanner'))
 const AudioAnalysis = lazy(() => import('./pages/AudioAnalysis'))
@@ -27,7 +26,6 @@ function App() {
               <Route path="/pcap-usb" element={<USBPcapAnalysis />} />
               <Route path="/image" element={<ImageAnalysis />} />
               <Route path="/crypto" element={<CryptoTools />} />
-              <Route path="/forensics" element={<DigitalForensics />} />
               <Route path="/memory" element={<MemoryForensics />} />
               <Route path="/folder-scanner" element={<FolderScanner />} />
               <Route path="/audio" element={<AudioAnalysis />} />
