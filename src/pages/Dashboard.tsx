@@ -15,7 +15,10 @@ import {
   Clock,
   FolderOpen,
   Headphones,
-  Shield
+  Shield,
+  Code,
+  Database,
+  BarChart3
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 // Removed unused changelog functionality
@@ -34,15 +37,16 @@ const Dashboard: React.FC = () => {
   // Removed unused changelog loading
 
   const tools = [
-    { name: 'PCAP', path: '/pcap', description: 'Deep packet inspection and network traffic analysis', icon: Network },
-    { name: 'Image', path: '/image', description: 'Steganography detection and metadata extraction', icon: Image },
-    { name: 'Cryptography Tools', path: '/crypto', description: 'Encoding, decoding, and cryptographic operations', icon: Lock },
-    { name: 'Web', path: '/web', description: 'Web application security and exploitation utilities', icon: Globe },
-    { name: 'Network', path: '/network', description: 'Network analysis and security tools', icon: Network },
-    { name: 'Memory Analysis', path: '/memory', description: 'Memory dump analysis and artifact extraction', icon: Search },
-    { name: 'Folder', path: '/folder-scanner', description: 'Bulk scan folders and filter files by content', icon: FolderOpen },
-    { name: 'Audio', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones },
-    { name: 'Threat Intel', path: '/threat-intel', description: 'Threat intelligence and security monitoring', icon: Activity }
+    { name: 'PCAP Analysis', path: '/pcap', description: 'Deep packet inspection and network traffic analysis', icon: BarChart3 },
+    { name: 'USB PCAP', path: '/pcap-usb', description: 'USB packet capture analysis', icon: BarChart3 },
+    { name: 'Image Analysis', path: '/image', description: 'Steganography detection and metadata extraction', icon: Image },
+    { name: 'Audio Analysis', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones },
+    { name: 'Folder Scanner', path: '/folder-scanner', description: 'Bulk scan folders and filter files by content', icon: FolderOpen },
+    { name: 'Memory Analysis', path: '/memory', description: 'Memory dump analysis and artifact extraction', icon: Database },
+    { name: 'Network Tools', path: '/network', description: 'Network analysis and security tools', icon: Network },
+    { name: 'Threat Intel', path: '/threat-intel', description: 'Threat intelligence and security monitoring', icon: Shield },
+    { name: 'Cryptography', path: '/crypto', description: 'Encoding, decoding, and cryptographic operations', icon: Lock },
+    { name: 'Python', path: '/python', description: 'Browser-based Python environment', icon: Code }
   ]
 
   // Use the tools database search to find actual tools/operations
