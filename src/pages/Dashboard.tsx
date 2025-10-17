@@ -39,7 +39,7 @@ const Dashboard: React.FC = () => {
     { name: 'Cryptography Tools', path: '/crypto', description: 'Encoding, decoding, and cryptographic operations', icon: Lock },
     { name: 'Web', path: '/web', description: 'Web application security and exploitation utilities', icon: Globe },
     { name: 'Network', path: '/network', description: 'Network analysis and security tools', icon: Network },
-    { name: 'Forensics', path: '/forensics', description: 'File analysis and digital evidence examination', icon: Search },
+    { name: 'Memory Analysis', path: '/memory', description: 'Memory dump analysis and artifact extraction', icon: Search },
     { name: 'Folder', path: '/folder-scanner', description: 'Bulk scan folders and filter files by content', icon: FolderOpen },
     { name: 'Audio', path: '/audio', description: 'Detect hidden messages in audio files', icon: Headphones },
     { name: 'Threat Intel', path: '/threat-intel', description: 'Threat intelligence and security monitoring', icon: Activity }
@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
     } else if (fileType.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|m4a|flac|aac|wma)$/i)) {
       navigate('/audio', { state })
     } else {
-      navigate('/forensics', { state })
+      navigate('/memory', { state })
     }
   }
 
@@ -196,11 +196,11 @@ const Dashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground">MP3, WAV, OGG</p>
             </div>
 
-            {/* Forensics Upload */}
+            {/* Memory Analysis Upload */}
             <div
               className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'forensics')}
+              onDrop={e => handleDrop(e, 'memory')}
               onClick={() => {
                 const input = document.createElement('input')
                 input.type = 'file'
@@ -213,8 +213,8 @@ const Dashboard: React.FC = () => {
               }}
             >
               <Shield className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
-              <p className="text-xs font-medium">Forensics</p>
-              <p className="text-xs text-muted-foreground">Any file type</p>
+              <p className="text-xs font-medium">Memory Analysis</p>
+              <p className="text-xs text-muted-foreground">Memory dumps</p>
             </div>
 
             {/* Folder Scanner Upload */}
