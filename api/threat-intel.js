@@ -364,41 +364,8 @@ async function handleAlienVault(req, res, type, query, section) {
     return res.status(400).json({ error: 'Query parameter required' })
   }
 
-  const apiKey = process.env.ALIENVAULT_API_KEY
-  let url
-
-  if (type === 'ip' || type === 'IPv4') {
-    if (section) {
-      url = `https://otx.alienvault.com/api/v1/indicators/IPv4/${encodeURIComponent(query)}/${section}`
-    } else {
-      url = `https://otx.alienvault.com/api/v1/indicators/IPv4/${encodeURIComponent(query)}/general`
-    }
-  } else if (type === 'domain' || type === 'hostname') {
-    if (section) {
-      url = `https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(query)}/${section}`
-    } else {
-      url = `https://otx.alienvault.com/api/v1/indicators/domain/${encodeURIComponent(query)}/general`
-    }
-  } else if (type === 'url') {
-    if (section) {
-      url = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(query)}/${section}`
-    } else {
-      url = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(query)}/general`
-    }
-  } else if (type === 'file' || type === 'hash') {
-    if (section) {
-      url = `https://otx.alienvault.com/api/v1/indicators/file/${query}/${section}`
-    } else {
-      url = `https://otx.alienvault.com/api/v1/indicators/file/${query}/general`
-    }
-  } else {
-    url = `https://otx.alienvault.com/api/v1/indicators/IPv4/${encodeURIComponent(query)}/general`
-  }
-
-  const headers = { 'User-Agent': 'Sectoolbox' }
-  if (apiKey) {
-    headers['X-OTX-API-KEY'] = apiKey
-  }
+  const url = buildAlienVaultURL(type, query, section)
+  const headers = buildAlienVaultHeaders()
 
   const response = await fetch(url, { headers })
   const data = await response.json()
@@ -411,6 +378,40 @@ async function handleAlienVault(req, res, type, query, section) {
   }
 
   return res.status(200).json(data)
+}
+
+// Helper: Build AlienVault URL based on indicator type
+function buildAlienVaultURL(type, query, section) {
+  const baseURL = 'https://otx.alienvault.com/api/v1/indicators'
+  const endpoint = section || 'general'
+
+  // Map type to indicator category
+  const typeMap = {
+    'ip': 'IPv4',
+    'IPv4': 'IPv4',
+    'domain': 'domain',
+    'hostname': 'domain',
+    'url': 'url',
+    'file': 'file',
+    'hash': 'file'
+  }
+
+  const indicatorType = typeMap[type] || 'IPv4'
+  const encodedQuery = indicatorType === 'file' ? query : encodeURIComponent(query)
+
+  return `${baseURL}/${indicatorType}/${encodedQuery}/${endpoint}`
+}
+
+// Helper: Build AlienVault headers
+function buildAlienVaultHeaders() {
+  const headers = { 'User-Agent': 'Sectoolbox' }
+  const apiKey = process.env.ALIENVAULT_API_KEY
+
+  if (apiKey) {
+    headers['X-OTX-API-KEY'] = apiKey
+  }
+
+  return headers
 }
 
 // Check API Keys

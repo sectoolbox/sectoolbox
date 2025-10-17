@@ -266,7 +266,7 @@ export default function Network() {
         // Skip invalid URLs
       }
     })
-    return Array.from(paths).sort()
+    return Array.from(paths).sort((a, b) => a.localeCompare(b))
   }, [filteredArchiveUrls])
 
   // Extract potential injection points (URLs with parameters)
@@ -291,7 +291,7 @@ export default function Network() {
         // Skip invalid URLs
       }
     })
-    return [...new Set(points)].sort()
+    return [...new Set(points)].sort((a, b) => a.localeCompare(b))
   }, [filteredArchiveUrls])
 
   // IPInfo.io

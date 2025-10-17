@@ -667,12 +667,16 @@ function extractUTF16BEStrings(bytes: Uint8Array, minLength = 4): string[] {
 
 // Helper: Extract interesting patterns from strings
 function extractPatterns(text: string): FileAnalysisResult['interestingPatterns'] {
+  // Limit text length to prevent ReDoS attacks
+  const maxLength = 100000
+  const safeText = text.length > maxLength ? text.substring(0, maxLength) : text
+
   return {
-    urls: [...new Set(text.match(/https?:\/\/[^\s<>"']{4,200}/g) || [])],
-    emails: [...new Set(text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])],
-    ips: [...new Set(text.match(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g) || [])],
-    base64: [...new Set(text.match(/[A-Za-z0-9+/]{20,}={0,2}/g) || [])].slice(0, 10),
-    hexStrings: [...new Set(text.match(/0x[a-fA-F0-9]{8,}/g) || [])].slice(0, 10)
+    urls: [...new Set(safeText.match(/https?:\/\/[^\s<>"']{4,200}?/g) || [])],
+    emails: [...new Set(safeText.match(/[a-zA-Z0-9._%+-]+?@[a-zA-Z0-9.-]+?\.[a-zA-Z]{2,10}/g) || [])],
+    ips: [...new Set(safeText.match(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g) || [])],
+    base64: [...new Set(safeText.match(/[A-Za-z0-9+/]{20,100}?={0,2}/g) || [])].slice(0, 10),
+    hexStrings: [...new Set(safeText.match(/0x[a-fA-F0-9]{8,20}?/g) || [])].slice(0, 10)
   }
 }
 
