@@ -27,13 +27,13 @@ Sectoolbox is a web-based security analysis platform designed for CTF players, s
 - Deployment: Vercel with serverless functions
 ```
 
-## Quick Start
+## Installation
 
 ### Prerequisites
+```
 - Node.js 18 or higher
 - npm or yarn package manager
-
-### Installation
+```
 
 ```bash
 # Clone repository
@@ -66,22 +66,6 @@ sectoolbox/
 └── package.json
 ```
 
-## Key Capabilities
-
-**Python Forensics Environment**
-- Full Python 3.11 runtime in browser via WebAssembly
-- 17 pre-built CTF scripts for common forensics tasks
-- One-click package installation (pycryptodome, numpy, pillow, etc.)
-- File browser with metadata analysis and hex viewer
-- Shell-like helper functions (ls, cat, grep, hexdump)
-- Multi-tab script editing with syntax highlighting
-
-**Real-Time Analysis**
-- Instant processing and results
-- Live data visualization
-- Interactive analysis tools
-- Export results in multiple formats
-
 ## Community
 
 - **Discord**: [Join our server](https://discord.gg/SvvKKMzE5Q)
@@ -97,4 +81,8 @@ sectoolbox/
 
 ---
 
-### Star us on GitHub if you find this project useful!
+<div align="center">
+
+### ⭐ Star us on GitHub if you find this project useful!⭐
+
+</div>
