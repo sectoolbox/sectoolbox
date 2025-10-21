@@ -17,23 +17,38 @@
 
 Sectoolbox is a web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with React and TypeScript, it delivers powerful forensics and exploitation tools directly in your browser with complete client-side processing.
 
-## Technical Stack
+## Main Tools
 ```
-- Frontend: React 19, TypeScript 5.8
-- Build System: Vite 7
-- UI Framework: Tailwind CSS, shadcn/ui
-- Python Runtime: Pyodide 0.28.3 (Python 3.11 in WebAssembly)
-- Code Editor: Monaco Editor
-- Deployment: Vercel with serverless functions
+PCAP Analysis - Network packet capture parsing
+USB PCAP - USB protocol analysis
+Image Analysis - Steganography, EXIF, barcodes
+Audio Analysis - Spectrograms, frequency analysis
+Memory Forensics - Process analysis, credential hunting
+Folder Scanner - Bulk file scanning
+Crypto Tools - Encoding/decoding operations
+Network - DNS, IP info, headers analysis
+Threat Intel - VirusTotal, HIBP, AbuseIPDB integrations
+Python Forensics - Full Python environment in browser
+Digital Forensics - Disk image analysis
+Dashboard - Quick file upload and tool directory
 ```
 
-## Installation
+## Technical Stack
+
+- Frontend: <kbd>React 19, TypeScript 5.8</kbd>
+- Build System: <kbd>Vite 7</kbd>
+- UI Framework: <kbd>Tailwind CSS, shadcn/ui</kbd>
+- Python Runtime: <kbd>Pyodide 0.28.3 (Python 3.11 in WebAssembly)</kbd>
+- Code Editor: <kbd>Monaco Editor</kbd>
+- Deployment: <kbd>Vercel with serverless functions</kbd>
 
 ### Prerequisites
 ```
 - Node.js 18 or higher
 - npm or yarn package manager
 ```
+
+## Installation
 
 ```bash
 # Clone repository
@@ -56,9 +71,9 @@ Access the application at `http://localhost:5173`
 
 ```
 sectoolbox/
-├── api/                    # Vercel serverless functions
+├── api/                  # Vercel serverless functions
 ├── src/
-│   ├── components/        # Reusable UI components
+│   ├── components/       # Reusable UI components
 │   ├── pages/            # Application pages
 │   ├── lib/              # Analysis logic and utilities
 │   └── data/             # Static data and scripts
