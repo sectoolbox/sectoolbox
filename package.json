@@ -30,12 +30,12 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite --config .config/vite.config.ts",
+    "build": "vite build --config .config/vite.config.ts",
     "lint": "npm run lint:js && npm run lint:css",
-    "preview": "vite preview",
+    "preview": "vite preview --config .config/vite.config.ts",
     "lint:css": "stylelint \"src/**/*.css\" --fix --quiet",
-    "lint:js": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --quiet"
+    "lint:js": "eslint . --config .config/eslint.config.js --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --quiet"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
