@@ -33,7 +33,8 @@ Digital Forensics - Disk image analysis
 Dashboard - Quick file upload and tool directory
 ```
 
-### Want to run it locally? Go to [Getting Started](https://github.com/sectoolbox/sectoolbox/docs/getting-started.md)
+## Want to run it locally? 
+> ### Go to [Getting Started](https://github.com/sectoolbox/sectoolbox/blob/main/docs/getting-started.md)
 
 
 ## Technical Stack
