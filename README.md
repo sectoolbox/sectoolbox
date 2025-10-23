@@ -9,7 +9,7 @@
 [![Vite](https://img.shields.io/badge/Vite-7.1-646CFF?logo=vite)](https://vitejs.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Live Website](https://sectoolbox.cc/) • [Documentation|Adding Soon]() • [Discord](https://discord.gg/SvvKKMzE5Q)
+[Live Website](https://sectoolbox.cc/) • [Documentation](https://github.com/sectoolbox/sectoolbox/docs) • [Discord](https://discord.gg/SvvKKMzE5Q)
 
 </div>
 
