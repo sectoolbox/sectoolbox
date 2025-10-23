@@ -33,6 +33,9 @@ Digital Forensics - Disk image analysis
 Dashboard - Quick file upload and tool directory
 ```
 
+### Want to run it locally? Go to [Getting Started](https://github.com/sectoolbox/sectoolbox/docs/getting-started.md)
+
+
 ## Technical Stack
 
 - Frontend: <kbd>React 19, TypeScript 5.8</kbd>
@@ -42,30 +45,6 @@ Dashboard - Quick file upload and tool directory
 - Code Editor: <kbd>Monaco Editor</kbd>
 - Deployment: <kbd>Vercel with serverless functions</kbd>
 
-### Prerequisites
-```
-- Node.js 18 or higher
-- npm or yarn package manager
-```
-
-## Installation
-
-```bash
-# Clone repository
-git clone https://github.com/sectoolbox/sectoolbox.git
-cd sectoolbox
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-```
-
-Access the application at `http://localhost:5173`
 
 ## Project Structure
 
