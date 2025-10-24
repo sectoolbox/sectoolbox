@@ -10,27 +10,175 @@ const queue = getPcapQueue();
 queue.process(async (job) => {
   const { jobId, filePath, depth, filename } = job.data;
 
+  console.log(`🔍 Starting deep PCAP analysis for job ${jobId}`);
+
   emitJobProgress(jobId, {
     progress: 5,
-    message: 'Starting deep PCAP analysis...',
+    message: 'Initializing Wireshark-level analysis...',
     status: 'processing'
   });
 
   try {
-    // Try tshark first for comprehensive analysis
-    const useTshark = await checkTsharkAvailable();
+    // Check if tshark is available
+    const hasTshark = await checkTsharkAvailable();
 
-    if (useTshark) {
-      console.log('✅ Using tshark for deep analysis');
-      const results = await analyzeWithTshark(filePath, filename, jobId, depth);
-      return results;
-    } else {
-      console.log('⚠️ tshark not available, using enhanced custom parser');
-      const results = await analyzeWithCustomParser(filePath, filename, jobId, depth);
-      return results;
+    if (!hasTshark) {
+      throw new Error('tshark (Wireshark CLI) is not installed. Cannot perform deep analysis.');
     }
+
+    console.log('✅ tshark available, starting comprehensive analysis');
+
+    // Step 1: Get basic file info
+    emitJobProgress(jobId, {
+      progress: 10,
+      message: 'Reading PCAP file metadata...',
+      status: 'processing'
+    });
+
+    const fileStats = await fs.stat(filePath);
+    const capinfos = await getFileInfo(filePath);
+
+    // Step 2: Extract ALL packets with full layer data
+    emitJobProgress(jobId, {
+      progress: 20,
+      message: 'Extracting packet data (this may take a while)...',
+      status: 'processing'
+    });
+
+    const packets = await extractAllPackets(filePath, depth, jobId);
+
+    // Step 3: Extract protocol hierarchy
+    emitJobProgress(jobId, {
+      progress: 40,
+      message: 'Analyzing protocol hierarchy...',
+      status: 'processing'
+    });
+
+    const protocolHierarchy = await getProtocolHierarchy(filePath);
+
+    // Step 4: Extract HTTP objects
+    emitJobProgress(jobId, {
+      progress: 50,
+      message: 'Extracting HTTP sessions...',
+      status: 'processing'
+    });
+
+    const httpData = await extractHttpData(filePath, jobId);
+
+    // Step 5: Extract DNS data
+    emitJobProgress(jobId, {
+      progress: 60,
+      message: 'Extracting DNS queries...',
+      status: 'processing'
+    });
+
+    const dnsData = await extractDnsData(filePath);
+
+    // Step 6: Get conversation statistics
+    emitJobProgress(jobId, {
+      progress: 70,
+      message: 'Computing conversation statistics...',
+      status: 'processing'
+    });
+
+    const conversations = await getConversations(filePath);
+
+    // Step 7: Get endpoint statistics
+    emitJobProgress(jobId, {
+      progress: 80,
+      message: 'Analyzing endpoints...',
+      status: 'processing'
+    });
+
+    const endpoints = await getEndpoints(filePath);
+
+    // Step 8: Extract expert info (warnings, errors, notes)
+    emitJobProgress(jobId, {
+      progress: 85,
+      message: 'Running expert analysis...',
+      status: 'processing'
+    });
+
+    const expertInfo = await getExpertInfo(filePath);
+
+    // Step 9: Extract IO graph data for timeline
+    emitJobProgress(jobId, {
+      progress: 90,
+      message: 'Generating I/O statistics...',
+      status: 'processing'
+    });
+
+    const ioStats = await getIOStats(filePath);
+
+    // Step 10: Detect threats and anomalies
+    emitJobProgress(jobId, {
+      progress: 95,
+      message: 'Running threat detection...',
+      status: 'processing'
+    });
+
+    const threats = detectThreats(packets, conversations, httpData, dnsData, expertInfo);
+
+    // Final results
+    const results = {
+      // Basic metadata
+      filename,
+      depth,
+      method: 'tshark',
+
+      // File info from capinfos
+      metadata: {
+        ...capinfos,
+        fileSize: fileStats.size,
+        totalPackets: packets.length,
+        linkType: capinfos.linkType || null
+      },
+
+      // All packets with full layer data
+      packets,
+
+      // Protocol statistics
+      protocols: protocolHierarchy,
+
+      // Application layer data
+      httpStreams: httpData.streams, // Match frontend field name
+      dnsQueries: dnsData,
+
+      // Network intelligence
+      conversations,
+      endpoints,
+
+      // Wireshark expert analysis
+      expertInfo,
+
+      // Threat detection
+      threatIndicators: threats,
+
+      // I/O statistics for graphing
+      ioStats,
+
+      // Timeline data
+      networkIntelligence: {
+        topTalkers: conversations.slice(0, 10).map((c: any) => ({
+          ip: c.source,
+          bytes: c.bytes,
+          packets: c.packets
+        })),
+        protocolDistribution: protocolHierarchy.summary,
+        bandwidth: ioStats
+      },
+
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`✅ Analysis complete: ${packets.length} packets, ${conversations.length} conversations`);
+
+    await saveResults(jobId, results);
+    emitJobCompleted(jobId, results);
+
+    return results;
   } catch (error: any) {
-    console.error('PCAP analysis error:', error);
+    console.error('❌ PCAP analysis error:', error);
     emitJobFailed(jobId, error.message);
     throw error;
   }
@@ -41,92 +189,57 @@ async function checkTsharkAvailable(): Promise<boolean> {
     const tshark = spawn('tshark', ['-v']);
     tshark.on('error', () => resolve(false));
     tshark.on('close', (code) => resolve(code === 0));
+    setTimeout(() => resolve(false), 5000);
   });
 }
 
-async function analyzeWithTshark(filePath: string, filename: string, jobId: string, depth: string) {
-  emitJobProgress(jobId, {
-    progress: 15,
-    message: 'Analyzing with tshark (Wireshark)...',
-    status: 'processing'
-  });
-
-  // Extract comprehensive packet data using tshark
-  const tsharkData = await runTshark(filePath, jobId);
-
-  emitJobProgress(jobId, {
-    progress: 60,
-    message: 'Extracting HTTP sessions...',
-    status: 'processing'
-  });
-
-  // Extract HTTP traffic
-  const httpSessions = await extractHttpWithTshark(filePath);
-
-  emitJobProgress(jobId, {
-    progress: 75,
-    message: 'Extracting DNS queries...',
-    status: 'processing'
-  });
-
-  // Extract DNS queries
-  const dnsQueries = await extractDnsWithTshark(filePath);
-
-  emitJobProgress(jobId, {
-    progress: 90,
-    message: 'Generating final report...',
-    status: 'processing'
-  });
-
-  const results = {
-    filename,
-    depth,
-    method: 'tshark',
-    metadata: tsharkData.metadata,
-    packets: tsharkData.packets,
-    protocols: tsharkData.protocols,
-    httpSessions,
-    dnsQueries,
-    conversations: tsharkData.conversations,
-    endpoints: tsharkData.endpoints,
-    timestamp: new Date().toISOString()
-  };
-
-  await saveResults(jobId, results);
-  emitJobCompleted(jobId, results);
-
-  return results;
-}
-
-function runTshark(filePath: string, jobId: string): Promise<any> {
+async function getFileInfo(filePath: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    // Use tshark to extract detailed packet info as JSON
+    const capinfos = spawn('capinfos', ['-M', filePath]);
+
+    let stdout = '';
+
+    capinfos.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    capinfos.on('close', (code) => {
+      if (code === 0) {
+        const info: any = {};
+        stdout.split('\n').forEach(line => {
+          const [key, value] = line.split(': ');
+          if (key && value) {
+            info[key.trim().replace(/ /g, '_').toLowerCase()] = value.trim();
+          }
+        });
+        resolve(info);
+      } else {
+        resolve({ format: 'pcap' });
+      }
+    });
+
+    capinfos.on('error', () => resolve({ format: 'pcap' }));
+  });
+}
+
+async function extractAllPackets(filePath: string, depth: string, jobId: string): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const maxPackets = depth === 'quick' ? 100 : 10000;
+
+    // Export EVERYTHING tshark can provide in JSON format
     const tshark = spawn('tshark', [
       '-r', filePath,
       '-T', 'json',
-      '-c', '1000', // Limit to 1000 packets for deep analysis
-      '-e', 'frame.number',
-      '-e', 'frame.time',
-      '-e', 'frame.len',
-      '-e', 'ip.src',
-      '-e', 'ip.dst',
-      '-e', 'tcp.srcport',
-      '-e', 'tcp.dstport',
-      '-e', 'udp.srcport',
-      '-e', 'udp.dstport',
-      '-e', 'frame.protocols',
-      '-e', 'http.request.method',
-      '-e', 'http.request.uri',
-      '-e', 'http.response.code',
-      '-e', 'dns.qry.name',
-      '-e', 'tls.handshake.type'
+      '-c', maxPackets.toString(),
+      '-V' // Verbose: full packet tree
     ]);
 
     let stdout = '';
     let stderr = '';
+    const chunks: string[] = [];
 
     tshark.stdout.on('data', (data) => {
-      stdout += data.toString();
+      chunks.push(data.toString());
     });
 
     tshark.stderr.on('data', (data) => {
@@ -134,16 +247,78 @@ function runTshark(filePath: string, jobId: string): Promise<any> {
     });
 
     tshark.on('close', (code) => {
-      if (code === 0) {
+      if (code === 0 || code === null) {
         try {
-          const packets = JSON.parse(stdout);
-          const analysis = parseTsharkOutput(packets);
-          resolve(analysis);
+          stdout = chunks.join('');
+          const rawPackets = JSON.parse(stdout);
+
+          // Transform tshark JSON to our format (keeping ALL data)
+          const packets = rawPackets.map((pkt: any, index: number) => {
+            const layers = pkt._source?.layers || {};
+
+            return {
+              // Core packet info
+              index: parseInt(layers.frame?.['frame.number'] || index + 1),
+              timestamp: layers.frame?.['frame.time'] || new Date().toISOString(),
+              size: parseInt(layers.frame?.['frame.len'] || 0),
+              capturedLength: parseInt(layers.frame?.['frame.cap_len'] || 0),
+
+              // Protocol info
+              protocol: determineProtocol(layers),
+              protocols: layers.frame?.['frame.protocols'] || '',
+
+              // Network layer
+              source: layers.ip?.['ip.src'] || layers.ipv6?.['ipv6.src'] || layers.eth?.['eth.src'] || 'N/A',
+              destination: layers.ip?.['ip.dst'] || layers.ipv6?.['ipv6.dst'] || layers.eth?.['eth.dst'] || 'N/A',
+
+              // Transport layer
+              srcPort: layers.tcp?.['tcp.srcport'] || layers.udp?.['udp.srcport'] || null,
+              destPort: layers.tcp?.['tcp.dstport'] || layers.udp?.['udp.dstport'] || null,
+
+              // TCP specific
+              tcpFlags: layers.tcp?.['tcp.flags'] || null,
+              tcpSeq: layers.tcp?.['tcp.seq'] || null,
+              tcpAck: layers.tcp?.['tcp.ack'] || null,
+              tcpStream: layers.tcp?.['tcp.stream'] || null,
+
+              // Application layer info
+              info: buildPacketInfo(layers),
+
+              // HTTP data
+              httpMethod: layers.http?.['http.request.method'],
+              httpUri: layers.http?.['http.request.uri'],
+              httpHost: layers.http?.['http.host'],
+              httpStatusCode: layers.http?.['http.response.code'],
+              httpUserAgent: layers.http?.['http.user_agent'],
+
+              // DNS data
+              dnsQuery: layers.dns?.['dns.qry.name'],
+              dnsResponse: layers.dns?.['dns.resp.name'],
+              dnsType: layers.dns?.['dns.qry.type'],
+
+              // TLS data
+              tlsVersion: layers.tls?.['tls.record.version'],
+              tlsCipher: layers.tls?.['tls.handshake.ciphersuite'],
+              tlsSNI: layers.tls?.['tls.handshake.extensions_server_name'],
+
+              // Raw layer data (for packet detail tree)
+              rawLayers: layers,
+
+              // Hex dump
+              data: layers.frame?.['frame.data'] || null,
+
+              // Color coding (Wireshark style)
+              colorRule: determineColorRule(layers)
+            };
+          });
+
+          resolve(packets);
         } catch (err: any) {
-          reject(new Error(`Failed to parse tshark output: ${err.message}`));
+          console.error('Failed to parse tshark JSON:', err);
+          reject(new Error(`tshark JSON parse error: ${err.message}`));
         }
       } else {
-        reject(new Error(`tshark failed: ${stderr}`));
+        reject(new Error(`tshark failed (code ${code}): ${stderr}`));
       }
     });
 
@@ -153,118 +328,163 @@ function runTshark(filePath: string, jobId: string): Promise<any> {
   });
 }
 
-function parseTsharkOutput(packets: any[]): any {
-  const metadata = {
-    format: 'pcap',
-    totalPackets: packets.length,
-    linkType: 1, // Ethernet
-    fileSize: 0
-  };
-
-  const protocolCounts = new Map<string, number>();
-  const conversations = new Map<string, any>();
-  const endpoints = new Set<string>();
-
-  const parsedPackets = packets.map((pkt, index) => {
-    const layers = pkt._source?.layers || {};
-
-    const frameNum = layers['frame.number']?.[0] || index + 1;
-    const timestamp = layers['frame.time']?.[0] || new Date().toISOString();
-    const size = parseInt(layers['frame.len']?.[0] || '0');
-    const protocols = layers['frame.protocols']?.[0] || 'Unknown';
-
-    const ipSrc = layers['ip.src']?.[0];
-    const ipDst = layers['ip.dst']?.[0];
-    const tcpSrcPort = layers['tcp.srcport']?.[0];
-    const tcpDstPort = layers['tcp.dstport']?.[0];
-    const udpSrcPort = layers['udp.srcport']?.[0];
-    const udpDstPort = layers['udp.dstport']?.[0];
-
-    // Determine primary protocol
-    let protocol = 'Unknown';
-    if (protocols.includes('http')) protocol = 'HTTP';
-    else if (protocols.includes('https') || protocols.includes('tls')) protocol = 'TLS';
-    else if (protocols.includes('dns')) protocol = 'DNS';
-    else if (protocols.includes('tcp')) protocol = 'TCP';
-    else if (protocols.includes('udp')) protocol = 'UDP';
-    else if (protocols.includes('icmp')) protocol = 'ICMP';
-    else if (protocols.includes('arp')) protocol = 'ARP';
-
-    protocolCounts.set(protocol, (protocolCounts.get(protocol) || 0) + 1);
-
-    // Track endpoints
-    if (ipSrc) endpoints.add(ipSrc);
-    if (ipDst) endpoints.add(ipDst);
-
-    // Track conversations
-    if (ipSrc && ipDst) {
-      const convKey = `${ipSrc}-${ipDst}`;
-      const conv = conversations.get(convKey) || {
-        source: ipSrc,
-        destination: ipDst,
-        packets: 0,
-        bytes: 0,
-        protocols: new Set()
-      };
-      conv.packets++;
-      conv.bytes += size;
-      conv.protocols.add(protocol);
-      conversations.set(convKey, conv);
-    }
-
-    return {
-      index: frameNum,
-      timestamp,
-      size,
-      protocol,
-      source: ipSrc || 'N/A',
-      destination: ipDst || 'N/A',
-      srcPort: tcpSrcPort || udpSrcPort,
-      destPort: tcpDstPort || udpDstPort,
-      info: protocols,
-      httpMethod: layers['http.request.method']?.[0],
-      httpUri: layers['http.request.uri']?.[0],
-      httpStatus: layers['http.response.code']?.[0],
-      dnsQuery: layers['dns.qry.name']?.[0],
-      tlsHandshake: layers['tls.handshake.type']?.[0]
-    };
-  });
-
-  const protocolDetails = Array.from(protocolCounts.entries()).map(([name, count]) => ({
-    name,
-    count,
-    percentage: parseFloat(((count / metadata.totalPackets) * 100).toFixed(1))
-  }));
-
-  const conversationsList = Array.from(conversations.values()).map(conv => ({
-    ...conv,
-    protocols: Array.from(conv.protocols)
-  }));
-
-  return {
-    metadata,
-    packets: parsedPackets,
-    protocols: { details: protocolDetails, summary: protocolDetails },
-    conversations: conversationsList,
-    endpoints: Array.from(endpoints)
-  };
+function determineProtocol(layers: any): string {
+  // Determine highest-level protocol
+  if (layers.http) return 'HTTP';
+  if (layers.https || layers.tls) return 'TLS/HTTPS';
+  if (layers.dns) return 'DNS';
+  if (layers.ssh) return 'SSH';
+  if (layers.ftp) return 'FTP';
+  if (layers.smtp) return 'SMTP';
+  if (layers.telnet) return 'TELNET';
+  if (layers.tcp) return 'TCP';
+  if (layers.udp) return 'UDP';
+  if (layers.icmp) return 'ICMP';
+  if (layers.arp) return 'ARP';
+  if (layers.ip) return 'IPv4';
+  if (layers.ipv6) return 'IPv6';
+  return 'Unknown';
 }
 
-function extractHttpWithTshark(filePath: string): Promise<any[]> {
+function buildPacketInfo(layers: any): string {
+  if (layers.http) {
+    const method = layers.http['http.request.method'];
+    const uri = layers.http['http.request.uri'];
+    const status = layers.http['http.response.code'];
+
+    if (method && uri) return `${method} ${uri}`;
+    if (status) return `HTTP/1.1 ${status}`;
+  }
+
+  if (layers.dns) {
+    const query = layers.dns['dns.qry.name'];
+    const response = layers.dns['dns.resp.name'];
+    if (query) return `Standard query ${query}`;
+    if (response) return `Standard query response ${response}`;
+  }
+
+  if (layers.tcp) {
+    const flags = layers.tcp['tcp.flags'];
+    const srcPort = layers.tcp['tcp.srcport'];
+    const dstPort = layers.tcp['tcp.dstport'];
+    return `${srcPort} → ${dstPort} [${flags || 'TCP'}]`;
+  }
+
+  if (layers.udp) {
+    const srcPort = layers.udp['udp.srcport'];
+    const dstPort = layers.udp['udp.dstport'];
+    return `${srcPort} → ${dstPort}`;
+  }
+
+  return layers.frame?.['frame.protocols'] || 'No info';
+}
+
+function determineColorRule(layers: any): string {
+  // Wireshark color rules
+  if (layers.http) {
+    const method = layers.http['http.request.method'];
+    if (method === 'GET') return 'http-get';
+    if (method === 'POST') return 'http-post';
+    return 'http';
+  }
+  if (layers.dns) return 'dns';
+  if (layers.tcp) {
+    const flags = layers.tcp['tcp.flags.syn'];
+    if (flags === '1') return 'tcp-syn';
+    return 'tcp';
+  }
+  if (layers.udp) return 'udp';
+  if (layers.icmp) return 'icmp';
+  if (layers.arp) return 'arp';
+  return 'default';
+}
+
+async function getProtocolHierarchy(filePath: string): Promise<any> {
+  return new Promise((resolve) => {
+    const tshark = spawn('tshark', [
+      '-r', filePath,
+      '-q', // Quiet mode
+      '-z', 'io,phs' // Protocol Hierarchy Statistics
+    ]);
+
+    let stdout = '';
+
+    tshark.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    tshark.on('close', () => {
+      const protocols = parseProtocolHierarchy(stdout);
+      resolve(protocols);
+    });
+
+    tshark.on('error', () => resolve({ summary: {}, details: [] }));
+  });
+}
+
+function parseProtocolHierarchy(output: string): any {
+  const summary: Record<string, number> = {};
+  const details: Array<{ name: string; count: number; percentage: number; bytes: number }> = [];
+
+  const lines = output.split('\n');
+  let inHierarchy = false;
+
+  for (const line of lines) {
+    if (line.includes('Protocol Hierarchy Statistics')) {
+      inHierarchy = true;
+      continue;
+    }
+
+    if (inHierarchy && line.trim()) {
+      // Parse format: "  tcp                     frames:450  bytes:1234567"
+      const match = line.match(/([a-z0-9_]+)\s+frames:(\d+)\s+bytes:(\d+)/);
+      if (match) {
+        const [, proto, frames, bytes] = match;
+        const count = parseInt(frames);
+        summary[proto] = count;
+        details.push({
+          name: proto.toUpperCase(),
+          count,
+          percentage: 0, // Will calculate after total
+          bytes: parseInt(bytes)
+        });
+      }
+    }
+  }
+
+  // Calculate percentages
+  const total = details.reduce((sum, p) => sum + p.count, 0);
+  details.forEach(p => {
+    p.percentage = parseFloat(((p.count / total) * 100).toFixed(1));
+  });
+
+  return { summary, details };
+}
+
+async function extractHttpData(filePath: string, jobId: string): Promise<any> {
   return new Promise((resolve) => {
     const tshark = spawn('tshark', [
       '-r', filePath,
       '-Y', 'http.request or http.response',
-      '-T', 'fields',
+      '-T', 'json',
+      '-e', 'frame.number',
       '-e', 'frame.time',
       '-e', 'ip.src',
       '-e', 'ip.dst',
+      '-e', 'tcp.srcport',
+      '-e', 'tcp.dstport',
       '-e', 'http.request.method',
       '-e', 'http.request.uri',
-      '-e', 'http.response.code',
+      '-e', 'http.request.full_uri',
+      '-e', 'http.host',
       '-e', 'http.user_agent',
-      '-E', 'header=y',
-      '-E', 'separator=|'
+      '-e', 'http.response.code',
+      '-e', 'http.response.phrase',
+      '-e', 'http.content_type',
+      '-e', 'http.content_length',
+      '-e', 'http.cookie',
+      '-e', 'http.authorization',
+      '-e', 'tcp.stream'
     ]);
 
     let stdout = '';
@@ -274,40 +494,62 @@ function extractHttpWithTshark(filePath: string): Promise<any[]> {
     });
 
     tshark.on('close', () => {
-      const lines = stdout.trim().split('\n').slice(1); // Skip header
-      const sessions = lines.map(line => {
-        const [time, src, dst, method, uri, code, userAgent] = line.split('|');
-        return {
-          timestamp: time,
-          source: src,
-          destination: dst,
-          method: method || 'N/A',
-          url: uri || 'N/A',
-          statusCode: code || 'N/A',
-          userAgent: userAgent || 'N/A'
-        };
-      }).filter(s => s.method !== 'N/A' || s.statusCode !== 'N/A');
+      try {
+        const packets = JSON.parse(stdout || '[]');
 
-      resolve(sessions);
+        const streams = packets.map((pkt: any) => {
+          const l = pkt._source?.layers || {};
+          return {
+            frameNumber: l['frame.number']?.[0],
+            timestamp: l['frame.time']?.[0],
+            source: l['ip.src']?.[0],
+            destination: l['ip.dst']?.[0],
+            srcPort: l['tcp.srcport']?.[0],
+            dstPort: l['tcp.dstport']?.[0],
+            method: l['http.request.method']?.[0],
+            uri: l['http.request.uri']?.[0],
+            fullUri: l['http.request.full_uri']?.[0],
+            host: l['http.host']?.[0],
+            userAgent: l['http.user_agent']?.[0],
+            statusCode: l['http.response.code']?.[0],
+            statusPhrase: l['http.response.phrase']?.[0],
+            contentType: l['http.content_type']?.[0],
+            contentLength: l['http.content_length']?.[0],
+            cookie: l['http.cookie']?.[0],
+            authorization: l['http.authorization']?.[0],
+            tcpStream: l['tcp.stream']?.[0]
+          };
+        });
+
+        resolve({ streams, objects: [] });
+      } catch (err) {
+        resolve({ streams: [], objects: [] });
+      }
     });
 
-    tshark.on('error', () => resolve([]));
+    tshark.on('error', () => resolve({ streams: [], objects: [] }));
   });
 }
 
-function extractDnsWithTshark(filePath: string): Promise<any[]> {
+async function extractDnsData(filePath: string): Promise<any[]> {
   return new Promise((resolve) => {
     const tshark = spawn('tshark', [
       '-r', filePath,
       '-Y', 'dns',
-      '-T', 'fields',
+      '-T', 'json',
+      '-e', 'frame.number',
       '-e', 'frame.time',
       '-e', 'ip.src',
+      '-e', 'ip.dst',
       '-e', 'dns.qry.name',
       '-e', 'dns.qry.type',
-      '-e', 'dns.resp.addr',
-      '-E', 'header=y',
-      '-E', 'separator=|'
+      '-e', 'dns.flags.response',
+      '-e', 'dns.a',
+      '-e', 'dns.aaaa',
+      '-e', 'dns.cname',
+      '-e', 'dns.ptr',
+      '-e', 'dns.mx',
+      '-e', 'dns.txt'
     ]);
 
     let stdout = '';
@@ -317,357 +559,294 @@ function extractDnsWithTshark(filePath: string): Promise<any[]> {
     });
 
     tshark.on('close', () => {
-      const lines = stdout.trim().split('\n').slice(1); // Skip header
-      const queries = lines.map(line => {
-        const [time, src, query, type, answer] = line.split('|');
-        return {
-          timestamp: time,
-          source: src,
-          query: query || 'N/A',
-          type: type || 'A',
-          answer: answer || 'N/A'
-        };
-      }).filter(q => q.query !== 'N/A');
+      try {
+        const packets = JSON.parse(stdout || '[]');
 
-      resolve(queries);
+        const queries = packets.map((pkt: any) => {
+          const l = pkt._source?.layers || {};
+          return {
+            frameNumber: l['frame.number']?.[0],
+            timestamp: l['frame.time']?.[0],
+            source: l['ip.src']?.[0],
+            destination: l['ip.dst']?.[0],
+            query: l['dns.qry.name']?.[0],
+            type: l['dns.qry.type']?.[0],
+            isResponse: l['dns.flags.response']?.[0] === '1',
+            answer: l['dns.a']?.[0] || l['dns.aaaa']?.[0] || l['dns.cname']?.[0] || l['dns.ptr']?.[0],
+            mx: l['dns.mx']?.[0],
+            txt: l['dns.txt']?.[0]
+          };
+        });
+
+        resolve(queries);
+      } catch (err) {
+        resolve([]);
+      }
     });
 
     tshark.on('error', () => resolve([]));
   });
 }
 
-async function analyzeWithCustomParser(filePath: string, filename: string, jobId: string, depth: string) {
-  emitJobProgress(jobId, {
-    progress: 15,
-    message: 'Using custom PCAP parser...',
-    status: 'processing'
+async function getConversations(filePath: string): Promise<any[]> {
+  return new Promise((resolve) => {
+    const tshark = spawn('tshark', [
+      '-r', filePath,
+      '-q',
+      '-z', 'conv,ip'
+    ]);
+
+    let stdout = '';
+
+    tshark.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    tshark.on('close', () => {
+      const conversations = parseConversations(stdout);
+      resolve(conversations);
+    });
+
+    tshark.on('error', () => resolve([]));
+  });
+}
+
+function parseConversations(output: string): any[] {
+  const conversations: any[] = [];
+  const lines = output.split('\n');
+
+  for (const line of lines) {
+    // Format: "192.168.1.1  <-> 142.250.185.46    450    123456    234567    678901"
+    const match = line.match(/(\d+\.\d+\.\d+\.\d+)\s+<->\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+    if (match) {
+      const [, addr1, addr2, packets, bytes1, bytes2, totalBytes] = match;
+      conversations.push({
+        source: addr1,
+        destination: addr2,
+        packets: parseInt(packets),
+        bytesAB: parseInt(bytes1),
+        bytesBA: parseInt(bytes2),
+        bytes: parseInt(totalBytes),
+        protocols: ['IP']
+      });
+    }
+  }
+
+  return conversations;
+}
+
+async function getEndpoints(filePath: string): Promise<any[]> {
+  return new Promise((resolve) => {
+    const tshark = spawn('tshark', [
+      '-r', filePath,
+      '-q',
+      '-z', 'endpoints,ip'
+    ]);
+
+    let stdout = '';
+
+    tshark.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    tshark.on('close', () => {
+      const endpoints = parseEndpoints(stdout);
+      resolve(endpoints);
+    });
+
+    tshark.on('error', () => resolve([]));
+  });
+}
+
+function parseEndpoints(output: string): any[] {
+  const endpoints: any[] = [];
+  const lines = output.split('\n');
+
+  for (const line of lines) {
+    // Format: "192.168.1.1    450    123456"
+    const match = line.match(/(\d+\.\d+\.\d+\.\d+)\s+(\d+)\s+(\d+)/);
+    if (match) {
+      const [, address, packets, bytes] = match;
+      endpoints.push({
+        address,
+        packets: parseInt(packets),
+        bytes: parseInt(bytes)
+      });
+    }
+  }
+
+  return endpoints;
+}
+
+async function getExpertInfo(filePath: string): Promise<any[]> {
+  return new Promise((resolve) => {
+    const tshark = spawn('tshark', [
+      '-r', filePath,
+      '-q',
+      '-z', 'expert'
+    ]);
+
+    let stdout = '';
+
+    tshark.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    tshark.on('close', () => {
+      const expertItems = parseExpertInfo(stdout);
+      resolve(expertItems);
+    });
+
+    tshark.on('error', () => resolve([]));
+  });
+}
+
+function parseExpertInfo(output: string): any[] {
+  const items: any[] = [];
+  const lines = output.split('\n');
+
+  for (const line of lines) {
+    // Parse expert info: severity, group, protocol, summary
+    if (line.includes('Error') || line.includes('Warn') || line.includes('Note')) {
+      items.push({
+        severity: line.includes('Error') ? 'error' : line.includes('Warn') ? 'warning' : 'note',
+        message: line.trim()
+      });
+    }
+  }
+
+  return items;
+}
+
+async function getIOStats(filePath: string): Promise<any[]> {
+  return new Promise((resolve) => {
+    const tshark = spawn('tshark', [
+      '-r', filePath,
+      '-q',
+      '-z', 'io,stat,1' // 1 second intervals
+    ]);
+
+    let stdout = '';
+
+    tshark.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    tshark.on('close', () => {
+      const stats = parseIOStats(stdout);
+      resolve(stats);
+    });
+
+    tshark.on('error', () => resolve([]));
+  });
+}
+
+function parseIOStats(output: string): any[] {
+  const stats: any[] = [];
+  const lines = output.split('\n');
+
+  for (const line of lines) {
+    // Parse I/O stats
+    const match = line.match(/(\d+\.\d+)\s+<>\s+(\d+\.\d+)\s+(\d+)\s+(\d+)/);
+    if (match) {
+      const [, start, end, frames, bytes] = match;
+      stats.push({
+        timeStart: parseFloat(start),
+        timeEnd: parseFloat(end),
+        packets: parseInt(frames),
+        bytes: parseInt(bytes)
+      });
+    }
+  }
+
+  return stats;
+}
+
+function detectThreats(packets: any[], conversations: any[], httpData: any, dnsData: any[], expertInfo: any[]): any[] {
+  const threats: any[] = [];
+
+  // Detect port scans
+  const portScans = new Map<string, Set<number>>();
+  packets.forEach(pkt => {
+    if (pkt.tcpFlags && pkt.tcpFlags.includes('S') && pkt.source) {
+      const ports = portScans.get(pkt.source) || new Set();
+      if (pkt.destPort) ports.add(pkt.destPort);
+      portScans.set(pkt.source, ports);
+    }
   });
 
-  const fileBuffer = await fs.readFile(filePath);
-
-  emitJobProgress(jobId, {
-    progress: 30,
-    message: 'Parsing PCAP structure...',
-    status: 'processing'
+  portScans.forEach((ports, ip) => {
+    if (ports.size > 20) {
+      threats.push({
+        type: 'Port Scan Detected',
+        severity: 'high',
+        confidence: 90,
+        description: `${ip} scanned ${ports.size} ports`,
+        source: ip,
+        evidence: Array.from(ports).slice(0, 20).map(p => `Port ${p}`)
+      });
+    }
   });
 
-  const analysis = await parseAdvancedPcap(fileBuffer, depth);
-
-  emitJobProgress(jobId, {
-    progress: 90,
-    message: 'Finalizing analysis...',
-    status: 'processing'
+  // Detect suspicious domains
+  const suspiciousDomains = ['pastebin.com', 'ngrok.io', 'duckdns.org'];
+  dnsData.forEach(dns => {
+    if (dns.query && suspiciousDomains.some(d => dns.query.includes(d))) {
+      threats.push({
+        type: 'Suspicious Domain Query',
+        severity: 'medium',
+        confidence: 70,
+        description: `DNS query to ${dns.query}`,
+        source: dns.source,
+        evidence: [dns.query]
+      });
+    }
   });
 
-  const results = {
-    filename,
-    depth,
-    method: 'custom',
-    metadata: analysis.metadata,
-    packets: analysis.packets,
-    protocols: analysis.protocols,
-    httpSessions: analysis.httpSessions,
-    dnsQueries: analysis.dnsQueries,
-    conversations: analysis.conversations,
-    suspiciousActivity: analysis.suspiciousActivity,
-    timestamp: new Date().toISOString()
-  };
+  // Detect unencrypted credentials
+  httpData.streams.forEach((stream: any) => {
+    if (stream.authorization) {
+      threats.push({
+        type: 'Unencrypted Credentials',
+        severity: 'high',
+        confidence: 95,
+        description: `HTTP Authorization header detected`,
+        source: stream.source,
+        destination: stream.destination,
+        evidence: ['Authorization header present']
+      });
+    }
+  });
 
-  await saveResults(jobId, results);
-  emitJobCompleted(jobId, results);
+  // High-volume conversations
+  conversations.forEach(conv => {
+    if (conv.packets > 5000) {
+      threats.push({
+        type: 'High Volume Traffic',
+        severity: 'medium',
+        confidence: 75,
+        description: `${conv.packets} packets between ${conv.source} and ${conv.destination}`,
+        source: conv.source,
+        destination: conv.destination,
+        evidence: [`${conv.packets} packets`, `${(conv.bytes / 1024 / 1024).toFixed(2)} MB`]
+      });
+    }
+  });
 
-  return results;
+  // Add expert info as threats
+  expertInfo.forEach(info => {
+    if (info.severity === 'error') {
+      threats.push({
+        type: 'Protocol Error',
+        severity: 'high',
+        confidence: 100,
+        description: info.message,
+        evidence: [info.message]
+      });
+    }
+  });
+
+  return threats;
 }
 
-async function parseAdvancedPcap(buffer: Buffer, depth: string): Promise<any> {
-  const magic = buffer.readUInt32LE(0);
-  const isPcap = magic === 0xa1b2c3d4 || magic === 0xd4c3b2a1;
-  const isPcapng = buffer.readUInt32BE(0) === 0x0a0d0d0a;
-
-  if (!isPcap) {
-    throw new Error('Only standard PCAP format is supported in custom parser. Use tshark for PCAPNG.');
-  }
-
-  const metadata = {
-    format: 'pcap',
-    fileSize: buffer.length,
-    totalPackets: 0,
-    linkType: buffer.readUInt32LE(20),
-    captureStartTime: null as string | null,
-    captureEndTime: null as string | null
-  };
-
-  const packets: any[] = [];
-  const protocolCounts = new Map<string, number>();
-  const conversations = new Map<string, any>();
-  const httpSessions: any[] = [];
-  const dnsQueries: any[] = [];
-  const suspiciousActivity: any[] = [];
-  const ipAddresses = new Set<string>();
-
-  let offset = 24; // Skip global header
-  let packetIndex = 0;
-  const maxPackets = depth === 'quick' ? 100 : 10000; // Process up to 10k packets for deep
-
-  while (offset < buffer.length - 16 && packetIndex < maxPackets) {
-    try {
-      const tsSec = buffer.readUInt32LE(offset);
-      const tsUsec = buffer.readUInt32LE(offset + 4);
-      const inclLen = buffer.readUInt32LE(offset + 8);
-      const origLen = buffer.readUInt32LE(offset + 12);
-
-      if (inclLen > buffer.length || inclLen > 65535) break;
-
-      const dataOffset = offset + 16;
-      if (dataOffset + inclLen > buffer.length) break;
-
-      const packetData = buffer.subarray(dataOffset, dataOffset + inclLen);
-      const timestamp = new Date(tsSec * 1000 + tsUsec / 1000);
-
-      if (packetIndex === 0) metadata.captureStartTime = timestamp.toISOString();
-      metadata.captureEndTime = timestamp.toISOString();
-
-      // Deep packet analysis
-      const packetInfo = analyzePacket(packetData, packetIndex, timestamp);
-
-      if (packetInfo) {
-        protocolCounts.set(packetInfo.protocol, (protocolCounts.get(packetInfo.protocol) || 0) + 1);
-
-        // Track conversations
-        if (packetInfo.ipSrc && packetInfo.ipDst) {
-          ipAddresses.add(packetInfo.ipSrc);
-          ipAddresses.add(packetInfo.ipDst);
-
-          const convKey = `${packetInfo.ipSrc}:${packetInfo.srcPort || 0}-${packetInfo.ipDst}:${packetInfo.dstPort || 0}`;
-          const conv = conversations.get(convKey) || {
-            source: packetInfo.ipSrc,
-            destination: packetInfo.ipDst,
-            srcPort: packetInfo.srcPort,
-            dstPort: packetInfo.dstPort,
-            packets: 0,
-            bytes: 0,
-            protocols: new Set(),
-            firstSeen: timestamp.toISOString(),
-            suspicious: false
-          };
-          conv.packets++;
-          conv.bytes += inclLen;
-          conv.protocols.add(packetInfo.protocol);
-          conv.lastSeen = timestamp.toISOString();
-
-          // Detect suspicious patterns
-          if (conv.packets > 1000) conv.suspicious = true;
-          if (packetInfo.dstPort && [22, 23, 3389, 5900].includes(packetInfo.dstPort)) {
-            conv.suspicious = true;
-            suspiciousActivity.push({
-              type: 'Remote Access Protocol',
-              severity: 'medium',
-              description: `${packetInfo.protocol} to port ${packetInfo.dstPort}`,
-              source: packetInfo.ipSrc,
-              destination: packetInfo.ipDst,
-              timestamp: timestamp.toISOString()
-            });
-          }
-
-          conversations.set(convKey, conv);
-        }
-
-        // Extract HTTP
-        if (packetInfo.httpMethod || packetInfo.httpUri) {
-          httpSessions.push({
-            timestamp: timestamp.toISOString(),
-            source: packetInfo.ipSrc,
-            destination: packetInfo.ipDst,
-            method: packetInfo.httpMethod,
-            url: packetInfo.httpUri,
-            statusCode: packetInfo.httpStatus || 'N/A'
-          });
-        }
-
-        // Extract DNS
-        if (packetInfo.dnsQuery) {
-          dnsQueries.push({
-            timestamp: timestamp.toISOString(),
-            source: packetInfo.ipSrc,
-            query: packetInfo.dnsQuery,
-            type: 'A'
-          });
-        }
-
-        packets.push({
-          index: packetIndex,
-          timestamp: timestamp.toISOString(),
-          size: inclLen,
-          originalLength: origLen,
-          protocol: packetInfo.protocol,
-          source: packetInfo.ipSrc || 'N/A',
-          destination: packetInfo.ipDst || 'N/A',
-          srcPort: packetInfo.srcPort,
-          destPort: packetInfo.dstPort,
-          info: packetInfo.info
-        });
-      }
-
-      offset = dataOffset + inclLen;
-      packetIndex++;
-    } catch (err) {
-      console.error('Error parsing packet:', err);
-      break;
-    }
-  }
-
-  metadata.totalPackets = packetIndex;
-
-  const protocolDetails = Array.from(protocolCounts.entries()).map(([name, count]) => ({
-    name,
-    count,
-    percentage: parseFloat(((count / metadata.totalPackets) * 100).toFixed(1))
-  }));
-
-  const conversationsList = Array.from(conversations.values()).map(conv => ({
-    ...conv,
-    protocols: Array.from(conv.protocols)
-  }));
-
-  return {
-    metadata,
-    packets,
-    protocols: { details: protocolDetails, summary: protocolDetails },
-    conversations: conversationsList,
-    httpSessions,
-    dnsQueries,
-    suspiciousActivity,
-    endpoints: Array.from(ipAddresses)
-  };
-}
-
-function analyzePacket(data: Buffer, index: number, timestamp: Date): any {
-  if (data.length < 14) return null;
-
-  // Ethernet header (14 bytes)
-  const etherType = data.readUInt16BE(12);
-
-  let ipSrc, ipDst, srcPort, dstPort, protocol, info = '';
-  let httpMethod, httpUri, httpStatus, dnsQuery;
-
-  // IPv4 packet
-  if (etherType === 0x0800 && data.length >= 34) {
-    const ipHeaderLen = (data[14] & 0x0f) * 4;
-    ipSrc = `${data[26]}.${data[27]}.${data[28]}.${data[29]}`;
-    ipDst = `${data[30]}.${data[31]}.${data[32]}.${data[33]}`;
-    const ipProto = data[23];
-
-    const ipPayloadOffset = 14 + ipHeaderLen;
-
-    // TCP
-    if (ipProto === 6 && data.length >= ipPayloadOffset + 20) {
-      protocol = 'TCP';
-      srcPort = data.readUInt16BE(ipPayloadOffset);
-      dstPort = data.readUInt16BE(ipPayloadOffset + 2);
-      const tcpHeaderLen = ((data[ipPayloadOffset + 12] >> 4) & 0x0f) * 4;
-      const tcpPayloadOffset = ipPayloadOffset + tcpHeaderLen;
-
-      // Extract HTTP if port 80 or payload contains HTTP
-      if (data.length > tcpPayloadOffset) {
-        const payload = data.subarray(tcpPayloadOffset).toString('utf8', 0, Math.min(500, data.length - tcpPayloadOffset));
-
-        if (payload.startsWith('GET ') || payload.startsWith('POST ') || payload.startsWith('PUT ')) {
-          protocol = 'HTTP';
-          const lines = payload.split('\r\n');
-          const requestLine = lines[0].split(' ');
-          httpMethod = requestLine[0];
-          httpUri = requestLine[1];
-          info = `${httpMethod} ${httpUri}`;
-        } else if (payload.startsWith('HTTP/')) {
-          protocol = 'HTTP';
-          const statusMatch = payload.match(/HTTP\/\d\.\d (\d{3})/);
-          httpStatus = statusMatch ? statusMatch[1] : 'Unknown';
-          info = `HTTP Response ${httpStatus}`;
-        }
-      }
-
-      info = info || `${srcPort} → ${dstPort}`;
-    }
-    // UDP
-    else if (ipProto === 17 && data.length >= ipPayloadOffset + 8) {
-      protocol = 'UDP';
-      srcPort = data.readUInt16BE(ipPayloadOffset);
-      dstPort = data.readUInt16BE(ipPayloadOffset + 2);
-
-      // DNS detection (port 53)
-      if (srcPort === 53 || dstPort === 53) {
-        protocol = 'DNS';
-        const dnsPayload = data.subarray(ipPayloadOffset + 8);
-        dnsQuery = parseDnsQuery(dnsPayload);
-        info = `Query: ${dnsQuery || 'Unknown'}`;
-      } else {
-        info = `${srcPort} → ${dstPort}`;
-      }
-    }
-    // ICMP
-    else if (ipProto === 1) {
-      protocol = 'ICMP';
-      info = 'ICMP packet';
-    }
-    else {
-      protocol = 'IPv4';
-      info = `Protocol ${ipProto}`;
-    }
-  }
-  // ARP
-  else if (etherType === 0x0806) {
-    protocol = 'ARP';
-    info = 'ARP packet';
-  }
-  // IPv6
-  else if (etherType === 0x86dd) {
-    protocol = 'IPv6';
-    info = 'IPv6 packet';
-  }
-  else {
-    protocol = 'Unknown';
-    info = `EtherType: 0x${etherType.toString(16)}`;
-  }
-
-  return {
-    protocol,
-    ipSrc,
-    ipDst,
-    srcPort,
-    dstPort,
-    info,
-    httpMethod,
-    httpUri,
-    httpStatus,
-    dnsQuery
-  };
-}
-
-function parseDnsQuery(dnsPayload: Buffer): string | null {
-  try {
-    if (dnsPayload.length < 12) return null;
-
-    // Skip DNS header (12 bytes) and parse query name
-    let offset = 12;
-    const labels: string[] = [];
-
-    while (offset < dnsPayload.length && offset < 100) {
-      const len = dnsPayload[offset];
-      if (len === 0) break;
-      if (len > 63) break; // Invalid label length
-
-      offset++;
-      if (offset + len > dnsPayload.length) break;
-
-      const label = dnsPayload.subarray(offset, offset + len).toString('utf8');
-      labels.push(label);
-      offset += len;
-    }
-
-    return labels.join('.');
-  } catch (err) {
-    return null;
-  }
-}
-
-console.log('✅ Enhanced PCAP worker started');
+console.log('✅ Enhanced Wireshark-level PCAP worker started');
