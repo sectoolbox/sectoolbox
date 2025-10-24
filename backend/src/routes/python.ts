@@ -74,7 +74,7 @@ router.post('/execute', upload.single('file'), async (req, res) => {
       scriptId,
       filePath,
       filename
-    });
+    }, { jobId });
 
     res.json({
       jobId,

@@ -24,7 +24,7 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
 
     const queue = getPcapQueue();
-    await queue.add({ jobId, filePath, depth, filename: file.originalname });
+    await queue.add({ jobId, filePath, depth, filename: file.originalname }, { jobId });
 
     res.json({
       jobId,

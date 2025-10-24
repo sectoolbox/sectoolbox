@@ -23,7 +23,7 @@ router.post('/spectrogram', upload.single('file'), async (req, res) => {
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
 
     const queue = getAudioQueue();
-    await queue.add({ jobId, filePath, task: 'spectrogram', filename: file.originalname });
+    await queue.add({ jobId, filePath, task: 'spectrogram', filename: file.originalname }, { jobId });
 
     res.json({
       jobId,
