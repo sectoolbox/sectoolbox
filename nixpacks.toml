@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "wireshark-cli"]
 
 [phases.install]
 cmds = ["cd backend && npm install"]
