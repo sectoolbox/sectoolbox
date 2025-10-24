@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install Python and system dependencies
+# Install Python, Wireshark (tshark), and system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     zlib1g-dev \
     libsndfile1 \
+    tshark \
+    wireshark-common \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
