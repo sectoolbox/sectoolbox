@@ -442,9 +442,16 @@ def fileinfo(filename):
 
       const response = await apiClient.executePythonScript(scriptId, actualFile)
 
+      console.log('📦 Backend response:', response)
+      console.log('🆔 Job ID from response:', response.jobId)
+
       if (response.jobId) {
         setOutput(prev => prev + `\nJob started: ${response.jobId}\n`)
         startJob(response.jobId)
+      } else {
+        console.error('⚠️ No jobId in response!')
+        setOutput(prev => prev + `\n⚠️ Backend did not return a job ID\n`)
+        setIsRunning(false)
       }
     } catch (error: any) {
       setOutput(`❌ Backend Error:\n${error.message || String(error)}`)
