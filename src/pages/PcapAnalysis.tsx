@@ -2,11 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Upload,
-  Play,
   Download,
   Network,
   Activity,
-  AlertTriangle, FileText, Search, Globe, Shield, Filter, Clock, Users, Target, Database, BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Copy, Keyboard, Zap, Cloud
+  AlertTriangle, FileText, Search, Globe, Shield, Filter, Clock, Users, Target, Database, BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Copy, Keyboard, Cloud
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { ShowFullToggle } from '../components/ShowFullToggle'
@@ -605,16 +604,18 @@ const PcapAnalysis: React.FC = () => {
                 <Keyboard className="w-4 h-4 mr-2" />
                 USB Analysis
               </Button>
-              <Button onClick={() => analyzePcap()} disabled={isAnalyzing} size="sm" variant="outline">
-                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>Browser Analysis</span></>)}
-              </Button>
-              <Button onClick={() => analyzeWithBackend('quick')} disabled={isAnalyzing} size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <Zap className="w-4 h-4 mr-2" />
-                Fast Analysis
-              </Button>
               <Button onClick={() => analyzeWithBackend('full')} disabled={isAnalyzing} size="sm" className="bg-accent hover:bg-accent/90">
-                <Cloud className="w-4 h-4 mr-2" />
-                Deep Analysis
+                {isAnalyzing ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin mr-2" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-4 h-4 mr-2" />
+                    Deep Analysis
+                  </>
+                )}
               </Button>
               <Button
                 variant="destructive"
