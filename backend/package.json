@@ -8,9 +8,9 @@
     "dev": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/workers/index.ts",
     "build": "tsc && cp -r src/scripts dist/",
-    "start": "node dist/server.js",
-    "start:worker": "node dist/workers/index.js",
-    "start:all": "concurrently \"npm run start\" \"npm run start:worker\""
+    "start": "node dist/start.js",
+    "start:server": "node dist/server.js",
+    "start:worker": "node dist/workers/index.js"
   },
   "keywords": ["forensics", "security", "ctf"],
   "author": "Sectoolbox Team",
