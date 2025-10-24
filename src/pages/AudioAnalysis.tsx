@@ -22,12 +22,16 @@ import {
   Waves,
   BarChart3,
   Headphones,
-  ExternalLink
+  ExternalLink,
+  Cloud
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { apiClient } from '../services/api'
+import { useBackendJob } from '../hooks/useBackendJob'
+import toast from 'react-hot-toast'
 import {
   loadAudioFile,
   extractMetadata,
@@ -68,6 +72,10 @@ const AudioAnalysis: React.FC = () => {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null)
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+
+  // Backend spectrogram
+  const [useBackendFFT, setUseBackendFFT] = useState(false)
+  const { jobStatus, isLoading: isBackendLoading, startJob } = useBackendJob()
 
   // Audio playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -523,7 +531,57 @@ const AudioAnalysis: React.FC = () => {
     }
   }
 
+  const generateSpectrogramWithBackend = async () => {
+    if (!file) {
+      toast.error('Please upload a file first')
+      return
+    }
+
+    setIsAnalyzing(true)
+    toast.info('Generating spectrogram on backend server...')
+
+    try {
+      const response = await apiClient.generateSpectrogram(file)
+
+      if (response.jobId) {
+        startJob(response.jobId)
+      } else {
+        // Immediate response with spectrogram data
+        setSpectrogram(response)
+        drawSpectrogram(response)
+        setIsAnalyzing(false)
+        toast.success('Backend spectrogram generated!')
+      }
+    } catch (error: any) {
+      console.error('Backend spectrogram generation failed:', error)
+      toast.error('Backend spectrogram failed')
+      setIsAnalyzing(false)
+    }
+  }
+
+  // Watch for backend job updates
+  useEffect(() => {
+    if (jobStatus) {
+      if (jobStatus.status === 'processing') {
+        toast.info(`Processing: ${jobStatus.progress}%`)
+      } else if (jobStatus.status === 'completed') {
+        setSpectrogram(jobStatus.results)
+        drawSpectrogram(jobStatus.results)
+        setIsAnalyzing(false)
+        toast.success('Backend spectrogram completed!')
+      } else if (jobStatus.status === 'failed') {
+        toast.error('Backend spectrogram failed')
+        setIsAnalyzing(false)
+      }
+    }
+  }, [jobStatus])
+
   const handleReanalyze = async () => {
+    if (useBackendFFT) {
+      await generateSpectrogramWithBackend()
+      return
+    }
+
     if (file && audioBuffer) {
       setIsAnalyzing(true)
       try {
@@ -1175,6 +1233,7 @@ const AudioAnalysis: React.FC = () => {
                           value={fftSize}
                           onChange={(e) => setFftSize(parseInt(e.target.value))}
                           className="px-2 py-1 bg-background border border-border rounded text-sm"
+                          disabled={useBackendFFT}
                         >
                           <option value="512">512</option>
                           <option value="1024">1024</option>
@@ -1189,11 +1248,27 @@ const AudioAnalysis: React.FC = () => {
                           value={maxFrequency}
                           onChange={(e) => setMaxFrequency(parseInt(e.target.value))}
                           className="px-2 py-1 bg-background border border-border rounded w-24 text-sm"
+                          disabled={useBackendFFT}
                         />
                         Hz
                       </label>
-                      <Button size="sm" onClick={handleReanalyze}>
-                        <RefreshCw className="w-3 h-3" />
+
+                      {/* Backend FFT Toggle */}
+                      <div className="flex items-center gap-2 px-2 py-1 border border-border rounded bg-background/50">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs">
+                          <input
+                            type="checkbox"
+                            checked={useBackendFFT}
+                            onChange={(e) => setUseBackendFFT(e.target.checked)}
+                            className="w-3 h-3 rounded border-border text-accent focus:ring-accent"
+                          />
+                          <Cloud className="h-3 w-3 text-accent" />
+                          <span className="font-medium">Backend FFT</span>
+                        </label>
+                      </div>
+
+                      <Button size="sm" onClick={handleReanalyze} disabled={isAnalyzing}>
+                        {isAnalyzing ? <Activity className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                       </Button>
                       <Button
                         size="sm"

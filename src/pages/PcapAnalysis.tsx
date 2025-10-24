@@ -6,18 +6,24 @@ import {
   Download,
   Network,
   Activity,
-  AlertTriangle, FileText, Search, Globe, Shield, Filter, Clock, Users, Target, Database, BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Copy, Keyboard
+  AlertTriangle, FileText, Search, Globe, Shield, Filter, Clock, Users, Target, Database, BarChart3, TrendingUp, AlertCircle, CheckCircle, XCircle, Copy, Keyboard, Zap, Cloud
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { ShowFullToggle } from '../components/ShowFullToggle'
 import { performComprehensivePcapAnalysis, PcapAnalysisResult, toArrayBuffer } from '../lib/pcap'
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
+import { apiClient } from '../services/api'
+import { useBackendJob } from '../hooks/useBackendJob'
+import toast from 'react-hot-toast'
 
 const PcapAnalysis: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+
+  // Backend analysis
+  const { jobStatus, isLoading: isBackendLoading, startJob } = useBackendJob()
   const [packets, setPackets] = useState<any[]>([])
   const [stats, setStats] = useState({ totalPackets: 0, linkType: null })
   const [notice, setNotice] = useState<string | null>(null)
@@ -46,6 +52,61 @@ const PcapAnalysis: React.FC = () => {
   const [showFullPcapStrings, setShowFullPcapStrings] = useState(false)  
   const [showFullPcapHex, setShowFullPcapHex] = useState(false)
   const [expandedPackets, setExpandedPackets] = useState<Set<number>>(new Set())
+
+  // Backend analysis functions
+  const analyzeWithBackend = useCallback(async (depth: 'quick' | 'full') => {
+    if (!file) {
+      toast.error('Please upload a file first')
+      return
+    }
+
+    setIsAnalyzing(true)
+    setNotice(`Starting ${depth === 'quick' ? 'fast' : 'deep'} analysis on backend...`)
+    setPackets([])
+    setStructuredResults(null)
+
+    try {
+      const response = await apiClient.analyzePcap(file, depth)
+
+      if (response.jobId) {
+        setNotice(`Backend job started: ${response.jobId}`)
+        startJob(response.jobId)
+      } else {
+        // Immediate response
+        setStructuredResults(response)
+        setIsAnalyzing(false)
+        toast.success(`${depth === 'quick' ? 'Fast' : 'Deep'} analysis completed!`)
+      }
+    } catch (error: any) {
+      console.error('Backend PCAP analysis failed', error)
+      setNotice(`Backend analysis failed: ${error.message || 'Unknown error'}`)
+      setIsAnalyzing(false)
+      toast.error('Backend analysis failed')
+    }
+  }, [file, startJob])
+
+  // Watch for backend job updates
+  useEffect(() => {
+    if (jobStatus) {
+      if (jobStatus.status === 'processing') {
+        setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`)
+      } else if (jobStatus.status === 'completed') {
+        setStructuredResults(jobStatus.results)
+        setPackets(jobStatus.results?.packets || [])
+        setStats({
+          totalPackets: jobStatus.results?.metadata?.totalPackets || 0,
+          linkType: jobStatus.results?.metadata?.linkType || null
+        })
+        setNotice('Backend analysis completed successfully!')
+        setIsAnalyzing(false)
+        toast.success('Backend analysis completed!')
+      } else if (jobStatus.status === 'failed') {
+        setNotice(`Backend analysis failed: ${jobStatus.error}`)
+        setIsAnalyzing(false)
+        toast.error('Backend analysis failed')
+      }
+    }
+  }, [jobStatus])
 
   // Handle quick upload from dashboard
   const analyzePcap = useCallback(async (fileParam?: File) => {
@@ -539,12 +600,21 @@ const PcapAnalysis: React.FC = () => {
               <Button
                 onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
                 size="sm"
+                variant="outline"
               >
                 <Keyboard className="w-4 h-4 mr-2" />
-                USB PCAP Analysis
+                USB Analysis
               </Button>
-              <Button onClick={() => analyzePcap()} disabled={isAnalyzing} size="sm">
-                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>PCAP Analysis</span></>)}
+              <Button onClick={() => analyzePcap()} disabled={isAnalyzing} size="sm" variant="outline">
+                {isAnalyzing ? (<><Activity className="w-4 h-4 animate-spin mr-2" /><span>Analyzing...</span></>) : (<><Play className="w-4 h-4 mr-2" /><span>Browser Analysis</span></>)}
+              </Button>
+              <Button onClick={() => analyzeWithBackend('quick')} disabled={isAnalyzing} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Zap className="w-4 h-4 mr-2" />
+                Fast Analysis
+              </Button>
+              <Button onClick={() => analyzeWithBackend('full')} disabled={isAnalyzing} size="sm" className="bg-accent hover:bg-accent/90">
+                <Cloud className="w-4 h-4 mr-2" />
+                Deep Analysis
               </Button>
               <Button
                 variant="destructive"
