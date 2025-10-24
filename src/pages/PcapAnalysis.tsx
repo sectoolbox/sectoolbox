@@ -14,6 +14,7 @@ import { performComprehensivePcapAnalysis, PcapAnalysisResult, toArrayBuffer } f
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { apiClient } from '../services/api'
 import { useBackendJob } from '../hooks/useBackendJob'
+import { parseTsharkPackets, detectSuspiciousActivity } from '../lib/tsharkParser'
 import toast from 'react-hot-toast'
 
 const PcapAnalysis: React.FC = () => {
@@ -91,12 +92,52 @@ const PcapAnalysis: React.FC = () => {
       if (jobStatus.status === 'processing') {
         setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`)
       } else if (jobStatus.status === 'completed') {
-        setStructuredResults(jobStatus.results)
-        setPackets(jobStatus.results?.packets || [])
-        setStats({
-          totalPackets: jobStatus.results?.metadata?.totalPackets || 0,
-          linkType: jobStatus.results?.metadata?.linkType || null
-        })
+        console.log('📦 Backend results received:', jobStatus.results)
+
+        // Parse tshark raw dump into UI-friendly format
+        const rawPackets = jobStatus.results?.packets || []
+        console.log(`📊 Processing ${rawPackets.length} packets from tshark`)
+
+        if (rawPackets.length > 0 && rawPackets[0]._source) {
+          // This is raw tshark JSON - parse it
+          const parsed = parseTsharkPackets(rawPackets)
+
+          setPackets(parsed.packets)
+          setStats({
+            totalPackets: parsed.metadata.totalPackets,
+            linkType: null
+          })
+          setHttpSessions(parsed.httpSessions)
+          setConversations(parsed.conversations)
+
+          // Detect threats
+          const threats = detectSuspiciousActivity(parsed.packets, parsed.conversations)
+          setSuspiciousActivity(threats)
+
+          // Create structured results for protocols tab
+          setStructuredResults({
+            metadata: parsed.metadata,
+            packets: parsed.packets,
+            protocols: parsed.protocols
+          } as any)
+
+          console.log('✅ Parsed tshark data:', {
+            packets: parsed.packets.length,
+            protocols: parsed.protocols.details.length,
+            http: parsed.httpSessions.length,
+            dns: parsed.dnsQueries.length,
+            conversations: parsed.conversations.length
+          })
+        } else {
+          // Already parsed data
+          setPackets(jobStatus.results?.packets || [])
+          setStats({
+            totalPackets: jobStatus.results?.totalPackets || jobStatus.results?.metadata?.totalPackets || 0,
+            linkType: jobStatus.results?.metadata?.linkType || null
+          })
+          setStructuredResults(jobStatus.results)
+        }
+
         setNotice('Backend analysis completed successfully!')
         setIsAnalyzing(false)
         toast.success('Backend analysis completed!')
