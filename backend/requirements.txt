@@ -1,20 +1,14 @@
-# PCAP Analysis
-scapy==2.5.0
-pyshark==0.6.0
-dpkt==1.9.8
+# Essential Python packages for backend
+# Start with core packages, add more as needed
 
-# Audio Analysis
-scipy==1.11.4
-numpy==1.26.3
-librosa==0.10.1
-soundfile==0.12.1
+# Core numeric computing
+numpy==1.24.3
 
-# Image/File Forensics
-Pillow==10.2.0
-python-magic-bin==0.4.14
+# Image processing
+Pillow==10.1.0
 
-# General Forensics
-pycryptodome==3.20.0
+# Cryptography
+pycryptodome==3.19.0
 
 # File type detection
 filetype==1.2.0
