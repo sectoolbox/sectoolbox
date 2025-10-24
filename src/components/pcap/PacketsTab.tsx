@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, Download, Copy, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
-import { PacketDetailTree } from '../PacketDetailTree';
 
 interface PacketsTabProps {
   packets: any[];
@@ -9,6 +8,7 @@ interface PacketsTabProps {
   onApplyFilter: (filter: string) => void;
   selectedPacketIndex: number | null;
   onSelectPacket: (index: number) => void;
+  onOpenPacketDetail: (packet: any) => void;
 }
 
 export const PacketsTab: React.FC<PacketsTabProps> = ({
@@ -16,13 +16,13 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
   onFollowStream,
   onApplyFilter,
   selectedPacketIndex,
-  onSelectPacket
+  onSelectPacket,
+  onOpenPacketDetail
 }) => {
   const [displayFilter, setDisplayFilter] = useState('');
   const [quickFilter, setQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [expandedPackets, setExpandedPackets] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; packet: any } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -103,15 +103,6 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
     }
   };
 
-  const toggleExpand = (index: number) => {
-    const newExpanded = new Set(expandedPackets);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedPackets(newExpanded);
-  };
 
   const getRowColor = (pkt: any) => {
     if (pkt.colorRule === 'http-get') return 'bg-green-500/5 hover:bg-green-500/10';
@@ -218,22 +209,20 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {sortedPackets.map((pkt, idx) => {
-                const isExpanded = expandedPackets.has(pkt.index);
-
-                return (
-                  <React.Fragment key={pkt.index}>
-                    <tr
-                      className={`border-t cursor-pointer ${getRowColor(pkt)} ${selectedPacketIndex === pkt.index ? 'ring-2 ring-accent' : ''}`}
-                      onClick={() => {
-                        onSelectPacket(pkt.index);
-                        toggleExpand(pkt.index);
-                      }}
-                      onContextMenu={(e) => handleRightClick(e, pkt)}
-                    >
-                      <td className="p-2 text-accent font-mono text-xs">
-                        {isExpanded ? '▼' : '▶'} {pkt.index}
-                      </td>
+              {sortedPackets.map((pkt, idx) => (
+                <tr
+                  key={pkt.index}
+                  className={`border-t cursor-pointer ${getRowColor(pkt)} ${selectedPacketIndex === pkt.index ? 'ring-2 ring-accent' : ''}`}
+                  onClick={() => {
+                    onSelectPacket(pkt.index);
+                    onOpenPacketDetail(pkt);
+                  }}
+                  onContextMenu={(e) => handleRightClick(e, pkt)}
+                  data-frame={pkt.index}
+                >
+                  <td className="p-2 text-accent font-mono text-xs">
+                    {pkt.index}
+                  </td>
                       <td className="p-2 font-mono text-xs text-muted-foreground">
                         {new Date(pkt.timestamp).toLocaleTimeString()}
                       </td>
@@ -247,22 +236,11 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
                       <td className="p-2 font-mono text-xs text-muted-foreground">
                         {pkt.size.toLocaleString()}
                       </td>
-                      <td className="p-2 text-xs">
-                        <div className="max-w-md truncate">{pkt.info}</div>
-                      </td>
-                    </tr>
-
-                    {/* Expanded Packet Details */}
-                    {isExpanded && (
-                      <tr className="border-t bg-muted/5">
-                        <td colSpan={7} className="p-4">
-                          <PacketDetailTree packet={pkt} />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                  <td className="p-2 text-xs">
+                    <div className="max-w-md truncate">{pkt.info}</div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -12,6 +12,7 @@ import { StreamsTab } from '../components/pcap/StreamsTab';
 import { ExplorerTab } from '../components/pcap/ExplorerTab';
 import { AnalysisTab } from '../components/pcap/AnalysisTab';
 import { FollowStreamModal } from '../components/pcap/FollowStreamModal';
+import { PacketDetailModal } from '../components/pcap/PacketDetailModal';
 import toast from 'react-hot-toast';
 
 type TabType = 'intelligence' | 'packets' | 'streams' | 'explorer' | 'analysis';
@@ -47,6 +48,7 @@ const PcapAnalysis: React.FC = () => {
   // UI state
   const [activeTab, setActiveTab] = useState<TabType>('intelligence');
   const [selectedPacketIndex, setSelectedPacketIndex] = useState<number | null>(null);
+  const [selectedPacket, setSelectedPacket] = useState<any>(null);
   const [followStreamData, setFollowStreamData] = useState<any>(null);
   const [currentFilter, setCurrentFilter] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -366,33 +368,33 @@ const PcapAnalysis: React.FC = () => {
                 badge={findings.filter(f => f.severity === 'critical').length}
                 badgeColor="red"
               >
-                🎯 Intelligence
+                Intelligence
               </TabButton>
               <TabButton
                 active={activeTab === 'packets'}
                 onClick={() => setActiveTab('packets')}
                 badge={packets.length}
               >
-                📋 Packets
+                Packets
               </TabButton>
               <TabButton
                 active={activeTab === 'streams'}
                 onClick={() => setActiveTab('streams')}
                 badge={httpSessions.length + dnsQueries.length}
               >
-                🌐 Streams
+                Streams
               </TabButton>
               <TabButton
                 active={activeTab === 'explorer'}
                 onClick={() => setActiveTab('explorer')}
               >
-                🔍 Explorer
+                Explorer
               </TabButton>
               <TabButton
                 active={activeTab === 'analysis'}
                 onClick={() => setActiveTab('analysis')}
               >
-                📊 Analysis
+                Analysis
               </TabButton>
             </div>
           </div>
@@ -419,6 +421,7 @@ const PcapAnalysis: React.FC = () => {
                 onApplyFilter={handleApplyFilter}
                 selectedPacketIndex={selectedPacketIndex}
                 onSelectPacket={setSelectedPacketIndex}
+                onOpenPacketDetail={setSelectedPacket}
               />
             )}
 
@@ -470,6 +473,22 @@ const PcapAnalysis: React.FC = () => {
           packets={allPackets}
           stream={followStreamData}
           onClose={() => setFollowStreamData(null)}
+        />
+      )}
+
+      {/* Packet Detail Modal */}
+      {selectedPacket && (
+        <PacketDetailModal
+          packet={selectedPacket}
+          onClose={() => setSelectedPacket(null)}
+          onFollowStream={
+            selectedPacket.tcpStream !== undefined
+              ? () => {
+                  setFollowStreamData({ tcpStream: selectedPacket.tcpStream });
+                  setSelectedPacket(null);
+                }
+              : undefined
+          }
         />
       )}
     </div>
