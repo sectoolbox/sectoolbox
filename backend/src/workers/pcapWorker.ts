@@ -20,10 +20,24 @@ queue.process(async (job) => {
 
   try {
     // Check if tshark is available
+    console.log('🔍 Checking for tshark...');
     const hasTshark = await checkTsharkAvailable();
 
     if (!hasTshark) {
-      throw new Error('tshark (Wireshark CLI) is not installed. Cannot perform deep analysis.');
+      console.error('❌ tshark not available, using basic parser');
+      emitJobProgress(jobId, {
+        progress: 15,
+        message: 'tshark not available, using basic analysis...',
+        status: 'processing'
+      });
+
+      // Fall back to basic analysis instead of failing
+      const fileBuffer = await fs.readFile(filePath);
+      const basicResults = await basicPcapAnalysis(fileBuffer, filename, depth);
+
+      await saveResults(jobId, basicResults);
+      emitJobCompleted(jobId, basicResults);
+      return basicResults;
     }
 
     console.log('✅ tshark available, starting comprehensive analysis');
@@ -179,7 +193,11 @@ queue.process(async (job) => {
     return results;
   } catch (error: any) {
     console.error('❌ PCAP analysis error:', error);
-    emitJobFailed(jobId, error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Job data:', job.data);
+
+    const errorMessage = error.message || 'Unknown error during PCAP analysis';
+    emitJobFailed(jobId, errorMessage);
     throw error;
   }
 });
@@ -847,6 +865,107 @@ function detectThreats(packets: any[], conversations: any[], httpData: any, dnsD
   });
 
   return threats;
+}
+
+async function basicPcapAnalysis(buffer: Buffer, filename: string, depth: string): Promise<any> {
+  // Fallback basic parser when tshark is not available
+  const magic = buffer.readUInt32LE(0);
+  const isPcap = magic === 0xa1b2c3d4 || magic === 0xd4c3b2a1;
+
+  if (!isPcap) {
+    throw new Error('Unsupported PCAP format without tshark');
+  }
+
+  const metadata = {
+    format: 'pcap',
+    fileSize: buffer.length,
+    totalPackets: 0,
+    linkType: buffer.readUInt32LE(20)
+  };
+
+  const packets: any[] = [];
+  const protocolCounts = new Map<string, number>();
+
+  let offset = 24;
+  let packetIndex = 0;
+  const maxPackets = depth === 'quick' ? 100 : 1000;
+
+  while (offset < buffer.length - 16 && packetIndex < maxPackets) {
+    try {
+      const inclLen = buffer.readUInt32LE(offset + 8);
+      const origLen = buffer.readUInt32LE(offset + 12);
+
+      if (inclLen > buffer.length || inclLen > 65535) break;
+
+      const dataOffset = offset + 16;
+      if (dataOffset + inclLen > buffer.length) break;
+
+      const packetData = buffer.subarray(dataOffset, dataOffset + inclLen);
+
+      let protocol = 'Unknown';
+      if (inclLen >= 14) {
+        const etherType = packetData.readUInt16BE(12);
+        if (etherType === 0x0800) protocol = 'IPv4';
+        else if (etherType === 0x0806) protocol = 'ARP';
+        else if (etherType === 0x86dd) protocol = 'IPv6';
+
+        if (protocol === 'IPv4' && inclLen >= 34) {
+          const ipProto = packetData[23];
+          if (ipProto === 6) protocol = 'TCP';
+          else if (ipProto === 17) protocol = 'UDP';
+          else if (ipProto === 1) protocol = 'ICMP';
+        }
+      }
+
+      protocolCounts.set(protocol, (protocolCounts.get(protocol) || 0) + 1);
+
+      packets.push({
+        index: packetIndex,
+        timestamp: new Date().toISOString(),
+        size: inclLen,
+        protocol,
+        source: 'N/A',
+        destination: 'N/A',
+        info: protocol,
+        colorRule: protocol.toLowerCase()
+      });
+
+      offset = dataOffset + inclLen;
+      packetIndex++;
+    } catch (err) {
+      break;
+    }
+  }
+
+  metadata.totalPackets = packetIndex;
+
+  const protocolDetails = Array.from(protocolCounts.entries()).map(([name, count]) => ({
+    name,
+    count,
+    percentage: parseFloat(((count / metadata.totalPackets) * 100).toFixed(1))
+  }));
+
+  return {
+    filename,
+    depth,
+    method: 'basic',
+    metadata,
+    packets,
+    protocols: { details: protocolDetails, summary: {} },
+    httpStreams: [],
+    dnsQueries: [],
+    conversations: [],
+    endpoints: [],
+    expertInfo: [],
+    threatIndicators: [],
+    ioStats: [],
+    networkIntelligence: {
+      topTalkers: [],
+      protocolDistribution: {},
+      bandwidth: []
+    },
+    timestamp: new Date().toISOString()
+  };
 }
 
 console.log('✅ Enhanced Wireshark-level PCAP worker started');
