@@ -80,6 +80,16 @@ class ApiClient {
     const response = await this.client.get('/health');
     return response.data;
   }
+
+  // Follow TCP stream
+  async followTcpStream(jobId: string, streamId: number, filename: string) {
+    console.log('Following TCP stream:', jobId, streamId, filename);
+    const response = await this.client.post(`/api/v1/follow/tcp/${jobId}/${streamId}`, {
+      filename
+    });
+    console.log('Follow stream response:', response.data);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

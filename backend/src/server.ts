@@ -14,6 +14,7 @@ import pcapRoutes from './routes/pcap.js';
 import audioRoutes from './routes/audio.js';
 import jobsRoutes from './routes/jobs.js';
 import threatIntelRoutes from './routes/threatIntel.js';
+import followRoutes from './routes/follow.js';
 
 // Services
 import { initializeQueue } from './services/queue.js';
@@ -60,6 +61,7 @@ app.use('/api/v1/pcap', pcapRoutes);
 app.use('/api/v1/audio', audioRoutes);
 app.use('/api/v1/jobs', jobsRoutes);
 app.use('/api/v1/threat-intel', threatIntelRoutes);
+app.use('/api/v1/follow', followRoutes);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

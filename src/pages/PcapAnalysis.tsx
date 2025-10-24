@@ -52,6 +52,7 @@ const PcapAnalysis: React.FC = () => {
   const [followStreamData, setFollowStreamData] = useState<any>(null);
   const [currentFilter, setCurrentFilter] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Handle file upload from dashboard
   useEffect(() => {
@@ -70,6 +71,7 @@ const PcapAnalysis: React.FC = () => {
         setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`);
       } else if (jobStatus.status === 'completed') {
         console.log('📦 Backend results received:', jobStatus.results);
+        setCurrentJobId(jobStatus.jobId); // Store jobId for Follow Stream
         processBackendResults(jobStatus.results);
         setNotice('Analysis completed successfully!');
         setIsAnalyzing(false);
@@ -205,8 +207,29 @@ const PcapAnalysis: React.FC = () => {
     // Filter will be applied in PacketsTab
   };
 
-  const handleFollowStream = (stream: any) => {
-    setFollowStreamData(stream);
+  const handleFollowStream = async (stream: any) => {
+    if (!currentJobId || !file) {
+      toast.error('Cannot follow stream - missing job data');
+      return;
+    }
+
+    // Call backend to get actual stream data using tshark
+    try {
+      const streamId = stream.tcpStream;
+      if (streamId === undefined) {
+        toast.error('No TCP stream ID available');
+        return;
+      }
+
+      toast.info('Extracting TCP stream...');
+      const streamData = await apiClient.followTcpStream(currentJobId, streamId, file.name);
+
+      setFollowStreamData(streamData);
+      toast.success('Stream extracted!');
+    } catch (error: any) {
+      console.error('Follow stream error:', error);
+      toast.error(`Failed to follow stream: ${error.message}`);
+    }
   };
 
   const handleFileSelect = (selectedFile: File) => {
