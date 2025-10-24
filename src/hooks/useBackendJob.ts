@@ -72,8 +72,10 @@ export function useBackendJob() {
           setIsLoading(false);
           wsClient.leaveJob(jobId);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to poll job status:', error);
+        console.error('Job ID:', jobId);
+        console.error('Error details:', error.response?.status, error.response?.data);
       }
     }, 3000);
 

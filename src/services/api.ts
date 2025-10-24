@@ -63,6 +63,8 @@ class ApiClient {
 
   // Job status
   async getJobStatus(jobId: string) {
+    console.log('🔍 Fetching job status for:', jobId);
+    console.log('🔗 URL:', `/api/v1/jobs/${jobId}`);
     const response = await this.client.get(`/api/v1/jobs/${jobId}`);
     return response.data;
   }
