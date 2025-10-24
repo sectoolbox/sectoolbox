@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { ShowFullToggle } from '../components/ShowFullToggle'
+import { PacketDetailTree } from '../components/PacketDetailTree'
 import { performComprehensivePcapAnalysis, PcapAnalysisResult, toArrayBuffer } from '../lib/pcap'
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { apiClient } from '../services/api'
@@ -790,10 +791,24 @@ const PcapAnalysis: React.FC = () => {
                       {filteredPackets.map((p:any)=> {
                         const isExpanded = expandedPackets.has(p.index)
                         const packetSize = p.length || p.size || p.originalLength || 0
-                        
+
+                        // Wireshark-style color coding
+                        const getRowColor = () => {
+                          if (p.colorRule === 'http-get') return 'bg-green-500/5 hover:bg-green-500/10';
+                          if (p.colorRule === 'http-post') return 'bg-blue-500/5 hover:bg-blue-500/10';
+                          if (p.colorRule === 'http') return 'bg-purple-500/5 hover:bg-purple-500/10';
+                          if (p.colorRule === 'dns') return 'bg-yellow-500/5 hover:bg-yellow-500/10';
+                          if (p.colorRule === 'tcp-syn') return 'bg-cyan-500/5 hover:bg-cyan-500/10';
+                          if (p.colorRule === 'tcp') return 'bg-blue-400/5 hover:bg-blue-400/10';
+                          if (p.colorRule === 'udp') return 'bg-green-400/5 hover:bg-green-400/10';
+                          if (p.colorRule === 'icmp') return 'bg-red-400/5 hover:bg-red-400/10';
+                          if (p.colorRule === 'arp') return 'bg-orange-400/5 hover:bg-orange-400/10';
+                          return 'border-t hover:bg-muted/10';
+                        };
+
                         return (
                           <React.Fragment key={p.index}>
-                            <tr className="border-t hover:bg-muted/10 cursor-pointer" onClick={() => {
+                            <tr className={`${getRowColor()} cursor-pointer border-t`} onClick={() => {
                               const newExpanded = new Set(expandedPackets)
                               if (isExpanded) {
                                 newExpanded.delete(p.index)
@@ -842,75 +857,11 @@ const PcapAnalysis: React.FC = () => {
                               </td>
                             </tr>
                             
-                            {/* Raw Packet Data View */}
+                            {/* Wireshark-Style Packet Detail View */}
                             {isExpanded && (
                               <tr className="border-t bg-muted/5">
                                 <td colSpan={8} className="p-4">
-                                  <div className="space-y-3">
-                                    <div className="flex items-center justify-between border-b border-border pb-2">
-                                      <span className="text-sm font-medium">Raw Packet Data - Frame {p.index} ({packetSize} bytes)</span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          const hexText = p.data
-                                            ? Array.from(new Uint8Array(p.data))
-                                                .map(b => b.toString(16).padStart(2, '0'))
-                                                .join('')
-                                            : 'No raw data available'
-                                          navigator.clipboard.writeText(hexText)
-                                        }}
-                                      >
-                                        <Copy className="w-3 h-3 mr-1" />
-                                        Copy Hex
-                                      </Button>
-                                    </div>
-
-                                    {p.data ? (
-                                      <div className="bg-background border border-border rounded-lg overflow-hidden">
-                                        <div className="max-h-96 overflow-auto font-mono text-xs">
-                                          <table className="w-full min-w-[600px]">
-                                            <thead className="bg-muted/50 sticky top-0">
-                                              <tr>
-                                                <th className="p-2 text-left text-muted-foreground font-medium w-24">Offset</th>
-                                                <th className="p-2 text-left text-muted-foreground font-medium">Hex</th>
-                                                <th className="p-2 text-left text-muted-foreground font-medium w-40">ASCII</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {(() => {
-                                                const bytes = new Uint8Array(p.data)
-                                                const lines = []
-                                                for (let i = 0; i < bytes.length; i += 16) {
-                                                  const offset = '0x' + i.toString(16).padStart(8, '0').toUpperCase()
-                                                  const hexPart = Array.from(bytes.slice(i, i + 16))
-                                                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-                                                    .join(' ')
-                                                    .padEnd(47, ' ')
-                                                  const asciiPart = Array.from(bytes.slice(i, i + 16))
-                                                    .map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
-                                                    .join('')
-                                                  lines.push(
-                                                    <tr key={i} className="border-t border-border/20 hover:bg-muted/20">
-                                                      <td className="p-2 text-accent">{offset}</td>
-                                                      <td className="p-2 text-green-400">{hexPart}</td>
-                                                      <td className="p-2 text-blue-400">{asciiPart}</td>
-                                                    </tr>
-                                                  )
-                                                }
-                                                return lines
-                                              })()}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="p-4 text-center text-sm text-muted-foreground bg-muted/20 rounded border border-border">
-                                        No raw packet data available for this frame
-                                      </div>
-                                    )}
-                                  </div>
+                                  <PacketDetailTree packet={p} />
                                 </td>
                               </tr>
                             )}
