@@ -4,7 +4,11 @@ node_modules/
 .pnp.js
 
 # Production build (exclude from git, Vercel will build)
+
 dist/
+storage/
+*.log
+
 
 # Environment variables  
 .env
