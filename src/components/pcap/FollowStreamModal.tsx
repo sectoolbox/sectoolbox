@@ -20,7 +20,7 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
 }) => {
   // Wireshark-like settings
   const [showAs, setShowAs] = useState<'ascii' | 'ebcdic' | 'hex' | 'c-array' | 'raw' | 'yaml'>('ascii');
-  const [streamFilter, setStreamFilter] = useState<'entire' | 'client-to-server' | 'server-to-client'>('entire');
+  const [streamFilter, setStreamFilter] = useState<'entire' | 'client-to-server' | 'server-to-client' | 'conversation-flow'>('conversation-flow');
   const [showDeltaTimes, setShowDeltaTimes] = useState(false);
   const [findTerm, setFindTerm] = useState('');
 
@@ -121,7 +121,38 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
       );
     }
 
-    // Show with delta times if enabled
+    // CONVERSATION FLOW - Show entire conversation chronologically with color coding
+    if (streamFilter === 'conversation-flow' && stream.payloads && Array.isArray(stream.payloads) && stream.payloads.length > 0) {
+      return (
+        <div className="font-mono text-xs space-y-2">
+          {stream.payloads.map((payload: any, idx: number) => {
+            const delta = idx > 0
+              ? (new Date(payload.timestamp).getTime() - new Date(stream.payloads[idx - 1].timestamp).getTime()) / 1000
+              : 0;
+
+            return (
+              <div key={idx} className={`border ${payload.direction === 'client' ? 'border-red-500/30 bg-red-500/5' : 'border-blue-500/30 bg-blue-500/5'} rounded p-3`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${payload.direction === 'client' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      {payload.direction === 'client' ? 'CLIENT → SERVER' : 'SERVER → CLIENT'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">Frame {payload.frame}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {showDeltaTimes && idx > 0 && <span>+{delta.toFixed(3)}s</span>}
+                    <span>{payload.length} bytes</span>
+                  </div>
+                </div>
+                <pre className="whitespace-pre-wrap break-all text-foreground">{formatData(payload.data)}</pre>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Show with delta times (legacy - kept for compatibility)
     if (showDeltaTimes && stream.payloads && Array.isArray(stream.payloads) && stream.payloads.length > 0) {
       return (
         <div className="font-mono text-xs space-y-2">
@@ -208,15 +239,16 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
         <div className="px-6 py-3 border-b border-border space-y-3">
           {/* Stream Direction Filter */}
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium min-w-[80px]">Stream:</label>
+            <label className="text-sm font-medium min-w-[80px]">View:</label>
             <select
               value={streamFilter}
               onChange={(e) => setStreamFilter(e.target.value as any)}
               className="flex-1 px-3 py-2 bg-background border border-border rounded text-sm"
             >
-              <option value="entire">Entire conversation ({totalBytes} bytes)</option>
-              <option value="client-to-server">{node0} → {node1} ({clientBytes} bytes)</option>
-              <option value="server-to-client">{node1} → {node0} ({serverBytes} bytes)</option>
+              <option value="conversation-flow">Conversation Flow (Chronological, {totalBytes} bytes)</option>
+              <option value="entire">Entire conversation (Combined, {totalBytes} bytes)</option>
+              <option value="client-to-server">Client → Server only ({node0} → {node1}, {clientBytes} bytes)</option>
+              <option value="server-to-client">Server → Client only ({node1} → {node0}, {serverBytes} bytes)</option>
             </select>
           </div>
 
@@ -252,7 +284,7 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
             {/* Stream Navigation */}
             {allStreams.length > 1 && onNavigateStream && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Navigate:</span>
+                <span className="text-sm text-muted-foreground">Navigate Streams:</span>
                 <Button
                   size="sm"
                   variant="outline"
@@ -260,12 +292,9 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
                   onClick={() => hasPrevStream && onNavigateStream(allStreams[currentStreamIndex - 1])}
                   title="Previous stream (lower stream number)"
                 >
-                  <ChevronUp className="w-3 h-3" />
+                  <ChevronUp className="w-3 h-3 mr-1" />
                   Prev
                 </Button>
-                <span className="text-xs font-mono">
-                  Stream {stream.streamId} ({currentStreamIndex + 1}/{allStreams.length})
-                </span>
                 <Button
                   size="sm"
                   variant="outline"
@@ -274,7 +303,7 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
                   title="Next stream (higher stream number)"
                 >
                   Next
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-3 h-3 ml-1" />
                 </Button>
               </div>
             )}
