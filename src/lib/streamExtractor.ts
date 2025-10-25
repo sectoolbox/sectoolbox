@@ -23,8 +23,20 @@ export function extractTcpStream(packets: any[], streamId: number): any {
 
   // Determine nodes
   const firstPacket = streamPackets[0];
+
+  console.log('First packet for stream:', {
+    source: firstPacket.source,
+    destination: firstPacket.destination,
+    srcPort: firstPacket.srcPort,
+    dstPort: firstPacket.dstPort,
+    destPort: firstPacket.destPort
+  });
+
   const srcPortDisplay = firstPacket.srcPort !== null && firstPacket.srcPort !== undefined ? firstPacket.srcPort : '?';
-  const dstPortDisplay = firstPacket.dstPort !== null && firstPacket.dstPort !== undefined ? firstPacket.dstPort : '?';
+  const dstPortDisplay = (firstPacket.dstPort !== null && firstPacket.dstPort !== undefined)
+    ? firstPacket.dstPort
+    : (firstPacket.destPort !== null && firstPacket.destPort !== undefined ? firstPacket.destPort : '?');
+
   const node0 = `${firstPacket.source}:${srcPortDisplay}`;
   const node1 = `${firstPacket.destination}:${dstPortDisplay}`;
 

@@ -258,18 +258,22 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
                   variant="outline"
                   disabled={!hasPrevStream}
                   onClick={() => hasPrevStream && onNavigateStream(allStreams[currentStreamIndex - 1])}
+                  title="Previous stream (lower stream number)"
                 >
                   <ChevronUp className="w-3 h-3" />
+                  Prev
                 </Button>
                 <span className="text-xs font-mono">
-                  Stream {currentStreamIndex + 1}/{allStreams.length}
+                  Stream {stream.streamId} ({currentStreamIndex + 1}/{allStreams.length})
                 </span>
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={!hasNextStream}
                   onClick={() => hasNextStream && onNavigateStream(allStreams[currentStreamIndex + 1])}
+                  title="Next stream (higher stream number)"
                 >
+                  Next
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </div>
