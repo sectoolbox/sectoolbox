@@ -88,14 +88,17 @@ export function parseTsharkPackets(rawPackets: any[]): any {
 
     // Track conversations
     if (ipSrc && ipDst) {
-      const convKey = `${ipSrc}-${ipDst}`;
+      const convKey = `${ipSrc}:${srcPort || 0}-${ipDst}:${destPort || 0}`;
       const conv = conversations.get(convKey) || {
         source: ipSrc,
         destination: ipDst,
+        srcPort: srcPort,
+        destPort: destPort,
         packets: 0,
         bytes: 0,
         protocols: new Set(),
-        firstSeen: timestamp
+        firstSeen: timestamp,
+        tcpStream: layers.tcp?.['tcp.stream'] // Store the first packet's stream ID
       };
       conv.packets++;
       conv.bytes += size;

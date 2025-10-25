@@ -217,19 +217,41 @@ const PcapAnalysis: React.FC = () => {
       if (streamId === undefined || streamId === null) {
         console.log('No tcpStream in object, searching by source/destination:', stream);
 
-        // Find a packet matching this conversation
-        const matchingPacket = allPackets.find(pkt =>
-          (pkt.source === stream.source && pkt.destination === stream.destination && pkt.srcPort === stream.srcPort && pkt.dstPort === stream.dstPort) ||
-          (pkt.source === stream.destination && pkt.destination === stream.source && pkt.srcPort === stream.dstPort && pkt.dstPort === stream.srcPort)
-        );
+        // Try matching by IP addresses and ports (handle both destPort and dstPort field names)
+        const streamDestPort = stream.destPort !== undefined ? stream.destPort : stream.dstPort;
+
+        const matchingPacket = allPackets.find(pkt => {
+          const pktDestPort = pkt.destPort !== undefined ? pkt.destPort : pkt.dstPort;
+
+          // Match conversation bidirectionally
+          const forwardMatch = pkt.source === stream.source && pkt.destination === stream.destination &&
+            pkt.srcPort === stream.srcPort && pktDestPort === streamDestPort;
+
+          const reverseMatch = pkt.source === stream.destination && pkt.destination === stream.source &&
+            pkt.srcPort === streamDestPort && pktDestPort === stream.srcPort;
+
+          return forwardMatch || reverseMatch;
+        });
 
         if (matchingPacket && matchingPacket.tcpStream !== undefined) {
           streamId = matchingPacket.tcpStream;
           console.log('Found matching packet with stream ID:', streamId);
         } else {
-          toast.error('Cannot find TCP stream ID for this conversation');
-          console.error('No matching packet found for conversation:', stream);
-          return;
+          // Try matching just by IP (ignore ports) as fallback
+          const ipMatchPacket = allPackets.find(pkt =>
+            (pkt.source === stream.source && pkt.destination === stream.destination) ||
+            (pkt.source === stream.destination && pkt.destination === stream.source)
+          );
+
+          if (ipMatchPacket && ipMatchPacket.tcpStream !== undefined) {
+            streamId = ipMatchPacket.tcpStream;
+            console.log('Found matching packet by IP only, stream ID:', streamId);
+          } else {
+            toast.error('Cannot find TCP stream ID for this conversation');
+            console.error('No matching packet found. Stream object:', stream);
+            console.error('Tried matching with srcPort:', stream.srcPort, 'destPort/dstPort:', streamDestPort);
+            return;
+          }
         }
       }
 
