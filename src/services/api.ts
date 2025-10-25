@@ -22,7 +22,7 @@ class ApiClient {
   }
 
   async executePythonScript(scriptId: string, file: File) {
-    console.log('🐍 Executing Python script:', scriptId, 'with file:', file.name);
+    console.log('Executing Python script:', scriptId, 'with file:', file.name);
     const formData = new FormData();
     formData.append('scriptId', scriptId);
     formData.append('file', file);
@@ -32,13 +32,13 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('✅ Python execute response:', response.data);
+    console.log('Python execute response:', response.data);
     return response.data;
   }
 
   // PCAP analysis
   async analyzePcap(file: File, depth: 'quick' | 'full' = 'full') {
-    console.log('📡 Analyzing PCAP:', file.name, 'depth:', depth);
+    console.log('Analyzing PCAP:', file.name, 'depth:', depth);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('depth', depth);
@@ -48,13 +48,13 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('✅ PCAP analyze response:', response.data);
+    console.log('PCAP analyze response:', response.data);
     return response.data;
   }
 
   // Audio analysis
   async generateSpectrogram(file: File) {
-    console.log('🎵 Generating spectrogram for:', file.name);
+    console.log('Generating spectrogram for:', file.name);
     const formData = new FormData();
     formData.append('file', file);
 
@@ -63,14 +63,14 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('✅ Spectrogram response:', response.data);
+    console.log('Spectrogram response:', response.data);
     return response.data;
   }
 
   // Job status
   async getJobStatus(jobId: string) {
-    console.log('🔍 Fetching job status for:', jobId);
-    console.log('🔗 URL:', `/api/v1/jobs/${jobId}`);
+    console.log('Fetching job status for:', jobId);
+    console.log('URL:', `/api/v1/jobs/${jobId}`);
     const response = await this.client.get(`/api/v1/jobs/${jobId}`);
     return response.data;
   }
