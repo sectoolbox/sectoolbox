@@ -20,7 +20,7 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
 }) => {
   // Wireshark-like settings
   const [showAs, setShowAs] = useState<'ascii' | 'ebcdic' | 'hex' | 'c-array' | 'raw' | 'yaml'>('ascii');
-  const [streamFilter, setStreamFilter] = useState<'entire' | 'client-to-server' | 'server-to-client' | 'conversation-flow'>('conversation-flow');
+  const [streamFilter, setStreamFilter] = useState<'entire' | 'client-to-server' | 'server-to-client' | 'conversation-flow' | 'timeline-all'>('conversation-flow');
   const [showDeltaTimes, setShowDeltaTimes] = useState(false);
   const [findTerm, setFindTerm] = useState('');
 
@@ -111,6 +111,98 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
   const node1 = stream.node1 || 'Unknown';
 
   const renderContent = () => {
+    // TIMELINE VIEW - Show ALL streams chronologically
+    if (streamFilter === 'timeline-all') {
+      // Extract all TCP payloads from ALL packets
+      const allPayloads: any[] = [];
+
+      packets.forEach(pkt => {
+        const tcpPayloadHex = pkt.rawLayers?.tcp?.['tcp.payload'] || pkt.layers?.tcp?.['tcp.payload'];
+
+        if (tcpPayloadHex && pkt.tcpStream !== null && pkt.tcpStream !== undefined) {
+          const asciiData = hexToAscii(tcpPayloadHex);
+
+          if (asciiData.length > 0) {
+            allPayloads.push({
+              streamId: pkt.tcpStream,
+              frame: pkt.frame || pkt.index,
+              timestamp: pkt.timestamp,
+              source: pkt.source,
+              destination: pkt.destination,
+              srcPort: pkt.srcPort,
+              dstPort: pkt.dstPort,
+              data: asciiData,
+              length: asciiData.length,
+              protocol: pkt.protocol
+            });
+          }
+        }
+      });
+
+      // Sort by timestamp
+      allPayloads.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      if (allPayloads.length === 0) {
+        return (
+          <div className="text-center text-muted-foreground py-12">
+            <p>No TCP payload data found in any stream</p>
+          </div>
+        );
+      }
+
+      // Display timeline
+      return (
+        <div className="space-y-2">
+          {allPayloads.map((payload, idx) => {
+            const delta = idx > 0
+              ? (new Date(payload.timestamp).getTime() - new Date(allPayloads[idx - 1].timestamp).getTime()) / 1000
+              : 0;
+
+            // Get color based on stream ID
+            const streamColors = ['bg-red-500/10 border-red-500/30', 'bg-blue-500/10 border-blue-500/30', 'bg-green-500/10 border-green-500/30', 'bg-purple-500/10 border-purple-500/30', 'bg-yellow-500/10 border-yellow-500/30', 'bg-cyan-500/10 border-cyan-500/30'];
+            const streamColor = streamColors[payload.streamId % streamColors.length];
+
+            return (
+              <div key={idx}>
+                {/* Time marker */}
+                {showDeltaTimes && idx > 0 && delta > 0.5 && (
+                  <div className="text-xs text-muted-foreground text-center py-1 border-t border-dashed border-border mt-2">
+                    +{delta.toFixed(3)}s
+                  </div>
+                )}
+
+                {/* Payload card */}
+                <div className={`border ${streamColor} rounded p-3`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-accent/20 text-accent rounded text-xs font-bold">
+                        STREAM {payload.streamId}
+                      </span>
+                      <span className="text-xs text-muted-foreground">Frame {payload.frame}</span>
+                      <span className="text-xs font-mono">
+                        {payload.source}:{payload.srcPort || '?'} → {payload.destination}:{payload.dstPort || '?'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {showDeltaTimes && idx > 0 && <span>+{delta.toFixed(3)}s</span>}
+                      <span>{payload.length} bytes</span>
+                    </div>
+                  </div>
+                  <pre className="whitespace-pre-wrap break-all text-foreground text-xs font-mono">
+                    {formatData(payload.data)}
+                  </pre>
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="text-center text-sm text-muted-foreground mt-4 pt-4 border-t border-border">
+            Timeline: {allPayloads.length} packets with payload from {allStreams.length} streams
+          </div>
+        </div>
+      );
+    }
+
     if (totalBytes === 0) {
       return (
         <div className="text-center text-muted-foreground py-12">
@@ -245,7 +337,8 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
               onChange={(e) => setStreamFilter(e.target.value as any)}
               className="flex-1 px-3 py-2 bg-background border border-border rounded text-sm"
             >
-              <option value="conversation-flow">Conversation Flow (Chronological, {totalBytes} bytes)</option>
+              <option value="conversation-flow">Conversation Flow (This stream, {totalBytes} bytes)</option>
+              <option value="timeline-all">Timeline View (ALL streams chronological)</option>
               <option value="entire">Entire conversation (Combined, {totalBytes} bytes)</option>
               <option value="client-to-server">Client → Server only ({node0} → {node1}, {clientBytes} bytes)</option>
               <option value="server-to-client">Server → Client only ({node1} → {node0}, {serverBytes} bytes)</option>
@@ -348,7 +441,7 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
           <div className="text-sm text-muted-foreground">
-            TCP Stream {stream.streamId} | {stream.payloads?.length || 0} packets with payload | {totalBytes} bytes total
+            {streamFilter === 'timeline-all' ? 'Timeline View (All Streams)' : `TCP Stream ${stream.streamId} | ${stream.payloads?.length || 0} packets with payload | ${totalBytes} bytes total`}
           </div>
           <Button onClick={onClose}>Close</Button>
         </div>
@@ -356,3 +449,19 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
     </div>
   );
 };
+
+function hexToAscii(hex: string): string {
+  if (!hex) return '';
+
+  const cleaned = hex.replace(/:/g, '').replace(/\s/g, '');
+  const bytes = cleaned.match(/.{1,2}/g) || [];
+
+  return bytes
+    .map(byte => {
+      const code = parseInt(byte, 16);
+      if (code === 10 || code === 13 || code === 9) return String.fromCharCode(code);
+      if (code >= 32 && code <= 126) return String.fromCharCode(code);
+      return '.';
+    })
+    .join('');
+}
