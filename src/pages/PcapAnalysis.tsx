@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Upload, Cloud, Activity, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -216,21 +216,49 @@ const PcapAnalysis: React.FC = () => {
     // Call backend to get actual stream data using tshark
     try {
       const streamId = stream.tcpStream;
-      if (streamId === undefined) {
+      if (streamId === undefined && streamId !== 0) {
         toast.error('No TCP stream ID available');
+        console.error('Stream object:', stream);
         return;
       }
 
-      toast.info('Extracting TCP stream...');
+      console.log('Following TCP stream:', streamId, 'jobId:', currentJobId, 'file:', file.name);
+      toast.info('Extracting TCP stream with tshark...');
+
       const streamData = await apiClient.followTcpStream(currentJobId, streamId, file.name);
 
+      console.log('Stream data received:', streamData);
       setFollowStreamData(streamData);
-      toast.success('Stream extracted!');
+
+      if (streamData.totalBytes > 0) {
+        toast.success(`Stream extracted: ${streamData.totalBytes} bytes`);
+      } else {
+        toast.warning('Stream has no payload data');
+      }
     } catch (error: any) {
       console.error('Follow stream error:', error);
       toast.error(`Failed to follow stream: ${error.message}`);
     }
   };
+
+  const handleNavigateStream = async (newStreamId: number) => {
+    // Close current modal
+    setFollowStreamData(null);
+
+    // Open new stream
+    await handleFollowStream({ tcpStream: newStreamId });
+  };
+
+  // Extract all unique stream IDs from packets
+  const allStreamIds = useMemo(() => {
+    const ids = new Set<number>();
+    allPackets.forEach(pkt => {
+      if (pkt.tcpStream !== null && pkt.tcpStream !== undefined) {
+        ids.add(pkt.tcpStream);
+      }
+    });
+    return Array.from(ids).sort((a, b) => a - b);
+  }, [allPackets]);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -496,6 +524,8 @@ const PcapAnalysis: React.FC = () => {
           packets={allPackets}
           stream={followStreamData}
           onClose={() => setFollowStreamData(null)}
+          allStreams={allStreamIds}
+          onNavigateStream={handleNavigateStream}
         />
       )}
 

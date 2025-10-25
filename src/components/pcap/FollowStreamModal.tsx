@@ -86,79 +86,6 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
     }
   };
 
-  const renderContent = () => {
-    if (totalBytes === 0) {
-      return (
-        <div className="text-center text-muted-foreground py-12">
-          <p className="text-lg font-semibold mb-2">No Stream Data Available</p>
-          <p className="text-sm">This TCP stream has no payload data or was not found.</p>
-        </div>
-      );
-    }
-
-    // Show with delta times if enabled
-    if (showDeltaTimes && stream.payloads && Array.isArray(stream.payloads)) {
-      return (
-        <div className="font-mono text-xs space-y-2">
-          {stream.payloads.map((payload: any, idx: number) => {
-            const delta = idx > 0
-              ? (new Date(payload.timestamp).getTime() - new Date(stream.payloads[idx - 1].timestamp).getTime()) / 1000
-              : 0;
-
-            return (
-              <div key={idx} className={`${payload.direction === 'client' ? 'bg-red-500/10' : 'bg-blue-500/10'} rounded p-2`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs ${payload.direction === 'client' ? 'text-red-400' : 'text-blue-400'}`}>
-                    {payload.direction === 'client' ? 'Client → Server' : 'Server → Client'} (Frame {payload.frame})
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    +{delta.toFixed(3)}s ({payload.length} bytes)
-                  </span>
-                </div>
-                <pre className="whitespace-pre-wrap break-all">{formatData(payload.data)}</pre>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // Regular view (entire conversation or filtered)
-    const formatted = formatData(displayData);
-
-    if (streamFilter === 'entire' && showAs === 'ascii') {
-      // Show client/server separated for better readability
-      return (
-        <div className="space-y-4">
-          <div>
-            <div className="text-sm font-semibold mb-2 text-red-400 flex items-center justify-between">
-              <span>Client → Server ({node0} → {node1})</span>
-              <span>{clientBytes} bytes</span>
-            </div>
-            <div className="bg-red-500/10 border border-red-500/30 rounded p-4 font-mono text-xs max-h-64 overflow-auto">
-              <pre className="whitespace-pre-wrap break-all">{stream.clientToServer || 'No data'}</pre>
-            </div>
-          </div>
-          <div>
-            <div className="text-sm font-semibold mb-2 text-blue-400 flex items-center justify-between">
-              <span>Server → Client ({node1} → {node0})</span>
-              <span>{serverBytes} bytes</span>
-            </div>
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 font-mono text-xs max-h-64 overflow-auto">
-              <pre className="whitespace-pre-wrap break-all">{stream.serverToClient || 'No data'}</pre>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="font-mono text-xs">
-        <pre className="whitespace-pre-wrap break-all">{formatted}</pre>
-      </div>
-    );
-  };
-
   const downloadStream = () => {
     const content = displayData;
     const blob = new Blob([content], { type: 'text/plain' });
@@ -182,6 +109,80 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
 
   const node0 = stream.node0 || 'Unknown';
   const node1 = stream.node1 || 'Unknown';
+
+  const renderContent = () => {
+    if (totalBytes === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-12">
+          <p className="text-lg font-semibold mb-2">No Stream Data Available</p>
+          <p className="text-sm">This TCP stream has no payload data or stream ID {stream.streamId} not found.</p>
+          <p className="text-xs mt-2">The stream may only contain TCP handshake/ACK packets without application data.</p>
+        </div>
+      );
+    }
+
+    // Show with delta times if enabled
+    if (showDeltaTimes && stream.payloads && Array.isArray(stream.payloads) && stream.payloads.length > 0) {
+      return (
+        <div className="font-mono text-xs space-y-2">
+          {stream.payloads.map((payload: any, idx: number) => {
+            const delta = idx > 0
+              ? (new Date(payload.timestamp).getTime() - new Date(stream.payloads[idx - 1].timestamp).getTime()) / 1000
+              : 0;
+
+            return (
+              <div key={idx} className={`${payload.direction === 'client' ? 'bg-red-500/10' : 'bg-blue-500/10'} rounded p-2`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs font-semibold ${payload.direction === 'client' ? 'text-red-400' : 'text-blue-400'}`}>
+                    {payload.direction === 'client' ? 'Client → Server' : 'Server → Client'} (Frame {payload.frame})
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    +{delta.toFixed(3)}s | {payload.length} bytes
+                  </span>
+                </div>
+                <pre className="whitespace-pre-wrap break-all">{payload.data}</pre>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Regular view (entire conversation or filtered)
+    const formatted = formatData(displayData);
+
+    if (streamFilter === 'entire' && showAs === 'ascii') {
+      // Show client/server separated for better readability
+      return (
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold mb-2 text-red-400 flex items-center justify-between">
+              <span>Client → Server ({node0} → {node1})</span>
+              <span>{clientBytes} bytes</span>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-4 font-mono text-xs max-h-96 overflow-auto">
+              <pre className="whitespace-pre-wrap break-all">{stream.clientToServer || 'No client data'}</pre>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold mb-2 text-blue-400 flex items-center justify-between">
+              <span>Server → Client ({node1} → {node0})</span>
+              <span>{serverBytes} bytes</span>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 font-mono text-xs max-h-96 overflow-auto">
+              <pre className="whitespace-pre-wrap break-all">{stream.serverToClient || 'No server data'}</pre>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="font-mono text-xs p-4 bg-muted/20 rounded">
+        <pre className="whitespace-pre-wrap break-all">{formatted}</pre>
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
