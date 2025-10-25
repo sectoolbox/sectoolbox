@@ -9,7 +9,7 @@ const queue = getPcapQueue();
 queue.process(async (job) => {
   const { jobId, filePath, depth, filename } = job.data;
 
-  console.log(`🔍 Processing PCAP job ${jobId}: ${filename}`);
+  console.log(`Processing PCAP job ${jobId}: ${filename}`);
 
   emitJobProgress(jobId, {
     progress: 10,
@@ -22,7 +22,7 @@ queue.process(async (job) => {
     const hasTshark = await checkTsharkAvailable();
 
     if (!hasTshark) {
-      console.warn('⚠️ tshark not available, using fallback parser');
+      console.warn('tshark not available, using fallback parser');
       const fileBuffer = await fs.readFile(filePath);
       const fallbackResults = createFallbackResults(fileBuffer, filename, depth);
 
@@ -31,7 +31,7 @@ queue.process(async (job) => {
       return fallbackResults;
     }
 
-    console.log('✅ Using tshark for analysis');
+    console.log('Using tshark for analysis');
 
     emitJobProgress(jobId, {
       progress: 30,
@@ -63,15 +63,15 @@ queue.process(async (job) => {
       timestamp: new Date().toISOString()
     };
 
-    console.log(`✅ Analysis complete: ${results.totalPackets} packets extracted`);
+    console.log(`Analysis complete: ${results.totalPackets} packets extracted`);
 
     await saveResults(jobId, results);
     emitJobCompleted(jobId, results);
 
     return results;
   } catch (error: any) {
-    console.error('❌ PCAP worker error:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('PCAP worker error:', error);
+    console.error('Stack:', error.stack);
 
     emitJobFailed(jobId, `PCAP analysis failed: ${error.message}`);
     throw error;
@@ -93,7 +93,7 @@ async function checkTsharkAvailable(): Promise<boolean> {
 
 async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: string): Promise<any[]> {
   return new Promise((resolve, reject) => {
-    console.log(`📡 Running tshark on ${filePath}, max packets: ${maxPackets}`);
+    console.log(`Running tshark on ${filePath}, max packets: ${maxPackets}`);
 
     // Export EVERYTHING with -V (full packet tree)
     const tshark = spawn('tshark', [
@@ -118,25 +118,25 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
       if (code === 0 || code === null) {
         try {
           const fullOutput = Buffer.concat(chunks).toString('utf8');
-          console.log(`✅ tshark output size: ${fullOutput.length} bytes`);
+          console.log(`tshark output size: ${fullOutput.length} bytes`);
 
           const packets = JSON.parse(fullOutput);
-          console.log(`✅ Parsed ${packets.length} packets`);
+          console.log(`Parsed ${packets.length} packets`);
 
           resolve(packets);
         } catch (err: any) {
-          console.error('❌ Failed to parse tshark JSON:', err.message);
+          console.error('Failed to parse tshark JSON:', err.message);
           reject(new Error(`tshark JSON parse failed: ${err.message}`));
         }
       } else {
-        console.error(`❌ tshark exited with code ${code}`);
-        console.error(`❌ stderr: ${stderr}`);
+        console.error(`tshark exited with code ${code}`);
+        console.error(`stderr: ${stderr}`);
         reject(new Error(`tshark failed (code ${code}): ${stderr.substring(0, 500)}`));
       }
     });
 
     tshark.on('error', (error) => {
-      console.error('❌ Failed to spawn tshark:', error);
+      console.error('Failed to spawn tshark:', error);
       reject(new Error(`Failed to run tshark: ${error.message}`));
     });
 
@@ -168,4 +168,4 @@ function createFallbackResults(buffer: Buffer, filename: string, depth: string):
   };
 }
 
-console.log('✅ Simple PCAP worker started (tshark full dump mode)');
+console.log('Simple PCAP worker started (tshark full dump mode)');
