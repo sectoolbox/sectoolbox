@@ -82,15 +82,15 @@ async function startServer() {
   try {
     // Initialize Redis and Bull queue
     await initializeQueue();
-    console.log('✅ Queue initialized');
+    console.log('Queue initialized');
 
     // Initialize WebSocket
     initializeWebSocket(io);
-    console.log('✅ WebSocket initialized');
+    console.log('WebSocket initialized');
 
     // Start cleanup scheduler (delete files after 1 hour)
     startCleanupScheduler();
-    console.log('✅ Cleanup scheduler started');
+    console.log('Cleanup scheduler started');
 
     // Start server
     httpServer.listen(PORT, () => {

@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import { getUploadedFilePath } from '../services/storage.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { hexToAscii } from '../utils/formatting.js';
 
 const router = express.Router();
 
@@ -190,31 +191,6 @@ async function extractTcpPayloads(pcapPath: string, streamId: number): Promise<a
       reject(new Error('tshark timeout'));
     }, 60000);
   });
-}
-
-function hexToAscii(hex: string): string {
-  if (!hex) {
-    console.log('hexToAscii: empty hex input');
-    return '';
-  }
-
-  const cleaned = hex.replace(/:/g, '').replace(/\s/g, '');
-  const bytes = cleaned.match(/.{1,2}/g) || [];
-
-  console.log(`hexToAscii: ${cleaned.length} hex chars → ${bytes.length} bytes`);
-
-  const result = bytes
-    .map(byte => {
-      const code = parseInt(byte, 16);
-      // Keep all printable characters and newlines/tabs
-      if (code === 10 || code === 13 || code === 9) return String.fromCharCode(code);
-      if (code >= 32 && code <= 126) return String.fromCharCode(code);
-      return '.';
-    })
-    .join('');
-
-  console.log(`Result length: ${result.length}`);
-  return result;
 }
 
 export default router;

@@ -39,26 +39,66 @@ Dashboard - Quick file upload and tool directory
 
 ## Technical Stack
 
-- Frontend: <kbd>React 19, TypeScript 5.8</kbd>
-- Build System: <kbd>Vite 7</kbd>
-- UI Framework: <kbd>Tailwind CSS, shadcn/ui</kbd>
-- Python Runtime: <kbd>Pyodide 0.28.3 (Python 3.11 in WebAssembly)</kbd>
-- Code Editor: <kbd>Monaco Editor</kbd>
-- Deployment: <kbd>Vercel with serverless functions</kbd>
+- **Frontend**: <kbd>React 19, TypeScript 5.8, Vite 7</kbd>
+- **Backend**: <kbd>Node.js, Express, TypeScript</kbd>
+- **UI Framework**: <kbd>Tailwind CSS, shadcn/ui</kbd>
+- **Queue System**: <kbd>Bull with Redis</kbd>
+- **Python Runtime**: <kbd>Pyodide 0.28.3 (Python 3.11 in WebAssembly)</kbd>
+- **Code Editor**: <kbd>Monaco Editor</kbd>
+- **Deployment**: 
+  - Frontend + API Functions: <kbd>Vercel</kbd>
+  - Backend + Redis: <kbd>Railway</kbd>
+
+
+## Architecture
+
+Sectoolbox uses a hybrid architecture optimized for both performance and deployment flexibility:
+
+### **Frontend (Vercel)**
+- React SPA served via Vercel's CDN
+- Client-side analysis for lightweight operations
+- WebAssembly (Pyodide) for in-browser Python execution
+
+### **API Functions (Vercel Serverless)**
+Located in `/api/`:
+- `nmap.js` - Port scanning via HackerTarget API
+- `threat-intel.js` - Threat intelligence lookups
+- `passivedns.js` - DNS history queries
+- `headers.js` - HTTP header analysis
+- `archive.js` - Wayback Machine integration
+
+### **Backend Server (Railway)**
+Located in `/backend/`:
+- Express server for heavy processing tasks
+- Bull queue system with Redis for job management
+- WebSocket support for real-time updates
+- Workers for:
+  - PCAP analysis (tshark integration)
+  - Audio spectrogram generation
+  - Python script execution
+
+**Communication**: Frontend ↔ Backend API (REST + WebSocket) ↔ Redis ↔ Workers
 
 
 ## Project Structure
 
 ```
 sectoolbox/
-├── api/                  # Vercel serverless functions
-├── src/
-│   ├── components/       # Reusable UI components
-│   ├── pages/            # Application pages
-│   ├── lib/              # Analysis logic and utilities
-│   └── data/             # Static data and scripts
-├── public/               # Static assets
-└── package.json
+├── api/                      # Vercel serverless functions (HackerTarget, DNS, etc.)
+├── backend/                  # Railway backend server
+│   └── src/
+│       ├── routes/           # API endpoints
+│       ├── workers/          # Background job processors
+│       ├── services/         # Queue, WebSocket, storage
+│       └── utils/            # Shared utilities
+├── src/                      # Frontend React application
+│   ├── components/           # Reusable UI components
+│   ├── pages/                # Application pages
+│   ├── lib/                  # Analysis logic and utilities
+│   ├── services/             # API client, WebSocket
+│   └── hooks/                # React hooks
+├── public/                   # Static assets
+└── docs/                     # Documentation
 ```
 
 ## Community

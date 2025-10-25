@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Download, Copy, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
+import { hexToAscii } from '../../lib/formatting';
 
 interface FollowStreamModalProps {
   packets: any[];
@@ -449,19 +450,3 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
     </div>
   );
 };
-
-function hexToAscii(hex: string): string {
-  if (!hex) return '';
-
-  const cleaned = hex.replace(/:/g, '').replace(/\s/g, '');
-  const bytes = cleaned.match(/.{1,2}/g) || [];
-
-  return bytes
-    .map(byte => {
-      const code = parseInt(byte, 16);
-      if (code === 10 || code === 13 || code === 9) return String.fromCharCode(code);
-      if (code >= 32 && code <= 126) return String.fromCharCode(code);
-      return '.';
-    })
-    .join('');
-}

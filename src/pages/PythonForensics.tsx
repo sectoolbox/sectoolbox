@@ -247,7 +247,7 @@ except FileNotFoundError:
       }
     } catch (error) {
       console.error('Failed to load Pyodide:', error)
-      setOutput(`❌ Failed to load Python environment: ${error}`)
+      setOutput(`Failed to load Python environment: ${error}`)
       setIsLoading(false)
       toast.error('Failed to load Python environment')
     }
@@ -442,19 +442,19 @@ def fileinfo(filename):
 
       const response = await apiClient.executePythonScript(scriptId, actualFile)
 
-      console.log('📦 Backend response:', response)
-      console.log('🆔 Job ID from response:', response.jobId)
+      console.log('Backend response:', response)
+      console.log('Job ID from response:', response.jobId)
 
       if (response.jobId) {
         setOutput(prev => prev + `\nJob started: ${response.jobId}\n`)
         startJob(response.jobId)
       } else {
-        console.error('⚠️ No jobId in response!')
-        setOutput(prev => prev + `\n⚠️ Backend did not return a job ID\n`)
+        console.error('No jobId in response!')
+        setOutput(prev => prev + `\nBackend did not return a job ID\n`)
         setIsRunning(false)
       }
     } catch (error: any) {
-      setOutput(`❌ Backend Error:\n${error.message || String(error)}`)
+      setOutput(`Backend Error:\n${error.message || String(error)}`)
       toast.error('Backend execution failed')
       setIsRunning(false)
     }
@@ -464,13 +464,13 @@ def fileinfo(filename):
   useEffect(() => {
     if (jobStatus) {
       if (jobStatus.status === 'processing') {
-        setOutput(prev => prev + `\n📊 Progress: ${jobStatus.progress}% - ${jobStatus.message || ''}\n`)
+        setOutput(prev => prev + `\nProgress: ${jobStatus.progress}% - ${jobStatus.message || ''}\n`)
       } else if (jobStatus.status === 'completed') {
-        setOutput(prev => prev + `\n✅ Backend execution completed!\n\nResults:\n${JSON.stringify(jobStatus.results, null, 2)}`)
+        setOutput(prev => prev + `\nBackend execution completed!\n\nResults:\n${JSON.stringify(jobStatus.results, null, 2)}`)
         setIsRunning(false)
         toast.success('Backend execution completed!')
       } else if (jobStatus.status === 'failed') {
-        setOutput(prev => prev + `\n❌ Backend execution failed:\n${jobStatus.error}`)
+        setOutput(prev => prev + `\nBackend execution failed:\n${jobStatus.error}`)
         setIsRunning(false)
         toast.error('Backend execution failed')
       }
@@ -514,9 +514,9 @@ _stderr_capture.output = []
       if (stdout) result += stdout
       if (stderr) result += '\n' + stderr
 
-      setOutput(result || '✅ Code executed successfully (no output)')
+      setOutput(result || 'Code executed successfully (no output)')
     } catch (error: any) {
-      setOutput(`❌ Error:\n${error.message || String(error)}`)
+      setOutput(`Error:\n${error.message || String(error)}`)
       toast.error('Script execution failed')
     } finally {
       setIsRunning(false)
@@ -835,10 +835,10 @@ await micropip.install('${packageName}')
         }
         return prev
       })
-      setOutput(prev => prev + `✅ ${packageName} installed successfully\n`)
+      setOutput(prev => prev + `${packageName} installed successfully\n`)
       toast.success(`Installed: ${packageName}`)
     } catch (error: any) {
-      setOutput(prev => prev + `❌ Failed to install ${packageName}: ${error.message}\n`)
+      setOutput(prev => prev + `Failed to install ${packageName}: ${error.message}\n`)
       toast.error(`Failed to install ${packageName}`)
     } finally {
       setIsInstalling(false)
@@ -853,10 +853,10 @@ import micropip
 micropip.uninstall('${packageName}')
 `)
       setInstalledPackages(prev => prev.filter(p => p !== packageName))
-      setOutput(prev => prev + `✅ ${packageName} uninstalled successfully\n`)
+      setOutput(prev => prev + `${packageName} uninstalled successfully\n`)
       toast.success(`Uninstalled: ${packageName}`)
     } catch (error: any) {
-      setOutput(prev => prev + `❌ Failed to uninstall ${packageName}: ${error.message}\n`)
+      setOutput(prev => prev + `Failed to uninstall ${packageName}: ${error.message}\n`)
       toast.error(`Failed to uninstall ${packageName}`)
     }
   }
@@ -1287,9 +1287,9 @@ json.dumps(metadata)
     const lines = text.split('\n')
     return lines.map((line, index) => {
       let className = 'text-green-400'
-      if (line.includes('Error') || line.includes('Exception') || line.includes('Traceback') || line.startsWith('❌')) className = 'text-red-400 font-semibold'
-      else if (line.includes('Warning') || line.includes('⚠️')) className = 'text-yellow-400'
-      else if (line.includes('✅') || line.includes('Success')) className = 'text-green-300 font-semibold'
+      if (line.includes('Error') || line.includes('Exception') || line.includes('Traceback') || line.startsWith('Error:')) className = 'text-red-400 font-semibold'
+      else if (line.includes('Warning')) className = 'text-yellow-400'
+      else if (line.includes('Success')) className = 'text-green-300 font-semibold'
       else if (line.startsWith('>>>') || line.startsWith('===')) className = 'text-blue-400'
 
       return <div key={index} className={`${className} font-mono leading-relaxed hover:bg-white/5`} style={{ fontSize: `${terminalFontSize}px` }}>{line || '\u00A0'}</div>

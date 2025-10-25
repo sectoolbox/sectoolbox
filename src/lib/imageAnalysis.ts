@@ -1,5 +1,7 @@
 // exifreader will be dynamically imported to avoid build-time resolution issues
 
+import { formatBytes } from './formatting';
+
 export async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   return await file.arrayBuffer()
 }
@@ -397,16 +399,6 @@ export async function parseExif(buffer: ArrayBuffer) {
     }
   }
 }
-
-// Helper function to format bytes
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
 // Histogram computation
 export function computeHistogramFromCanvas(ctx: CanvasRenderingContext2D, width: number, height: number) {
   const imageData = ctx.getImageData(0,0,width,height).data

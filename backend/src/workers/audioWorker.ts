@@ -101,4 +101,4 @@ async function generateSpectrogram(audioPath: string, jobId: string): Promise<an
   });
 }
 
-console.log('✅ Audio worker started');
+console.log('Audio worker started');

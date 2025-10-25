@@ -394,10 +394,10 @@ export default function ThreatIntel() {
                             )}
 
                             <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              {breach.IsFabricated && <span>⚠️ Fabricated</span>}
-                              {breach.IsSensitive && <span>🔒 Sensitive</span>}
-                              {breach.IsRetired && <span>📁 Retired</span>}
-                              {breach.IsSpamList && <span>📧 Spam List</span>}
+                              {breach.IsFabricated && <span>Fabricated</span>}
+                              {breach.IsSensitive && <span>Sensitive</span>}
+                              {breach.IsRetired && <span>Retired</span>}
+                              {breach.IsSpamList && <span>Spam List</span>}
                             </div>
 
                             {breach.LogoPath && (

@@ -10,11 +10,11 @@ export function startCleanupScheduler() {
   // Schedule periodic cleanup
   setInterval(runCleanup, CLEANUP_INTERVAL);
 
-  console.log(`✅ Cleanup scheduler started (interval: ${CLEANUP_INTERVAL / 1000}s, max age: ${MAX_FILE_AGE / 1000}s)`);
+  console.log(`Cleanup scheduler started (interval: ${CLEANUP_INTERVAL / 1000}s, max age: ${MAX_FILE_AGE / 1000}s)`);
 }
 
 async function runCleanup() {
-  console.log('🧹 Running cleanup...');
+  console.log('Running cleanup...');
 
   try {
     const { uploads, results } = await listAllJobs();
@@ -27,7 +27,7 @@ async function runCleanup() {
       const creationTime = await getJobCreationTime(jobId);
 
       if (!creationTime) {
-        console.log(`⚠️  Could not get creation time for job: ${jobId}`);
+        console.log(`Could not get creation time for job: ${jobId}`);
         continue;
       }
 
@@ -36,16 +36,16 @@ async function runCleanup() {
       if (age > MAX_FILE_AGE) {
         await deleteJobFiles(jobId);
         deletedCount++;
-        console.log(`🗑️  Deleted old job: ${jobId} (age: ${Math.round(age / 1000 / 60)}min)`);
+        console.log(`Deleted old job: ${jobId} (age: ${Math.round(age / 1000 / 60)}min)`);
       }
     }
 
     if (deletedCount > 0) {
-      console.log(`✅ Cleanup completed: ${deletedCount} jobs deleted`);
+      console.log(`Cleanup completed: ${deletedCount} jobs deleted`);
     } else {
-      console.log('✅ Cleanup completed: No old jobs to delete');
+      console.log('Cleanup completed: No old jobs to delete');
     }
   } catch (error) {
-    console.error('❌ Cleanup failed:', error);
+    console.error('Cleanup failed:', error);
   }
 }

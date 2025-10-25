@@ -17,17 +17,17 @@ export async function initializeQueue() {
     redisClient = createClient({ url: redisUrl });
 
     redisClient.on('error', (err) => {
-      console.error('❌ Redis Client Error:', err);
+      console.error('Redis Client Error:', err);
     });
 
     redisClient.on('connect', () => {
-      console.log('✅ Redis client connected');
+      console.log('Redis client connected');
     });
 
     await redisClient.connect();
-    console.log('✅ Redis client ready');
+    console.log('Redis client ready');
   } catch (error: any) {
-    console.error('❌ Failed to connect to Redis:', error.message);
+    console.error('Failed to connect to Redis:', error.message);
     throw error;
   }
 
@@ -62,7 +62,7 @@ export async function initializeQueue() {
     }
   });
 
-  console.log('✅ Bull queues initialized');
+  console.log('Bull queues initialized');
 }
 
 export function getPythonQueue() {

@@ -10,33 +10,33 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 
 async function startWorkers() {
   try {
-    console.log('🚀 Starting Sectoolbox workers...');
+    console.log('Starting Sectoolbox workers...');
 
     // Initialize Redis and Bull queues
     await initializeQueue();
-    console.log('✅ Queue initialized');
+    console.log('Queue initialized');
 
     // Import and start all workers
     await import('./pythonWorker.js');
     await import('./pcapWorker.js');
     await import('./audioWorker.js');
 
-    console.log('🎉 All workers started successfully');
-    console.log('📊 Workers ready to process jobs');
+    console.log('All workers started successfully');
+    console.log('Workers ready to process jobs');
   } catch (error) {
-    console.error('❌ Failed to start workers:', error);
+    console.error('Failed to start workers:', error);
     process.exit(1);
   }
 }
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('📴 SIGTERM received, shutting down workers...');
+  console.log('SIGTERM received, shutting down workers...');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('📴 SIGINT received, shutting down workers...');
+  console.log('SIGINT received, shutting down workers...');
   process.exit(0);
 });
 

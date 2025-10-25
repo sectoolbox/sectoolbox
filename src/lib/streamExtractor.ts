@@ -1,5 +1,7 @@
 // Extract TCP stream data from existing packets (no backend call needed)
 
+import { hexToAscii } from './formatting';
+
 export function extractTcpStream(packets: any[], streamId: number): any {
   console.log(`Extracting TCP stream ${streamId} from ${packets.length} packets`);
 
@@ -95,26 +97,6 @@ export function extractTcpStream(packets: any[], streamId: number): any {
     payloads,
     totalBytes
   };
-}
-
-function hexToAscii(hex: string): string {
-  if (!hex) return '';
-
-  // Remove colons and spaces
-  const cleaned = hex.replace(/:/g, '').replace(/\s/g, '');
-
-  // Convert hex pairs to characters
-  const bytes = cleaned.match(/.{1,2}/g) || [];
-
-  return bytes
-    .map(byte => {
-      const code = parseInt(byte, 16);
-      // Keep printable characters, newlines, tabs, carriage returns
-      if (code === 10 || code === 13 || code === 9) return String.fromCharCode(code);
-      if (code >= 32 && code <= 126) return String.fromCharCode(code);
-      return '.'; // Non-printable
-    })
-    .join('');
 }
 
 // Get all unique TCP stream IDs from packets
