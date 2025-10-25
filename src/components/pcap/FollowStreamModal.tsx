@@ -1,163 +1,298 @@
-import React, { useState } from 'react';
-import { X, Download, Copy } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Download, Copy, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
 
 interface FollowStreamModalProps {
   packets: any[];
-  stream: any; // Backend stream data from tshark
+  stream: any; // Backend stream data
   onClose: () => void;
+  allStreams?: number[]; // Array of all available stream IDs
+  onNavigateStream?: (streamId: number) => void;
 }
 
 export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
   packets,
   stream,
-  onClose
+  onClose,
+  allStreams = [],
+  onNavigateStream
 }) => {
-  const [viewMode, setViewMode] = useState<'ascii' | 'hex' | 'http' | 'raw'>('ascii');
+  // Wireshark-like settings
+  const [showAs, setShowAs] = useState<'ascii' | 'ebcdic' | 'hex' | 'c-array' | 'raw' | 'yaml'>('ascii');
+  const [streamFilter, setStreamFilter] = useState<'entire' | 'client-to-server' | 'server-to-client'>('entire');
+  const [showDeltaTimes, setShowDeltaTimes] = useState(false);
+  const [findTerm, setFindTerm] = useState('');
 
   if (!stream) return null;
 
-  const renderContent = () => {
-    // If we have backend stream data (from tshark follow command)
-    if (stream.clientData !== undefined && stream.serverData !== undefined) {
-      if (viewMode === 'http' || viewMode === 'ascii') {
-        return (
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-semibold mb-2 text-red-400">Client → Server (Request):</div>
-              <div className="bg-red-500/10 border border-red-500/30 rounded p-3 font-mono text-xs">
-                <pre className="whitespace-pre-wrap">{stream.clientData || 'No client data'}</pre>
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-semibold mb-2 text-blue-400">Server → Client (Response):</div>
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 font-mono text-xs">
-                <pre className="whitespace-pre-wrap">{stream.serverData || 'No server data'}</pre>
-              </div>
-            </div>
-          </div>
-        );
-      } else if (viewMode === 'raw') {
-        return (
-          <div className="font-mono text-xs">
-            <pre className="whitespace-pre-wrap">{stream.rawOutput || 'No raw data'}</pre>
-          </div>
-        );
-      } else if (viewMode === 'hex') {
-        return (
-          <div className="font-mono text-xs space-y-4">
-            <div>
-              <div className="text-sm font-semibold mb-2 text-red-400">Client → Server:</div>
-              <div className="bg-red-500/10 rounded p-3">
-                <pre className="whitespace-pre-wrap">{formatAsHex(stream.clientData)}</pre>
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-semibold mb-2 text-blue-400">Server → Client:</div>
-              <div className="bg-blue-500/10 rounded p-3">
-                <pre className="whitespace-pre-wrap">{formatAsHex(stream.serverData)}</pre>
-              </div>
-            </div>
-          </div>
-        );
-      }
+  // Get current stream data based on filter
+  const displayData = useMemo(() => {
+    if (!stream) return '';
+
+    if (streamFilter === 'entire') {
+      return stream.entireConversation || '';
+    } else if (streamFilter === 'client-to-server') {
+      return stream.clientToServer || '';
+    } else if (streamFilter === 'server-to-client') {
+      return stream.serverToClient || '';
     }
 
-    // Fallback: If backend data not available, show combined data
-    if (stream.combined && Array.isArray(stream.combined)) {
+    return '';
+  }, [stream, streamFilter]);
+
+  const clientBytes = stream.clientToServer?.length || 0;
+  const serverBytes = stream.serverToClient?.length || 0;
+  const totalBytes = stream.totalBytes || stream.entireConversation?.length || 0;
+
+  // Format data based on "Show As" mode
+  const formatData = (data: string) => {
+    if (!data) return 'No data';
+
+    switch (showAs) {
+      case 'ascii':
+        return data;
+
+      case 'ebcdic':
+        // EBCDIC conversion (simplified)
+        return data.split('').map(c => {
+          const code = c.charCodeAt(0);
+          return code >= 32 && code <= 126 ? c : '.';
+        }).join('');
+
+      case 'hex':
+        return data.split('').map((c, i) => {
+          const hex = c.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase();
+          return (i % 16 === 0 ? '\n' : '') + hex + ' ';
+        }).join('').trim();
+
+      case 'c-array':
+        const cArray = data.split('').map((c, i) => {
+          const hex = c.charCodeAt(0).toString(16).padStart(2, '0');
+          const comma = i < data.length - 1 ? ',' : '';
+          const newline = i % 12 === 11 ? '\n  ' : '';
+          return `0x${hex}${comma}${newline}`;
+        }).join('');
+        return `char data[${data.length}] = {\n  ${cArray}\n};`;
+
+      case 'raw':
+        return data;
+
+      case 'yaml':
+        return `stream_${stream.streamId}:\n  client_to_server: |\n    ${stream.clientToServer?.replace(/\n/g, '\n    ')}\n  server_to_client: |\n    ${stream.serverToClient?.replace(/\n/g, '\n    ')}`;
+
+      default:
+        return data;
+    }
+  };
+
+  const renderContent = () => {
+    if (totalBytes === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-12">
+          <p className="text-lg font-semibold mb-2">No Stream Data Available</p>
+          <p className="text-sm">This TCP stream has no payload data or was not found.</p>
+        </div>
+      );
+    }
+
+    // Show with delta times if enabled
+    if (showDeltaTimes && stream.payloads && Array.isArray(stream.payloads)) {
       return (
         <div className="font-mono text-xs space-y-2">
-          {stream.combined.map((item: any, idx: number) => (
-            <div key={idx}>
-              <div className={`text-xs mb-1 ${item.direction === 'client' ? 'text-red-400' : 'text-blue-400'}`}>
-                {item.direction === 'client' ? '→ Client' : '← Server'}
+          {stream.payloads.map((payload: any, idx: number) => {
+            const delta = idx > 0
+              ? (new Date(payload.timestamp).getTime() - new Date(stream.payloads[idx - 1].timestamp).getTime()) / 1000
+              : 0;
+
+            return (
+              <div key={idx} className={`${payload.direction === 'client' ? 'bg-red-500/10' : 'bg-blue-500/10'} rounded p-2`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs ${payload.direction === 'client' ? 'text-red-400' : 'text-blue-400'}`}>
+                    {payload.direction === 'client' ? 'Client → Server' : 'Server → Client'} (Frame {payload.frame})
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    +{delta.toFixed(3)}s ({payload.length} bytes)
+                  </span>
+                </div>
+                <pre className="whitespace-pre-wrap break-all">{formatData(payload.data)}</pre>
               </div>
-              <div className={`p-2 rounded ${item.direction === 'client' ? 'bg-red-500/10' : 'bg-blue-500/10'}`}>
-                <pre className="whitespace-pre-wrap">{item.data}</pre>
-              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Regular view (entire conversation or filtered)
+    const formatted = formatData(displayData);
+
+    if (streamFilter === 'entire' && showAs === 'ascii') {
+      // Show client/server separated for better readability
+      return (
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold mb-2 text-red-400 flex items-center justify-between">
+              <span>Client → Server ({node0} → {node1})</span>
+              <span>{clientBytes} bytes</span>
             </div>
-          ))}
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-4 font-mono text-xs max-h-64 overflow-auto">
+              <pre className="whitespace-pre-wrap break-all">{stream.clientToServer || 'No data'}</pre>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold mb-2 text-blue-400 flex items-center justify-between">
+              <span>Server → Client ({node1} → {node0})</span>
+              <span>{serverBytes} bytes</span>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded p-4 font-mono text-xs max-h-64 overflow-auto">
+              <pre className="whitespace-pre-wrap break-all">{stream.serverToClient || 'No data'}</pre>
+            </div>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="text-center text-muted-foreground py-12">
-        <p>No stream data available</p>
+      <div className="font-mono text-xs">
+        <pre className="whitespace-pre-wrap break-all">{formatted}</pre>
       </div>
     );
   };
 
   const downloadStream = () => {
-    const content = stream.clientData + '\n\n' + stream.serverData || stream.rawOutput || '';
+    const content = displayData;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tcp-stream-${stream.streamId}.txt`;
+    a.download = `tcp-stream-${stream.streamId}-${streamFilter}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success('Stream downloaded!');
   };
 
   const copyStream = () => {
-    const content = stream.clientData + '\n\n' + stream.serverData || stream.rawOutput || '';
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(displayData);
     toast.success('Stream copied to clipboard!');
   };
 
+  const currentStreamIndex = allStreams.indexOf(stream.streamId);
+  const hasPrevStream = currentStreamIndex > 0;
+  const hasNextStream = currentStreamIndex < allStreams.length - 1;
+
+  const node0 = stream.node0 || 'Unknown';
+  const node1 = stream.node1 || 'Unknown';
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-lg w-full max-w-5xl max-h-[90vh] flex flex-col">
+      <div className="bg-card border border-border rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Follow TCP Stream {stream.streamId}</h2>
-            <p className="text-sm text-muted-foreground">
-              {stream.node0 || 'Node 0'} ↔ {stream.node1 || 'Node 1'}
-            </p>
-            {stream.totalBytes && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Total: {stream.totalBytes} bytes
-              </p>
-            )}
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold">Follow TCP Stream</h2>
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                <span className="font-mono">{node0} ↔ {node1}</span>
+                <span>Stream {stream.streamId}</span>
+                <span>{totalBytes} bytes total</span>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
         </div>
 
-        {/* View Mode Selector */}
-        <div className="px-6 py-3 border-b border-border flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={viewMode === 'ascii' ? 'default' : 'outline'}
-              onClick={() => setViewMode('ascii')}
+        {/* Controls */}
+        <div className="px-6 py-3 border-b border-border space-y-3">
+          {/* Stream Direction Filter */}
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium min-w-[80px]">Stream:</label>
+            <select
+              value={streamFilter}
+              onChange={(e) => setStreamFilter(e.target.value as any)}
+              className="flex-1 px-3 py-2 bg-background border border-border rounded text-sm"
             >
-              ASCII
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'hex' ? 'default' : 'outline'}
-              onClick={() => setViewMode('hex')}
+              <option value="entire">Entire conversation ({totalBytes} bytes)</option>
+              <option value="client-to-server">{node0} → {node1} ({clientBytes} bytes)</option>
+              <option value="server-to-client">{node1} → {node0} ({serverBytes} bytes)</option>
+            </select>
+          </div>
+
+          {/* Show As Format */}
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium min-w-[80px]">Show as:</label>
+            <select
+              value={showAs}
+              onChange={(e) => setShowAs(e.target.value as any)}
+              className="flex-1 px-3 py-2 bg-background border border-border rounded text-sm"
             >
-              Hex
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'http' ? 'default' : 'outline'}
-              onClick={() => setViewMode('http')}
-            >
-              HTTP
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'raw' ? 'default' : 'outline'}
-              onClick={() => setViewMode('raw')}
-            >
-              Raw
-            </Button>
+              <option value="ascii">ASCII</option>
+              <option value="ebcdic">EBCDIC</option>
+              <option value="hex">Hex Dump</option>
+              <option value="c-array">C Array</option>
+              <option value="raw">Raw</option>
+              <option value="yaml">YAML</option>
+            </select>
+          </div>
+
+          {/* Options */}
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showDeltaTimes}
+                onChange={(e) => setShowDeltaTimes(e.target.checked)}
+                className="w-4 h-4"
+              />
+              Show delta times
+            </label>
+
+            {/* Stream Navigation */}
+            {allStreams.length > 1 && onNavigateStream && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Navigate:</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasPrevStream}
+                  onClick={() => hasPrevStream && onNavigateStream(allStreams[currentStreamIndex - 1])}
+                >
+                  <ChevronUp className="w-3 h-3" />
+                </Button>
+                <span className="text-xs font-mono">
+                  Stream {currentStreamIndex + 1}/{allStreams.length}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!hasNextStream}
+                  onClick={() => hasNextStream && onNavigateStream(allStreams[currentStreamIndex + 1])}
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Find */}
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Find in stream..."
+              value={findTerm}
+              onChange={(e) => setFindTerm(e.target.value)}
+              className="flex-1 px-3 py-2 bg-background border border-border rounded text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Actions Bar */}
+        <div className="px-6 py-2 border-b border-border flex items-center justify-between bg-muted/20">
+          <div className="text-xs text-muted-foreground">
+            Showing {displayData.length} bytes
+            {findTerm && ` | Searching for: "${findTerm}"`}
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={copyStream}>
@@ -177,29 +312,13 @@ export const FollowStreamModal: React.FC<FollowStreamModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-border flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
           <div className="text-sm text-muted-foreground">
-            TCP Stream {stream.streamId}
-            {stream.totalBytes && ` | ${stream.totalBytes} bytes`}
+            TCP Stream {stream.streamId} | {stream.payloads?.length || 0} packets with payload | {totalBytes} bytes total
           </div>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </div>
   );
 };
-
-function formatAsHex(text: string): string {
-  if (!text) return '';
-
-  const lines: string[] = [];
-  for (let i = 0; i < text.length; i += 16) {
-    const chunk = text.substr(i, 16);
-    const hex = chunk.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
-    const ascii = chunk.split('').map(c => (c.charCodeAt(0) >= 32 && c.charCodeAt(0) <= 126) ? c : '.').join('');
-    lines.push(`${i.toString(16).padStart(4, '0')}  ${hex.padEnd(47, ' ')}  ${ascii}`);
-  }
-  return lines.join('\n');
-}
