@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Upload, Cloud, Activity, Download, AlertTriangle } from 'lucide-react';
+import { Upload, Cloud, Activity, Download, AlertTriangle, Keyboard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { apiClient } from '../services/api';
 import { useBackendJob } from '../hooks/useBackendJob';
@@ -20,6 +21,7 @@ type TabType = 'intelligence' | 'packets' | 'streams' | 'explorer' | 'analysis';
 
 const PcapAnalysis: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // File state
@@ -401,6 +403,23 @@ const PcapAnalysis: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
+                disabled={isAnalyzing}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Keyboard className="w-4 h-4 mr-2" />
+                    USB PCAP
+                  </>
+                )}
+              </Button>
+              <Button
                 onClick={() => startAnalysis()}
                 disabled={isAnalyzing}
                 className="bg-accent hover:bg-accent/90"
@@ -424,6 +443,7 @@ const PcapAnalysis: React.FC = () => {
                   resetResults();
                   setNotice(null);
                 }}
+                disabled={isAnalyzing}
               >
                 Remove
               </Button>

@@ -112,6 +112,21 @@ export const PacketDetailModal: React.FC<PacketDetailModalProps> = ({
     );
   };
 
+  // Extract hex data from packet
+  const getPacketHexData = (): string | null => {
+    // Try different locations where hex data might be
+    if (packet.data) return packet.data;
+    if (packet.rawLayers?.frame?.['frame.raw']) return packet.rawLayers.frame['frame.raw'][0] || packet.rawLayers.frame['frame.raw'];
+    if (packet.layers?.frame?.['frame.raw']) return packet.layers.frame['frame.raw'][0] || packet.layers.frame['frame.raw'];
+    if (packet.rawLayers?.frame_raw) return packet.rawLayers.frame_raw[0] || packet.rawLayers.frame_raw;
+
+    // Try to extract from tcp.payload or other payload fields
+    const tcpPayload = packet.rawLayers?.tcp?.['tcp.payload'] || packet.layers?.tcp?.['tcp.payload'];
+    if (tcpPayload) return tcpPayload;
+
+    return null;
+  };
+
   const formatHexDump = (hexString: string) => {
     const hex = hexString.replace(/[:\s]/g, '');
     const lines: Array<{ offset: string; hex: string; ascii: string }> = [];
@@ -139,8 +154,11 @@ export const PacketDetailModal: React.FC<PacketDetailModalProps> = ({
   };
 
   const copyHexData = () => {
-    navigator.clipboard.writeText(packet.data || '');
+    const hexData = getPacketHexData();
+    navigator.clipboard.writeText(hexData || 'No hex data');
   };
+
+  const packetHexData = getPacketHexData();
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -212,9 +230,9 @@ export const PacketDetailModal: React.FC<PacketDetailModalProps> = ({
 
           {activeView === 'hex' && (
             <div>
-              {packet.data ? (
+              {packetHexData ? (
                 <div className="font-mono text-xs space-y-1">
-                  {formatHexDump(packet.data).map((line, i) => (
+                  {formatHexDump(packetHexData).map((line, i) => (
                     <div key={i} className="flex gap-4 hover:bg-muted/20 px-2 py-1 rounded">
                       <span className="text-accent font-bold w-16">{line.offset}</span>
                       <span className="text-green-400 w-96">{line.hex}</span>
@@ -224,7 +242,8 @@ export const PacketDetailModal: React.FC<PacketDetailModalProps> = ({
                 </div>
               ) : (
                 <div className="text-center text-muted-foreground py-12">
-                  No hex data available for this packet
+                  <div className="text-sm mb-2">No hex data available for this packet</div>
+                  <div className="text-xs">Packet may not have frame.raw data in tshark output</div>
                 </div>
               )}
             </div>
