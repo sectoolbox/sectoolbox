@@ -40,7 +40,8 @@ queue.process(async (job) => {
     });
 
     // SIMPLE: Just dump EVERYTHING from tshark as JSON
-    const maxPackets = depth === 'quick' ? 100 : 10000;
+    // Increased limits: quick=500, full=50000 packets
+    const maxPackets = depth === 'quick' ? 500 : 50000;
 
     const tsharkOutput = await runTsharkFullDump(filePath, maxPackets, jobId);
 

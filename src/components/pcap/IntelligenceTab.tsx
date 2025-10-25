@@ -31,6 +31,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   onApplyFilter
 }) => {
   const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
+  const [showAllHttp, setShowAllHttp] = useState(false);
+  const [showAllDns, setShowAllDns] = useState(false);
 
   const criticalFindings = findings.filter(f => f.severity === 'critical');
   const warningFindings = findings.filter(f => f.severity === 'warning');
@@ -297,8 +299,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
               View All in Streams Tab
             </Button>
           </div>
-          <div className="p-4 space-y-2 max-h-64 overflow-auto">
-            {httpSessions.slice(0, 10).map((session, idx) => (
+          <div className="p-4 space-y-2 max-h-96 overflow-auto">
+            {(showAllHttp ? httpSessions : httpSessions.slice(0, 10)).map((session, idx) => (
               <div key={idx} className="border border-border rounded p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-1 rounded text-xs font-mono font-semibold ${
@@ -352,9 +354,18 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 </div>
               </div>
             ))}
-            {httpSessions.length > 10 && (
-              <div className="text-center text-sm text-muted-foreground pt-2">
-                Showing 10 of {httpSessions.length} HTTP requests. View all in Streams tab.
+            {httpSessions.length > 10 && !showAllHttp && (
+              <div className="text-center pt-2">
+                <Button size="sm" variant="outline" onClick={() => setShowAllHttp(true)}>
+                  Show All {httpSessions.length} HTTP Requests
+                </Button>
+              </div>
+            )}
+            {showAllHttp && httpSessions.length > 10 && (
+              <div className="text-center pt-2">
+                <Button size="sm" variant="outline" onClick={() => setShowAllHttp(false)}>
+                  Show Less
+                </Button>
               </div>
             )}
           </div>
@@ -367,8 +378,8 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
           <div className="bg-muted/20 px-4 py-3 border-b border-border">
             <h3 className="font-semibold">DNS Queries ({dnsQueries.length} lookups)</h3>
           </div>
-          <div className="p-4 space-y-2 max-h-64 overflow-auto">
-            {dnsQueries.slice(0, 15).map((dns, idx) => (
+          <div className="p-4 space-y-2 max-h-96 overflow-auto">
+            {(showAllDns ? dnsQueries : dnsQueries.slice(0, 15)).map((dns, idx) => (
               <div key={idx} className="flex items-center justify-between p-2 bg-muted/20 rounded">
                 <div className="flex-1">
                   <div className="font-mono text-sm font-semibold">{dns.query}</div>
@@ -384,9 +395,18 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 </Button>
               </div>
             ))}
-            {dnsQueries.length > 15 && (
-              <div className="text-center text-sm text-muted-foreground pt-2">
-                Showing 15 of {dnsQueries.length} DNS queries. View all in Streams tab.
+            {dnsQueries.length > 15 && !showAllDns && (
+              <div className="text-center pt-2">
+                <Button size="sm" variant="outline" onClick={() => setShowAllDns(true)}>
+                  Show All {dnsQueries.length} DNS Queries
+                </Button>
+              </div>
+            )}
+            {showAllDns && dnsQueries.length > 15 && (
+              <div className="text-center pt-2">
+                <Button size="sm" variant="outline" onClick={() => setShowAllDns(false)}>
+                  Show Less
+                </Button>
               </div>
             )}
           </div>
