@@ -535,7 +535,8 @@ const PcapAnalysis: React.FC = () => {
           onFollowStream={
             selectedPacket.tcpStream !== undefined
               ? () => {
-                  setFollowStreamData({ tcpStream: selectedPacket.tcpStream });
+                  // Call handleFollowStream to extract stream data
+                  handleFollowStream(selectedPacket);
                   setSelectedPacket(null);
                 }
               : undefined
