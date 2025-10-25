@@ -21,9 +21,11 @@ export function parseTsharkPackets(rawPackets: any[]): any {
     const ipSrc = layers.ip?.['ip.src'] || layers.ipv6?.['ipv6.src'] || null;
     const ipDst = layers.ip?.['ip.dst'] || layers.ipv6?.['ipv6.dst'] || null;
 
-    // Ports
-    const srcPort = layers.tcp?.['tcp.srcport'] || layers.udp?.['udp.srcport'] || null;
-    const destPort = layers.tcp?.['tcp.dstport'] || layers.udp?.['udp.dstport'] || null;
+    // Ports (tshark returns as arrays, extract first element)
+    const srcPortRaw = layers.tcp?.['tcp.srcport'] || layers.udp?.['udp.srcport'];
+    const destPortRaw = layers.tcp?.['tcp.dstport'] || layers.udp?.['udp.dstport'];
+    const srcPort = Array.isArray(srcPortRaw) ? parseInt(srcPortRaw[0]) : (srcPortRaw ? parseInt(srcPortRaw) : null);
+    const destPort = Array.isArray(destPortRaw) ? parseInt(destPortRaw[0]) : (destPortRaw ? parseInt(destPortRaw) : null);
 
     // Determine primary protocol
     let protocol = 'Unknown';
