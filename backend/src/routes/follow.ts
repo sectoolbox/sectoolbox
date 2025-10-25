@@ -88,6 +88,8 @@ async function extractTcpStream(pcapPath: string, streamId: number): Promise<any
 
 async function extractTcpPayloads(pcapPath: string, streamId: number): Promise<any[]> {
   return new Promise((resolve, reject) => {
+    console.log(`=== Extracting TCP stream ${streamId} from ${pcapPath} ===`);
+
     // Extract TCP payload for specific stream
     const tshark = spawn('tshark', [
       '-r', pcapPath,
@@ -115,21 +117,34 @@ async function extractTcpPayloads(pcapPath: string, streamId: number): Promise<a
     });
 
     tshark.on('close', (code) => {
+      console.log(`tshark exited with code: ${code}`);
+      console.log(`tshark stdout length: ${stdout.length}`);
+      console.log(`tshark stderr: ${stderr}`);
+
       if (code === 0 || code === null) {
         try {
           const payloads: any[] = [];
           const lines = stdout.trim().split('\n');
 
-          lines.forEach(line => {
+          console.log(`Processing ${lines.length} lines from tshark`);
+
+          lines.forEach((line, lineIdx) => {
             if (!line.trim()) return;
 
             const parts = line.split('|');
+            console.log(`Line ${lineIdx}: ${parts.length} parts`);
+
             if (parts.length >= 7) {
               const [frame, timestamp, srcIp, dstIp, srcPort, dstPort, payload] = parts;
 
+              console.log(`Frame ${frame}: payload length = ${payload?.length || 0}`);
+
               if (payload && payload.trim()) {
                 // Convert hex payload to ASCII
-                const data = hexToAscii(payload.replace(/:/g, ''));
+                const cleaned = payload.replace(/:/g, '').trim();
+                console.log(`Payload hex (first 100 chars): ${cleaned.substring(0, 100)}`);
+
+                const data = hexToAscii(cleaned);
 
                 payloads.push({
                   frame: parseInt(frame),
@@ -141,27 +156,36 @@ async function extractTcpPayloads(pcapPath: string, streamId: number): Promise<a
                   data,
                   hexData: payload
                 });
+
+                console.log(`Added payload ${payloads.length}: ${data.length} bytes`);
+              } else {
+                console.log(`Frame ${frame}: No payload (might be ACK/handshake)`);
               }
+            } else {
+              console.log(`Line ${lineIdx}: Not enough parts (${parts.length}), skipping`);
             }
           });
 
-          console.log(`Extracted ${payloads.length} TCP payloads for stream ${streamId}`);
+          console.log(`✅ Total extracted: ${payloads.length} TCP payloads for stream ${streamId}`);
           resolve(payloads);
         } catch (err: any) {
           console.error('Failed to parse TCP payloads:', err);
           reject(new Error(`Parse error: ${err.message}`));
         }
       } else {
-        console.error(`tshark failed: ${stderr}`);
-        reject(new Error(`tshark failed: ${stderr}`));
+        console.error(`tshark command failed with code ${code}`);
+        console.error(`stderr: ${stderr}`);
+        reject(new Error(`tshark failed: ${stderr || 'Unknown error'}`));
       }
     });
 
     tshark.on('error', (error) => {
+      console.error('tshark spawn error:', error);
       reject(new Error(`tshark error: ${error.message}`));
     });
 
     setTimeout(() => {
+      console.log('tshark timeout - killing process');
       tshark.kill();
       reject(new Error('tshark timeout'));
     }, 60000);

@@ -223,17 +223,19 @@ const PcapAnalysis: React.FC = () => {
       }
 
       console.log('Following TCP stream:', streamId, 'jobId:', currentJobId, 'file:', file.name);
-      toast.info('Extracting TCP stream with tshark...');
+
+      const loadingToast = toast.loading('Extracting TCP stream with tshark...');
 
       const streamData = await apiClient.followTcpStream(currentJobId, streamId, file.name);
 
+      toast.dismiss(loadingToast);
       console.log('Stream data received:', streamData);
       setFollowStreamData(streamData);
 
       if (streamData.totalBytes > 0) {
         toast.success(`Stream extracted: ${streamData.totalBytes} bytes`);
       } else {
-        toast.warning('Stream has no payload data');
+        toast.error('Stream has no payload data - check Railway logs');
       }
     } catch (error: any) {
       console.error('Follow stream error:', error);
