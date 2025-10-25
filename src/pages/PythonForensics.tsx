@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2, File, ChevronRight, ChevronDown, FileText, Image as ImageIcon, Archive, FileCode, FileQuestion, Zap, Cloud } from 'lucide-react'
+import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2, File, ChevronRight, ChevronDown, FileText, Image as ImageIcon, Archive, FileCode, FileQuestion, Zap } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -7,8 +7,6 @@ import Editor from '@monaco-editor/react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { loadPythonScripts, getScriptCategories, PythonScript } from '../lib/pythonScriptLoader'
 import { initPyodide } from '../lib/pyodideManager'
-import { apiClient } from '../services/api'
-import { useBackendJob } from '../hooks/useBackendJob'
 import toast from 'react-hot-toast'
 
 // Pyodide types
@@ -38,10 +36,6 @@ const PythonForensics: React.FC = () => {
   const [pyodide, setPyodide] = useState<PyodideInterface | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadingStatus, setLoadingStatus] = useState('Initializing...')
-
-  // Backend execution
-  const [useBackend, setUseBackend] = useState(false)
-  const { jobStatus, isLoading: isBackendLoading, startJob } = useBackendJob()
 
   // Tabs management
   const [tabs, setTabs] = useState<ScriptTab[]>([{
@@ -420,69 +414,7 @@ def fileinfo(filename):
     }))
   }
 
-  const runCodeOnBackend = async () => {
-    if (uploadedFiles.length === 0) {
-      toast.error('Please upload a file first to run with backend')
-      return
-    }
-
-    saveToHistory(activeTabId, activeTab.code, 'Before backend run')
-    setIsRunning(true)
-    setOutput('>>> Running on backend server...\n')
-
-    try {
-      // Get the first uploaded file
-      const file = uploadedFiles[0]
-      const fileBlob = await fetch(file.path).then(r => r.blob())
-      const actualFile = new File([fileBlob], file.name)
-
-      // Determine which script to run based on active tab name/code
-      // For now, we'll use a generic script ID - you can extend this
-      const scriptId = selectedExample || 'hash_analyzer'
-
-      const response = await apiClient.executePythonScript(scriptId, actualFile)
-
-      console.log('Backend response:', response)
-      console.log('Job ID from response:', response.jobId)
-
-      if (response.jobId) {
-        setOutput(prev => prev + `\nJob started: ${response.jobId}\n`)
-        startJob(response.jobId)
-      } else {
-        console.error('No jobId in response!')
-        setOutput(prev => prev + `\nBackend did not return a job ID\n`)
-        setIsRunning(false)
-      }
-    } catch (error: any) {
-      setOutput(`Backend Error:\n${error.message || String(error)}`)
-      toast.error('Backend execution failed')
-      setIsRunning(false)
-    }
-  }
-
-  // Watch for backend job updates
-  useEffect(() => {
-    if (jobStatus) {
-      if (jobStatus.status === 'processing') {
-        setOutput(prev => prev + `\nProgress: ${jobStatus.progress}% - ${jobStatus.message || ''}\n`)
-      } else if (jobStatus.status === 'completed') {
-        setOutput(prev => prev + `\nBackend execution completed!\n\nResults:\n${JSON.stringify(jobStatus.results, null, 2)}`)
-        setIsRunning(false)
-        toast.success('Backend execution completed!')
-      } else if (jobStatus.status === 'failed') {
-        setOutput(prev => prev + `\nBackend execution failed:\n${jobStatus.error}`)
-        setIsRunning(false)
-        toast.error('Backend execution failed')
-      }
-    }
-  }, [jobStatus])
-
   const runCode = async () => {
-    if (useBackend) {
-      await runCodeOnBackend()
-      return
-    }
-
     if (!pyodide) {
       toast.error('Python environment not loaded')
       return
@@ -1407,30 +1339,16 @@ json.dumps(metadata)
                     Save
                   </Button>
 
-                  {/* Backend Execution Toggle */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded bg-background/50">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        checked={useBackend}
-                        onChange={(e) => setUseBackend(e.target.checked)}
-                        className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
-                      />
-                      <Cloud className="h-4 w-4 text-accent" />
-                      <span className="text-xs font-medium">Backend Execution</span>
-                    </label>
-                  </div>
-
-                  <Button onClick={runCode} disabled={isRunning || (useBackend && uploadedFiles.length === 0)} size="sm" className="bg-accent hover:bg-accent/90">
+                  <Button onClick={runCode} disabled={isRunning} size="sm" className="bg-accent hover:bg-accent/90">
                     {isRunning ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {useBackend ? 'Running on server...' : 'Running...'}
+                        Running...
                       </>
                     ) : (
                       <>
-                        {useBackend ? <Cloud className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                        Run Script {useBackend && '(Backend)'}
+                        <Play className="h-4 w-4 mr-2" />
+                        Run Script
                       </>
                     )}
                   </Button>
