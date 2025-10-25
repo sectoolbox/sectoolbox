@@ -6,6 +6,7 @@ import { apiClient } from '../services/api';
 import { useBackendJob } from '../hooks/useBackendJob';
 import { parseTsharkPackets, detectSuspiciousActivity } from '../lib/tsharkParser';
 import { analyzeIntelligence } from '../lib/pcapIntelligence';
+import { extractTcpStream, getAllStreamIds } from '../lib/streamExtractor';
 import { IntelligenceTab } from '../components/pcap/IntelligenceTab';
 import { PacketsTab } from '../components/pcap/PacketsTab';
 import { StreamsTab } from '../components/pcap/StreamsTab';
@@ -207,13 +208,8 @@ const PcapAnalysis: React.FC = () => {
     // Filter will be applied in PacketsTab
   };
 
-  const handleFollowStream = async (stream: any) => {
-    if (!currentJobId || !file) {
-      toast.error('Cannot follow stream - missing job data');
-      return;
-    }
-
-    // Call backend to get actual stream data using tshark
+  const handleFollowStream = (stream: any) => {
+    // Extract stream from existing packet data (INSTANT - no backend call!)
     try {
       const streamId = stream.tcpStream;
       if (streamId === undefined && streamId !== 0) {
@@ -222,44 +218,44 @@ const PcapAnalysis: React.FC = () => {
         return;
       }
 
-      console.log('Following TCP stream:', streamId, 'jobId:', currentJobId, 'file:', file.name);
+      console.log('Extracting TCP stream from existing packets:', streamId);
 
-      const loadingToast = toast.loading('Extracting TCP stream with tshark...');
+      // Extract stream data from packets we already have
+      const streamData = extractTcpStream(allPackets, streamId);
 
-      const streamData = await apiClient.followTcpStream(currentJobId, streamId, file.name);
-
-      toast.dismiss(loadingToast);
-      console.log('Stream data received:', streamData);
+      console.log('Stream data extracted:', streamData);
       setFollowStreamData(streamData);
 
       if (streamData.totalBytes > 0) {
-        toast.success(`Stream extracted: ${streamData.totalBytes} bytes`);
+        toast.success(`Stream ${streamId}: ${streamData.totalBytes} bytes`);
       } else {
-        toast.error('Stream has no payload data - check Railway logs');
+        toast.error(`Stream ${streamId} has no TCP payload data (only handshake/ACK packets)`);
       }
     } catch (error: any) {
       console.error('Follow stream error:', error);
-      toast.error(`Failed to follow stream: ${error.message}`);
+      toast.error(`Failed to extract stream: ${error.message}`);
     }
   };
 
-  const handleNavigateStream = async (newStreamId: number) => {
-    // Close current modal
-    setFollowStreamData(null);
+  const handleNavigateStream = (newStreamId: number) => {
+    console.log(`Navigating to stream ${newStreamId}`);
 
-    // Open new stream
-    await handleFollowStream({ tcpStream: newStreamId });
+    // Extract new stream data
+    const newStreamData = extractTcpStream(allPackets, newStreamId);
+
+    console.log('New stream data:', newStreamData);
+    setFollowStreamData(newStreamData);
+
+    if (newStreamData.totalBytes > 0) {
+      toast.success(`Stream ${newStreamId}: ${newStreamData.totalBytes} bytes`);
+    } else {
+      toast.error(`Stream ${newStreamId} has no payload data`);
+    }
   };
 
   // Extract all unique stream IDs from packets
   const allStreamIds = useMemo(() => {
-    const ids = new Set<number>();
-    allPackets.forEach(pkt => {
-      if (pkt.tcpStream !== null && pkt.tcpStream !== undefined) {
-        ids.add(pkt.tcpStream);
-      }
-    });
-    return Array.from(ids).sort((a, b) => a - b);
+    return getAllStreamIds(allPackets);
   }, [allPackets]);
 
   const handleFileSelect = (selectedFile: File) => {
