@@ -211,11 +211,26 @@ const PcapAnalysis: React.FC = () => {
   const handleFollowStream = (stream: any) => {
     // Extract stream from existing packet data (INSTANT - no backend call!)
     try {
-      const streamId = stream.tcpStream;
-      if (streamId === undefined && streamId !== 0) {
-        toast.error('No TCP stream ID available');
-        console.error('Stream object:', stream);
-        return;
+      let streamId = stream.tcpStream;
+
+      // If tcpStream not provided (e.g., from conversations), find it from packets
+      if (streamId === undefined || streamId === null) {
+        console.log('No tcpStream in object, searching by source/destination:', stream);
+
+        // Find a packet matching this conversation
+        const matchingPacket = allPackets.find(pkt =>
+          (pkt.source === stream.source && pkt.destination === stream.destination && pkt.srcPort === stream.srcPort && pkt.dstPort === stream.dstPort) ||
+          (pkt.source === stream.destination && pkt.destination === stream.source && pkt.srcPort === stream.dstPort && pkt.dstPort === stream.srcPort)
+        );
+
+        if (matchingPacket && matchingPacket.tcpStream !== undefined) {
+          streamId = matchingPacket.tcpStream;
+          console.log('Found matching packet with stream ID:', streamId);
+        } else {
+          toast.error('Cannot find TCP stream ID for this conversation');
+          console.error('No matching packet found for conversation:', stream);
+          return;
+        }
       }
 
       console.log('Extracting TCP stream from existing packets:', streamId);
