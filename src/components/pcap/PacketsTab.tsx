@@ -265,31 +265,6 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
-              // Format filter based on protocol and IPs (more useful than frame.number)
-              const pkt = contextMenu.packet;
-              let filter = '';
-              
-              if (pkt.protocol === 'TCP' || pkt.protocol === 'UDP') {
-                // Filter by protocol + source/dest IP + ports
-                filter = `${pkt.protocol.toLowerCase()} and ((ip.src == ${pkt.source} and ${pkt.protocol.toLowerCase()}.srcport == ${pkt.srcPort}) or (ip.dst == ${pkt.destination} and ${pkt.protocol.toLowerCase()}.dstport == ${pkt.destPort}))`;
-              } else if (pkt.protocol) {
-                // Just filter by protocol and IPs
-                filter = `${pkt.protocol.toLowerCase()} and (ip.src == ${pkt.source} or ip.dst == ${pkt.destination})`;
-              } else {
-                // Fallback to IP only
-                filter = `ip.src == ${pkt.source} or ip.dst == ${pkt.destination}`;
-              }
-              
-              onApplyFilter(filter);
-              toast.success('Filter applied for this conversation');
-              setContextMenu(null);
-            }}
-          >
-            Apply as Filter
-          </button>
-          <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
-            onClick={() => {
               if (contextMenu.packet.tcpStream !== undefined) {
                 onFollowStream(contextMenu.packet);
               } else {
@@ -313,37 +288,25 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
-              const hexData = contextMenu.packet.data || contextMenu.packet.rawLayers?.frame?.['frame.raw'] || '';
-              if (hexData) {
-                // Format as hex dump like in the packet detail modal
-                const formatHexDump = (hexString: string) => {
-                  const hex = hexString.replace(/[:\s]/g, '');
-                  const lines: string[] = [];
+              // Use exact same logic as the "Copy Hex" button in PacketDetailModal
+              const getPacketHexData = (): string | null => {
+                const pkt = contextMenu.packet;
+                // Try different locations where hex data might be
+                if (pkt.data) return pkt.data;
+                if (pkt.rawLayers?.frame?.['frame.raw']) return pkt.rawLayers.frame['frame.raw'][0] || pkt.rawLayers.frame['frame.raw'];
+                if (pkt.layers?.frame?.['frame.raw']) return pkt.layers.frame['frame.raw'][0] || pkt.layers.frame['frame.raw'];
+                if (pkt.rawLayers?.frame_raw) return pkt.rawLayers.frame_raw[0] || pkt.rawLayers.frame_raw;
 
-                  for (let i = 0; i < hex.length; i += 32) {
-                    const chunk = hex.substr(i, 32);
-                    const offset = (i / 2).toString(16).padStart(4, '0').toUpperCase();
-                    const hexPart = chunk.match(/.{1,2}/g)?.join(' ') || '';
-                    const asciiPart = chunk
-                      .match(/.{1,2}/g)
-                      ?.map(byte => {
-                        const code = parseInt(byte, 16);
-                        return code >= 32 && code <= 126 ? String.fromCharCode(code) : '.';
-                      })
-                      .join('') || '';
+                // Try to extract from tcp.payload or other payload fields
+                const tcpPayload = pkt.rawLayers?.tcp?.['tcp.payload'] || pkt.layers?.tcp?.['tcp.payload'];
+                if (tcpPayload) return tcpPayload;
 
-                    lines.push(`${offset}  ${hexPart.padEnd(47, ' ')}  ${asciiPart}`);
-                  }
-
-                  return lines.join('\n');
-                };
-                
-                const formattedHex = formatHexDump(hexData);
-                navigator.clipboard.writeText(formattedHex);
-                toast.success('Hex dump copied to clipboard');
-              } else {
-                toast.error('No hex data available for this packet');
-              }
+                return null;
+              };
+              
+              const hexData = getPacketHexData();
+              navigator.clipboard.writeText(hexData || 'No hex data');
+              toast.success('Hex data copied to clipboard');
               setContextMenu(null);
             }}
           >
