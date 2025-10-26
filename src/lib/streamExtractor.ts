@@ -3,12 +3,8 @@
 import { hexToAscii } from './formatting';
 
 export function extractTcpStream(packets: any[], streamId: number): any {
-  console.log(`Extracting TCP stream ${streamId} from ${packets.length} packets`);
-
   // Filter packets for this stream
   const streamPackets = packets.filter(pkt => pkt.tcpStream === streamId);
-
-  console.log(`Found ${streamPackets.length} packets in stream ${streamId}`);
 
   if (streamPackets.length === 0) {
     return {
@@ -26,14 +22,6 @@ export function extractTcpStream(packets: any[], streamId: number): any {
   // Determine nodes
   const firstPacket = streamPackets[0];
 
-  console.log('First packet for stream:', {
-    source: firstPacket.source,
-    destination: firstPacket.destination,
-    srcPort: firstPacket.srcPort,
-    dstPort: firstPacket.dstPort,
-    destPort: firstPacket.destPort
-  });
-
   const srcPortDisplay = firstPacket.srcPort !== null && firstPacket.srcPort !== undefined ? firstPacket.srcPort : '?';
   const dstPortDisplay = (firstPacket.dstPort !== null && firstPacket.dstPort !== undefined)
     ? firstPacket.dstPort
@@ -41,8 +29,6 @@ export function extractTcpStream(packets: any[], streamId: number): any {
 
   const node0 = `${firstPacket.source}:${srcPortDisplay}`;
   const node1 = `${firstPacket.destination}:${dstPortDisplay}`;
-
-  console.log(`Stream nodes: ${node0} ↔ ${node1}`);
 
   // Extract payloads
   const payloads: any[] = [];
@@ -54,8 +40,6 @@ export function extractTcpStream(packets: any[], streamId: number): any {
     const tcpPayloadHex = pkt.rawLayers?.tcp?.['tcp.payload'] || pkt.layers?.tcp?.['tcp.payload'];
 
     if (tcpPayloadHex) {
-      console.log(`Packet ${pkt.frame}: Found tcp.payload (${tcpPayloadHex.length} chars)`);
-
       // Convert hex to ASCII
       const asciiData = hexToAscii(tcpPayloadHex);
 
@@ -76,16 +60,12 @@ export function extractTcpStream(packets: any[], streamId: number): any {
         } else {
           serverToClientData += asciiData;
         }
-
-        console.log(`Added payload: ${asciiData.length} bytes (${isClientToServer ? 'client' : 'server'})`);
       }
     }
   });
 
   const entireConversation = clientToServerData + serverToClientData;
   const totalBytes = entireConversation.length;
-
-  console.log(`Stream ${streamId} extracted: ${payloads.length} payloads, ${totalBytes} total bytes`);
 
   return {
     streamId,

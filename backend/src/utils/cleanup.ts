@@ -1,7 +1,9 @@
 import { listAllJobs, getJobCreationTime, deleteJobFiles } from '../services/storage.js';
+import { getPythonQueue, getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
 
 const CLEANUP_INTERVAL = 15 * 60 * 1000; // Run every 15 minutes
 const MAX_FILE_AGE = 60 * 60 * 1000; // 1 hour
+const MAX_QUEUE_JOB_AGE = 24 * 60 * 60 * 1000; // 24 hours for completed/failed queue jobs
 
 export function startCleanupScheduler() {
   // Run immediately on start
@@ -41,11 +43,42 @@ async function runCleanup() {
     }
 
     if (deletedCount > 0) {
-      console.log(`Cleanup completed: ${deletedCount} jobs deleted`);
-    } else {
-      console.log('Cleanup completed: No old jobs to delete');
+      // Cleanup completed: ${deletedCount} jobs deleted
+    }
+
+    // Clean old queue jobs
+    await cleanQueueJobs();
+  } catch (error) {
+    // Cleanup failed
+  }
+}
+
+async function cleanQueueJobs() {
+  try {
+    const queues = [getPythonQueue(), getPcapQueue(), getAudioQueue(), getEventLogQueue()];
+    const now = Date.now();
+    let totalCleaned = 0;
+
+    for (const queue of queues) {
+      if (!queue) continue;
+
+      // Clean completed jobs older than MAX_QUEUE_JOB_AGE
+      const completed = await queue.getCompleted();
+      const failed = await queue.getFailed();
+
+      for (const job of [...completed, ...failed]) {
+        const age = now - job.timestamp;
+        if (age > MAX_QUEUE_JOB_AGE) {
+          await job.remove();
+          totalCleaned++;
+        }
+      }
+    }
+
+    if (totalCleaned > 0) {
+      // Cleaned ${totalCleaned} old queue jobs
     }
   } catch (error) {
-    console.error('Cleanup failed:', error);
+    // Queue cleanup failed
   }
 }

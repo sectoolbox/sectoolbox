@@ -24,7 +24,7 @@ const checkApiKeys = async () => {
       return await response.json()
     }
   } catch (err) {
-    console.error('Failed to check API keys:', err)
+    // Failed to check API keys
   }
   return { virustotal: true, hibp: true, abuseipdb: false, alienvault: false }
 }

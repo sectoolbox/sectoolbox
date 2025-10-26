@@ -592,7 +592,7 @@ const AudioAnalysis: React.FC = () => {
         setSpectrogram(spectro)
         drawSpectrogram(spectro)
       } catch (error) {
-        console.error('Reanalysis error:', error)
+        // Reanalysis error
       } finally {
         setIsAnalyzing(false)
       }

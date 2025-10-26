@@ -22,7 +22,7 @@ class ApiClient {
   }
 
   async executePythonScript(scriptId: string, file: File) {
-    console.log('Executing Python script:', scriptId, 'with file:', file.name);
+    // API call
     const formData = new FormData();
     formData.append('scriptId', scriptId);
     formData.append('file', file);
@@ -32,13 +32,13 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('Python execute response:', response.data);
+    // API call
     return response.data;
   }
 
   // PCAP analysis
   async analyzePcap(file: File, depth: 'quick' | 'full' = 'full') {
-    console.log('Analyzing PCAP:', file.name, 'depth:', depth);
+    // API call
     const formData = new FormData();
     formData.append('file', file);
     formData.append('depth', depth);
@@ -48,13 +48,13 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('PCAP analyze response:', response.data);
+    // API call
     return response.data;
   }
 
   // Audio analysis
   async generateSpectrogram(file: File) {
-    console.log('Generating spectrogram for:', file.name);
+    // API call
     const formData = new FormData();
     formData.append('file', file);
 
@@ -63,13 +63,13 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('Spectrogram response:', response.data);
+    // API call
     return response.data;
   }
 
   // Event Log analysis
   async analyzeEventLog(file: File) {
-    console.log('Analyzing Event Log:', file.name);
+    // API call
     const formData = new FormData();
     formData.append('file', file);
 
@@ -78,14 +78,14 @@ class ApiClient {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('Event Log analyze response:', response.data);
+    // API call
     return response.data;
   }
 
   // Job status
   async getJobStatus(jobId: string) {
-    console.log('Fetching job status for:', jobId);
-    console.log('URL:', `/api/v1/jobs/${jobId}`);
+    // API call
+    // API call
     const response = await this.client.get(`/api/v1/jobs/${jobId}`);
     return response.data;
   }
@@ -98,11 +98,11 @@ class ApiClient {
 
   // Follow TCP stream
   async followTcpStream(jobId: string, streamId: number, filename: string) {
-    console.log('Following TCP stream:', jobId, streamId, filename);
+    // API call
     const response = await this.client.post(`/api/v1/follow/tcp/${jobId}/${streamId}`, {
       filename
     });
-    console.log('Follow stream response:', response.data);
+    // API call
     return response.data;
   }
 }

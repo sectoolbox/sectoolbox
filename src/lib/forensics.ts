@@ -299,7 +299,6 @@ export class MemoryAnalyzer {
       // If no clear patterns found, return null
       return null
     } catch (error) {
-      console.warn('Profile detection failed:', error)
       return null
     }
   }
@@ -347,7 +346,6 @@ export class MemoryAnalyzer {
       
       return processes
     } catch (error) {
-      console.warn('Process extraction failed:', error)
       return []
     }
   }
@@ -422,7 +420,6 @@ export class MemoryAnalyzer {
       
       return connections.slice(0, 20) // Limit to 20 connections
     } catch (error) {
-      console.warn('Network extraction failed:', error)
       return []
     }
   }
@@ -465,7 +462,6 @@ export class MemoryAnalyzer {
       // Remove duplicates and limit results
       return [...new Set(strings)].slice(0, 50)
     } catch (error) {
-      console.warn('Process string search failed:', error)
       return []
     }
   }
@@ -492,7 +488,6 @@ export class ForensicsUtils {
       // Fallback for environments without crypto.subtle
       return 'hash_calculation_not_available'
     } catch (error) {
-      console.warn(`Hash calculation failed for ${algorithm}:`, error)
       return 'calculation_failed'
     }
   }
@@ -625,7 +620,6 @@ export class ForensicsUtils {
       
       return result
     } catch (error) {
-      console.warn('MD5 calculation failed:', error)
       return 'md5_calculation_failed'
     }
   }

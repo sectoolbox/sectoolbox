@@ -394,7 +394,6 @@ export async function parseExif(buffer: ArrayBuffer) {
     
     return exifData
   } catch (err) {
-    console.warn('Exif parse failed', err)
     return { 
       fileSize: buffer.byteLength,
       fileSizeFormatted: formatBytes(buffer.byteLength),

@@ -109,7 +109,7 @@ const PcapAnalysis: React.FC = () => {
         setIsAnalyzing(false);
       }
     } catch (error: any) {
-      console.error('Analysis error:', error);
+      // Analysis error
       setNotice(`Failed to start analysis: ${error.message}`);
       setIsAnalyzing(false);
       toast.error('Failed to start analysis');
@@ -216,7 +216,7 @@ const PcapAnalysis: React.FC = () => {
 
       // If tcpStream not provided (e.g., from conversations), find it from packets
       if (streamId === undefined || streamId === null) {
-        console.log('No tcpStream in object, searching by source/destination:', stream);
+        // Searching for stream
 
         // Try matching by IP addresses and ports (handle both destPort and dstPort field names)
         const streamDestPort = stream.destPort !== undefined ? stream.destPort : stream.dstPort;
@@ -236,7 +236,7 @@ const PcapAnalysis: React.FC = () => {
 
         if (matchingPacket && matchingPacket.tcpStream !== undefined) {
           streamId = matchingPacket.tcpStream;
-          console.log('Found matching packet with stream ID:', streamId);
+          // Found matching packet
         } else {
           // Try matching just by IP (ignore ports) as fallback
           const ipMatchPacket = allPackets.find(pkt =>
@@ -246,22 +246,22 @@ const PcapAnalysis: React.FC = () => {
 
           if (ipMatchPacket && ipMatchPacket.tcpStream !== undefined) {
             streamId = ipMatchPacket.tcpStream;
-            console.log('Found matching packet by IP only, stream ID:', streamId);
+            // Found matching packet by IP
           } else {
             toast.error('Cannot find TCP stream ID for this conversation');
-            console.error('No matching packet found. Stream object:', stream);
-            console.error('Tried matching with srcPort:', stream.srcPort, 'destPort/dstPort:', streamDestPort);
+            // No matching packet found
+            // Tried matching ports
             return;
           }
         }
       }
 
-      console.log('Extracting TCP stream from existing packets:', streamId);
+      // Extracting TCP stream
 
       // Extract stream data from packets we already have
       const streamData = extractTcpStream(allPackets, streamId);
 
-      console.log('Stream data extracted:', streamData);
+      // Stream data extracted
       setFollowStreamData(streamData);
 
       if (streamData.totalBytes > 0) {
@@ -270,7 +270,7 @@ const PcapAnalysis: React.FC = () => {
         toast.error(`Stream ${streamId} has no TCP payload data (only handshake/ACK packets)`);
       }
     } catch (error: any) {
-      console.error('Follow stream error:', error);
+      // Follow stream error
       toast.error(`Failed to extract stream: ${error.message}`);
     }
   };
@@ -281,7 +281,7 @@ const PcapAnalysis: React.FC = () => {
     // Extract new stream data
     const newStreamData = extractTcpStream(allPackets, newStreamId);
 
-    console.log('New stream data:', newStreamData);
+    // New stream data
     setFollowStreamData(newStreamData);
 
     if (newStreamData.totalBytes > 0) {

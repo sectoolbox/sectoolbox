@@ -10,25 +10,22 @@ let redisClient: ReturnType<typeof createClient>;
 export async function initializeQueue() {
   const redisUrl = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL || 'redis://localhost:6379';
 
-  console.log('🔌 Connecting to Redis...');
-  console.log('📍 Redis URL:', redisUrl.replace(/:[^:@]+@/, ':****@')); // Hide password
-
   try {
     // Create Redis client for caching
     redisClient = createClient({ url: redisUrl });
 
     redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
+      // Redis Client Error
     });
 
     redisClient.on('connect', () => {
-      console.log('Redis client connected');
+      // Redis client connected
     });
 
     await redisClient.connect();
-    console.log('Redis client ready');
+    // Redis client ready
   } catch (error: any) {
-    console.error('Failed to connect to Redis:', error.message);
+    // Failed to connect to Redis
     throw error;
   }
 

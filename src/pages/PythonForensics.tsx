@@ -126,7 +126,7 @@ except FileNotFoundError:
         const parsedTabs = JSON.parse(savedTabs)
         setTabs(parsedTabs)
       } catch (e) {
-        console.error('Failed to restore tabs:', e)
+        // Failed to restore tabs - will use defaults
       }
     }
 
@@ -146,7 +146,7 @@ except FileNotFoundError:
       const categories = getScriptCategories(scripts)
       setScriptCategories(categories)
     } catch (error) {
-      console.error('Failed to load Python scripts:', error)
+      // Failed to load Python scripts
       toast.error('Failed to load example scripts')
     }
   }
@@ -157,7 +157,7 @@ except FileNotFoundError:
       try {
         setSavedScripts(JSON.parse(saved))
       } catch (e) {
-        console.error('Failed to load saved scripts:', e)
+        // Failed to load saved scripts
       }
     }
   }, [])
@@ -205,7 +205,7 @@ except FileNotFoundError:
         localStorage.setItem('sectoolbox_python_output', output)
         localStorage.setItem('sectoolbox_python_activeTab', activeTabId)
       } catch (e) {
-        console.error('Failed to save state:', e)
+        // Failed to save state
       }
     }, 3000) // Save every 3 seconds
 
@@ -230,7 +230,7 @@ except FileNotFoundError:
         toast.success('Python environment loaded successfully!')
       }
     } catch (error) {
-      console.error('Failed to load Pyodide:', error)
+      // Failed to load Pyodide
       setOutput(`Failed to load Python environment: ${error}`)
       setIsLoading(false)
       toast.error('Failed to load Python environment')
@@ -257,7 +257,7 @@ _stderr_capture.output = []
       try {
         await pyodide.loadPackagesFromImports(activeTab.code)
       } catch (e) {
-        console.log('Could not auto-load packages:', e)
+        // Could not auto-load packages
       }
 
       await pyodide.runPythonAsync(activeTab.code)
@@ -346,7 +346,7 @@ _stderr_capture.output = []
             code: tab.code.replace(/(['"])sample\.bin\1/g, `$1${fullPath}$1`)
           })))
         } catch (error) {
-          console.error('File upload error:', error)
+          // File upload error
           toast.error(`Failed to upload ${file.name}`)
         }
       })
@@ -381,7 +381,7 @@ _stderr_capture.output = []
           code: tab.code.replace(/(['"])sample\.bin\1/g, `$1${file.name}$1`)
         })))
       } catch (error) {
-        console.error('File upload error:', error)
+        // File upload error
         toast.error(`Failed to upload ${file.name}`)
       }
     }
@@ -411,7 +411,7 @@ _stderr_capture.output = []
         setUploadedFiles(prev => [...prev, { name: file.name, size: file.size, path: relativePath }])
         toast.success(`Uploaded: ${relativePath}`)
       } catch (error) {
-        console.error('File upload error:', error)
+        // File upload error
         toast.error(`Failed to upload ${file.name}`)
       }
     }
@@ -673,7 +673,7 @@ micropip.uninstall('${packageName}')
       URL.revokeObjectURL(url)
       toast.success(`Downloaded: ${filePath.split('/').pop()}`)
     } catch (error) {
-      console.error('Download error:', error)
+      // Download error
       toast.error('Failed to download file')
     }
   }
@@ -797,7 +797,7 @@ json.dumps(metadata)
 
       return JSON.parse(metadataJson)
     } catch (error) {
-      console.error('Metadata extraction error:', error)
+      // Metadata extraction error
       return { error: String(error) }
     }
   }
@@ -875,7 +875,7 @@ json.dumps(metadata)
       setSelectedFile(filePath)
       setFileViewMode('preview')
     } catch (error) {
-      console.error('Preview error:', error)
+      // Preview error
       toast.error('Failed to preview file')
     }
   }
@@ -896,7 +896,7 @@ json.dumps(metadata)
       }
       toast.success('File deleted')
     } catch (error) {
-      console.error('Delete error:', error)
+      // Delete error
       toast.error('Failed to delete file')
     }
   }

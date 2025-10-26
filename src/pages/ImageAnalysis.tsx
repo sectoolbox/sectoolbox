@@ -500,8 +500,8 @@ export default function ImageAnalysis() {
         const text = symbol.decode()
 
         // === DEBUG: Option 6 - Show first 20 bytes in multiple formats ===
-        console.log('=== BYTE ANALYSIS (First 20 bytes) ===')
-        console.log('Total length:', rawBytes.length)
+        // Byte analysis
+        // Total length
 
         const first20 = rawBytes.slice(0, 20)
         console.log('Hex:', Array.from(first20).map(b => b.toString(16).padStart(2, '0')).join(' '))

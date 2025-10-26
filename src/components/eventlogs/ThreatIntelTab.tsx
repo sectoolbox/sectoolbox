@@ -261,7 +261,7 @@ export const ThreatIntelTab: React.FC<ThreatIntelTabProps> = ({ iocs }) => {
                       variant="outline"
                       onClick={() => {
                         // Show detailed results
-                        console.log('Results:', results);
+                        // Results received
                       }}
                     >
                       Details

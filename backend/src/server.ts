@@ -51,8 +51,50 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  try {
+    const { getRedisClient, getPythonQueue, getPcapQueue, getAudioQueue, getEventLogQueue } = await import('./services/queue.js');
+    
+    const redisClient = getRedisClient();
+    const pythonQueue = getPythonQueue();
+    const pcapQueue = getPcapQueue();
+    const audioQueue = getAudioQueue();
+    const eventLogQueue = getEventLogQueue();
+
+    // Check Redis connection
+    const redisStatus = redisClient?.isOpen ? 'connected' : 'disconnected';
+    
+    // Get queue stats
+    const [pythonCounts, pcapCounts, audioCounts, eventLogCounts] = await Promise.all([
+      pythonQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
+      pcapQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
+      audioQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
+      eventLogQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 }))
+    ]);
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      redis: redisStatus,
+      queues: {
+        python: pythonCounts,
+        pcap: pcapCounts,
+        audio: audioCounts,
+        eventLog: eventLogCounts
+      },
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed'
+    });
+  }
 });
 
 // API Routes
