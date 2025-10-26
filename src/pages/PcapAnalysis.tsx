@@ -405,7 +405,8 @@ const PcapAnalysis: React.FC = () => {
               <Button
                 onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
                 disabled={isAnalyzing}
-                className="bg-blue-600 hover:bg-blue-700 shadow-[0_0_0_2px_rgba(30,58,138,0.3)] hover:shadow-[0_0_0_3px_rgba(30,58,138,0.5)] hover:scale-105 transition-all duration-200 tracking-wide"
+                variant="outline"
+                className="hover:bg-blue-600 hover:text-white hover:border-blue-600 hover:scale-105 transition-all duration-200 tracking-wide"
               >
                 {isAnalyzing ? (
                   <>
@@ -422,7 +423,8 @@ const PcapAnalysis: React.FC = () => {
               <Button
                 onClick={() => startAnalysis()}
                 disabled={isAnalyzing}
-                className="bg-accent hover:bg-accent/90 shadow-[0_0_0_2px_rgba(30,58,138,0.3)] hover:shadow-[0_0_0_3px_rgba(30,58,138,0.5)] hover:scale-105 transition-all duration-200 tracking-wide"
+                variant="outline"
+                className="hover:bg-accent hover:text-white hover:border-accent hover:scale-105 transition-all duration-200 tracking-wide"
               >
                 {isAnalyzing ? (
                   <>
@@ -581,16 +583,6 @@ const PcapAnalysis: React.FC = () => {
                 dnsQueries={dnsQueries}
               />
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!file && !allPackets.length && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <Upload className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg">Upload a PCAP file to begin analysis</p>
           </div>
         </div>
       )}
