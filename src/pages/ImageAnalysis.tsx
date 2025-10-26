@@ -63,7 +63,6 @@ export default function ImageAnalysis() {
   const [metadata, setMetadata] = useState<any | null>(null)
   const [structuredResults, setStructuredResults] = useState<ImageAnalysisResult | null>(null)
   const [activeTab, setActiveTab] = useState<'metadata' | 'stego' | 'strings' | 'hex' | 'bitplane' | 'barcode'>('metadata')
-  const [debouncedStringFilter, setDebouncedStringFilter] = useState('')
   const [extractedStrings, setExtractedStrings] = useState<StringsResult | null>(null)
   const [stringFilter, setStringFilter] = useState('')
   const [imageList, setImageList] = useState<string[]>([])
@@ -89,8 +88,6 @@ export default function ImageAnalysis() {
   const [lsbDepthResult, setLsbDepthResult] = useState<any | null>(null)
   const [hexData, setHexData] = useState<{offset: string, hex: string, ascii: string}[] | null>(null)
   const [hexFilter, setHexFilter] = useState('')
-  const [noiseAnalysisResult, setNoiseAnalysisResult] = useState<any | null>(null)
-  const [advancedProcessingResult, setAdvancedProcessingResult] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
@@ -98,7 +95,6 @@ export default function ImageAnalysis() {
   const [mousePosition, setMousePosition] = useState<{x: number, y: number, color?: string} | null>(null)
   const [showPixelInfo, setShowPixelInfo] = useState(false)
   const [showFullStrings, setShowFullStrings] = useState(false)
-  const [showFullHex, setShowFullHex] = useState(false)
   const [colorChannelType, setColorChannelType] = useState<'rgb' | 'red' | 'green' | 'blue' | 'alpha' | 'grayscale' | 'hsv'>('rgb')
   const [bitPlanePanPosition, setBitPlanePanPosition] = useState({ x: 0, y: 0 })
   const [bitPlaneZoomLevel, setBitPlaneZoomLevel] = useState(1)
@@ -108,6 +104,7 @@ export default function ImageAnalysis() {
     format: string,
     text: string,
     raw?: string,
+    rawBytes?: Uint8Array,
     quality?: number,
     position?: {x: number, y: number, width: number, height: number},
     decoded?: any,
@@ -161,9 +158,6 @@ export default function ImageAnalysis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
 
-  // channel color mapping (use HEX per project rules)
-  const channelColors: Record<string,string> = { red: '#ef4444', green: '#34D399', blue: '#60A5FA' }
-
   const onFile = (f?: File) => {
     if (!f) return
     setFile(f)
@@ -183,8 +177,6 @@ export default function ImageAnalysis() {
     setBitPlaneUrl(null)
     setLsbDepthResult(null)
     setHexData(null)
-    setNoiseAnalysisResult(null)
-    setAdvancedProcessingResult(null)
     setBarcodeResults([])
     // reset user manual selection so auto-extract runs for new images
     userHasChangedBitplaneRef.current = false
@@ -221,7 +213,6 @@ export default function ImageAnalysis() {
         case 'noise':
           const noiseResult = analyzeNoise(ctx, width, height)
           processedImageData = noiseResult.visualData
-          setNoiseAnalysisResult(noiseResult)
           resultMessage = `Noise analysis complete - Level: ${noiseResult.noiseLevel}% (${noiseResult.analysis})`
           break
         case 'gamma':
@@ -239,7 +230,6 @@ export default function ImageAnalysis() {
       // Apply the processed image data to canvas
       ctx.putImageData(processedImageData, 0, 0)
       setShowAdjustedImage(true)
-      setAdvancedProcessingResult(resultMessage)
       
       // Display result message
       alert(resultMessage)
@@ -254,33 +244,6 @@ export default function ImageAnalysis() {
     return Array.from(text)
       .map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
       .join(' ')
-  }
-
-  // Helper: Parse QR code metadata from ZXing result
-  const parseQRMetadata = (result: any): any => {
-    try {
-      const metadata: any = {}
-
-      // Try to extract version (QR codes are version 1-40)
-      const resultMetadata = result.getResultMetadata?.()
-      if (resultMetadata) {
-        // Error correction level
-        const ecLevel = resultMetadata.get?.(2) // ERROR_CORRECTION_LEVEL key
-        if (ecLevel) {
-          metadata.errorCorrectionLevel = String(ecLevel)
-        }
-
-        // Byte segments for encoding detection
-        const byteSegments = resultMetadata.get?.(6) // BYTE_SEGMENTS key
-        if (byteSegments) {
-          metadata.encoding = 'Byte Mode'
-        }
-      }
-
-      return Object.keys(metadata).length > 0 ? metadata : undefined
-    } catch (e) {
-      return undefined
-    }
   }
 
   // Helper: Parse Python-style escape sequences (\x89, \r, \n, etc.) to actual bytes
@@ -339,9 +302,6 @@ export default function ImageAnalysis() {
         console.log('Parsed bytes first 4:', bytes[0], bytes[1], bytes[2], bytes[3])
       }
 
-      // Create blob from raw bytes
-      const blob = new Blob([bytes])
-
       // Detect file type from magic bytes
       let mimeType = 'application/octet-stream'
       if (bytes.length >= 4) {
@@ -364,7 +324,7 @@ export default function ImageAnalysis() {
       }
 
       // Create data URL from blob (like Python write to file)
-      const blobWithType = new Blob([bytes], { type: mimeType })
+      const blobWithType = new Blob([bytes.buffer as ArrayBuffer], { type: mimeType })
       const dataUrl = URL.createObjectURL(blobWithType)
 
       return dataUrl
@@ -800,28 +760,27 @@ export default function ImageAnalysis() {
       // Generate hex data
       await generateHexData(buf)
 
-      // save lightly to DB (best-effort)
-      try {
-        const user = await blink.auth.me()
-        if (user) {
-          await blink.db.analysisResults.create({
-            userId: user.id,
-            type: 'image',
-            title: `Image Analysis: ${file.name}`,
-            description: `Image analysis`,
-            timestamp: new Date().toISOString(),
-            status: 'completed',
-            fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-            findings: (res?.layers || []).length,
-            severity: 'low',
-            tags: 'image',
-            resultsData: JSON.stringify(res)
-          })
-        }
-      } catch (e) {
-         
-        console.warn('db save failed')
-      }
+      // save lightly to DB (best-effort) - disabled for now
+      // try {
+      //   const user = await blink.auth.me()
+      //   if (user) {
+      //     await blink.db.analysisResults.create({
+      //       userId: user.id,
+      //       type: 'image',
+      //       title: `Image Analysis: ${file.name}`,
+      //       description: `Image analysis`,
+      //       timestamp: new Date().toISOString(),
+      //       status: 'completed',
+      //       fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      //       findings: (res?.layers || []).length,
+      //       severity: 'low',
+      //       tags: 'image',
+      //       resultsData: JSON.stringify(res)
+      //     })
+      //   }
+      // } catch (e) {
+      //   console.warn('db save failed')
+      // }
     } catch (err) {
       console.error('analysis failed', err)
       alert('Analysis failed – check console')
@@ -1054,15 +1013,6 @@ export default function ImageAnalysis() {
     a.click()
   }
 
-  const buildChartData = (hist: any) => {
-    if (!hist) return []
-    const data: any[] = []
-    for (let i = 0; i < hist.l.length; i++) {
-      data.push({ bin: String(i), L: hist.l[i] || 0, R: hist.r[i] || 0, G: hist.g[i] || 0, B: hist.b[i] || 0 })
-    }
-    return data
-  }
-
   const renderExifOrganized = () => {
     const exif = metadata?.exif || {}
     const keys = Object.keys(exif)
@@ -1276,8 +1226,6 @@ export default function ImageAnalysis() {
                   setBitPlaneUrl(null)
                   setLsbDepthResult(null)
                   setHexData(null)
-                  setNoiseAnalysisResult(null)
-                  setAdvancedProcessingResult(null)
                   setBarcodeResults([])
                 }}
                 disabled={isAnalyzing}
@@ -1881,14 +1829,7 @@ export default function ImageAnalysis() {
                       className="px-3 py-2 border border-border rounded-lg text-sm bg-background focus:border-accent focus:outline-none" 
                       placeholder="Filter strings..." 
                       value={stringFilter} 
-                      onChange={e => {
-                        setStringFilter(e.target.value)
-                        // Debounced filtering with 300ms delay
-                        clearTimeout((window as any).stringFilterTimeout)
-                        ;(window as any).stringFilterTimeout = setTimeout(() => {
-                          setDebouncedStringFilter(e.target.value)
-                        }, 300)
-                      }}
+                      onChange={e => setStringFilter(e.target.value)}
                     />
                   </div>
                 </div>

@@ -657,7 +657,7 @@ export interface ImageAnalysisResult {
       blue: { text: string; ratio: number; suspicious: boolean }
       composite: string
     }
-    embeddedFiles: Array<{ type: string; offset: number; size: number }>
+    embeddedFiles: Array<{ type: string; offset: number; size: number; id?: string; filename?: string; recovered?: boolean }>
     detected: boolean
     advanced: AdvancedSteganographyDetection
   }

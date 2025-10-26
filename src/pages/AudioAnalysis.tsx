@@ -917,9 +917,8 @@ const AudioAnalysis: React.FC = () => {
                                   setEqBands(newBands)
                                   setSelectedPreset('Custom')
                                 }}
-                                orient="vertical"
                                 className="h-24"
-                                style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical', width: '20px' }}
+                                style={{ writingMode: 'vertical-lr' as const, WebkitAppearance: 'slider-vertical', width: '20px' }}
                               />
                               <span className="text-xs text-muted-foreground">{band.frequency < 1000 ? band.frequency : `${band.frequency/1000}k`}</span>
                               <span className="text-xs font-mono">{band.gain > 0 ? '+' : ''}{band.gain}</span>
@@ -1284,12 +1283,12 @@ const AudioAnalysis: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          if (spectrogram && spectrogramCanvasRef.current) {
-                            const { exportSpectrogramImage } = await import('../lib/audioAnalysisAdvanced')
-                            await exportSpectrogramImage(
-                              spectrogram,
-                              `${file?.name.replace(/\.[^.]+$/, '')}_spectrogram.png`
-                            )
+                          if (spectrogramCanvasRef.current) {
+                            const canvas = spectrogramCanvasRef.current
+                            const link = document.createElement('a')
+                            link.download = `${file?.name.replace(/\.[^.]+$/, '')}_spectrogram.png`
+                            link.href = canvas.toDataURL()
+                            link.click()
                           }
                         }}
                         disabled={!spectrogram}
