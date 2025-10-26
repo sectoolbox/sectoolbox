@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPythonQueue, getPcapQueue, getAudioQueue } from '../services/queue.js';
+import { getPythonQueue, getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
 import { readResults } from '../services/storage.js';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ router.get('/:jobId', async (req, res) => {
     const { jobId } = req.params;
 
     // Check all queues for the job
-    const queues = [getPythonQueue(), getPcapQueue(), getAudioQueue()];
+    const queues = [getPythonQueue(), getPcapQueue(), getAudioQueue(), getEventLogQueue()];
     let job = null;
 
     for (const queue of queues) {
