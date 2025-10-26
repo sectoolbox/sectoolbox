@@ -70,6 +70,7 @@ const PcapAnalysis: React.FC = () => {
   // Watch for backend job updates
   useEffect(() => {
     if (jobStatus) {
+      console.log('🔄 PcapAnalysis received jobStatus update:', jobStatus);
       if (jobStatus.status === 'processing') {
         setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`);
       } else if (jobStatus.status === 'completed') {

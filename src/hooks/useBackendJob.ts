@@ -38,6 +38,7 @@ export function useBackendJob() {
     wsClient.onJobProgress((data) => {
       console.log('📊 Frontend received progress:', data);
       if (data.jobId === jobId) {
+        console.log('🔄 Setting jobStatus from WebSocket:', data);
         setJobStatus({
           jobId: data.jobId,
           status: data.status,
@@ -95,6 +96,7 @@ export function useBackendJob() {
         
         // Update progress even if not complete (for fallback when WebSocket fails)
         if (status.status === 'processing') {
+          console.log('🔄 Setting jobStatus state:', status);
           setJobStatus({
             jobId: status.jobId,
             status: status.status,
