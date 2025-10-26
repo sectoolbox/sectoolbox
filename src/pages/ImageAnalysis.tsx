@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Info, Layers, Hash, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
-import { performComprehensiveImageAnalysis, ImageAnalysisResult, computeHistogramFromCanvas, extractBitPlaneFromCanvas, analyzeLSBWithDepth, extractPrintableStringsFromBuffer, applyEdgeDetection, analyzeNoise, applyAutoGammaCorrection, applyHistogramEqualization } from '../lib/imageAnalysis'
+import { performComprehensiveImageAnalysis, ImageAnalysisResult, extractBitPlaneFromCanvas, analyzeLSBWithDepth, extractPrintableStringsFromBuffer, applyEdgeDetection, analyzeNoise, applyAutoGammaCorrection, applyHistogramEqualization } from '../lib/imageAnalysis'
 import { carveFiles } from '../lib/forensics'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 import { scanImageData } from '@undecaf/zbar-wasm'
 
 type StringsResult = { 

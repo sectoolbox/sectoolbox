@@ -21,7 +21,6 @@ import {
   Hash,
   Waves,
   BarChart3,
-  Headphones,
   ExternalLink,
   Cloud
 } from 'lucide-react'
@@ -51,7 +50,6 @@ import {
   applyNoiseReduction,
   normalizeAudio,
   exportAsWAV,
-  exportSpectrogramImage,
   detectFSK,
   detectPSK,
   EQ_PRESETS,
@@ -75,7 +73,7 @@ const AudioAnalysis: React.FC = () => {
 
   // Backend spectrogram
   const [useBackendFFT, setUseBackendFFT] = useState(false)
-  const { jobStatus, isLoading: isBackendLoading, startJob } = useBackendJob()
+  const { jobStatus, startJob } = useBackendJob()
 
   // Audio playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -538,7 +536,7 @@ const AudioAnalysis: React.FC = () => {
     }
 
     setIsAnalyzing(true)
-    toast.info('Generating spectrogram on backend server...')
+    toast('Generating spectrogram on backend server...')
 
     try {
       const response = await apiClient.generateSpectrogram(file)
@@ -563,7 +561,7 @@ const AudioAnalysis: React.FC = () => {
   useEffect(() => {
     if (jobStatus) {
       if (jobStatus.status === 'processing') {
-        toast.info(`Processing: ${jobStatus.progress}%`)
+        toast(`Processing: ${jobStatus.progress}%`)
       } else if (jobStatus.status === 'completed') {
         setSpectrogram(jobStatus.results)
         drawSpectrogram(jobStatus.results)
@@ -653,7 +651,7 @@ const AudioAnalysis: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={handleAnalyze}
+                onClick={() => handleAnalyze()}
                 disabled={isAnalyzing}
                 variant="outline"
                 className="hover:bg-accent hover:text-white hover:border-accent hover:scale-105 transition-all duration-200 tracking-wide"
