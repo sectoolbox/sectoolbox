@@ -1,8 +1,6 @@
 // Digital Forensics Library
 // Real forensic artifact analysis implementations
 
-import { formatBytes } from './formatting';
-
 // Disk Image Analysis Types
 export interface DiskImageHeader {
   format: 'E01' | 'RAW' | 'DD'
@@ -214,7 +212,7 @@ export class DiskImageAnalyzer {
   /**
    * Search for strings in disk image
    */
-  static searchStrings(buffer: ArrayBuffer, searchTerm: string, minLength = 4): { offset: number, match: string, context: string }[] {
+  static searchStrings(buffer: ArrayBuffer, searchTerm: string, _minLength = 4): { offset: number, match: string, context: string }[] {
     const results: { offset: number, match: string, context: string }[] = []
     const text = new TextDecoder().decode(buffer)
     const regex = new RegExp(searchTerm, 'gi')
@@ -309,7 +307,7 @@ export class MemoryAnalyzer {
   /**
    * Extract process list from memory dump
    */
-  static extractProcesses(buffer: ArrayBuffer, profile: MemoryProfile): ProcessEntry[] {
+  static extractProcesses(buffer: ArrayBuffer, _profile: MemoryProfile): ProcessEntry[] {
     try {
       const processes: ProcessEntry[] = []
       const view = new Uint8Array(buffer)
@@ -432,7 +430,7 @@ export class MemoryAnalyzer {
   /**
    * Search for strings in process memory
    */
-  static searchProcessStrings(buffer: ArrayBuffer, pid: number, searchTerm: string): string[] {
+  static searchProcessStrings(buffer: ArrayBuffer, _pid: number, searchTerm: string): string[] {
     try {
       const strings: string[] = []
       const view = new Uint8Array(buffer)
@@ -679,14 +677,4 @@ export function carveFiles(bufferOrUint8: Uint8Array | ArrayBuffer, maxResults: 
     return results.slice(0, maxResults)
   }
   return results
-}
-
-// Export all types and classes
-export type {
-  DiskImageHeader,
-  FileSignature,
-  CarvedFile,
-  MemoryProfile,
-  ProcessEntry,
-  NetworkConnection
 }

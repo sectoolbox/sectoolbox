@@ -49,7 +49,7 @@ export function extractTcpStream(packets: any[], streamId: number): any {
   let clientToServerData = '';
   let serverToClientData = '';
 
-  streamPackets.forEach((pkt, idx) => {
+  streamPackets.forEach((pkt) => {
     // Try to extract TCP payload from raw layers
     const tcpPayloadHex = pkt.rawLayers?.tcp?.['tcp.payload'] || pkt.layers?.tcp?.['tcp.payload'];
 

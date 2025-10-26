@@ -864,7 +864,6 @@ export function applyHistogramEqualization(ctx: CanvasRenderingContext2D, width:
 
 export async function performComprehensiveImageAnalysis(file: File): Promise<ImageAnalysisResult> {
   const buffer = await readFileAsArrayBuffer(file)
-  const data = new Uint8Array(buffer)
   
   // Initialize result structure
   const result: ImageAnalysisResult = {
@@ -958,7 +957,6 @@ export async function performComprehensiveImageAnalysis(file: File): Promise<Ima
   let layerStep = 0
   
   // Layer 1: Basic metadata and EXIF
-  const startTime = Date.now()
   try {
     const exif = await parseExif(buffer)
     
@@ -1231,7 +1229,6 @@ export async function performComprehensiveImageAnalysis(file: File): Promise<Ima
     result.metadataAnalysis = performMetadataAnalysis(exif, buffer)
     
     const hasGPS = !!(result.metadataAnalysis.gpsData.coordinates)
-    const hasCamera = !!(result.metadataAnalysis.cameraFingerprinting.make !== 'Unknown')
     const hasThumbnails = result.metadataAnalysis.thumbnailExtraction.thumbnails.length > 0
     const hasInconsistencies = result.metadataAnalysis.thumbnailExtraction.inconsistencies.length > 0
     
@@ -1422,7 +1419,7 @@ function performOCRAnalysis(canvas: HTMLCanvasElement): EnhancedAnalysis['ocr'] 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   
   // Simplified text detection based on edge patterns
-  const edges = detectTextRegions(imageData, canvas.width, canvas.height)
+  detectTextRegions(imageData, canvas.width, canvas.height)
   
   return {
     text: 'Sample extracted text from image analysis',
@@ -1473,7 +1470,7 @@ function detectBarcodesQR(canvas: HTMLCanvasElement): EnhancedAnalysis['barcodeQ
   }
 }
 
-function performReverseImageSearch(canvas: HTMLCanvasElement): EnhancedAnalysis['reverseImageSearch'] {
+function performReverseImageSearch(_canvas: HTMLCanvasElement): EnhancedAnalysis['reverseImageSearch'] {
   // Mock reverse image search - in production would integrate with Google, Bing, TinEye APIs
   return {
     similar: [
@@ -1491,9 +1488,9 @@ function performReverseImageSearch(canvas: HTMLCanvasElement): EnhancedAnalysis[
 
 function performSimilarityComparison(buffer: ArrayBuffer): EnhancedAnalysis['similarityComparison'] {
   // Calculate perceptual hashes for similarity comparison
-  const phash = calculatePerceptualHash(buffer, 'phash')
-  const dhash = calculatePerceptualHash(buffer, 'dhash')
-  const ahash = calculatePerceptualHash(buffer, 'ahash')
+  calculatePerceptualHash(buffer, 'phash')
+  calculatePerceptualHash(buffer, 'dhash')
+  calculatePerceptualHash(buffer, 'ahash')
   
   return {
     duplicates: [],
@@ -1847,48 +1844,48 @@ function calculateAdjacentPixelCorrelation(_imageData: ImageData): { horizontal:
 }
 
 // Mock implementations for complex algorithms
-function detectF5Steganography(imageData: ImageData): { score: number; indicators: string[] } {
+function detectF5Steganography(_imageData: ImageData): { score: number; indicators: string[] } {
   return { score: 0.3, indicators: ['Low DCT coefficient variation'] }
 }
 
-function detectOutguessStego(imageData: ImageData): { score: number; indicators: string[] } {
+function detectOutguessStego(_imageData: ImageData): { score: number; indicators: string[] } {
   return { score: 0.2, indicators: ['Normal statistical distribution'] }
 }
 
-function detectSteghide(imageData: ImageData): { score: number; indicators: string[] } {
+function detectSteghide(_imageData: ImageData): { score: number; indicators: string[] } {
   return { score: 0.1, indicators: ['No password protection artifacts'] }
 }
 
-function detectLSBMatching(imageData: ImageData): { score: number; patterns: number[] } {
+function detectLSBMatching(_imageData: ImageData): { score: number; patterns: number[] } {
   return { score: 0.4, patterns: [1, 0, 1, 1, 0] }
 }
 
-function analyzePixelPairs(imageData: ImageData, width: number, height: number): { suspiciousRegions: Array<{ x: number; y: number; width: number; height: number; score: number }> } {
+function analyzePixelPairs(_imageData: ImageData, _width: number, _height: number): { suspiciousRegions: Array<{ x: number; y: number; width: number; height: number; score: number }> } {
   return { suspiciousRegions: [] }
 }
 
-function analyzeImageNoise(imageData: ImageData, width: number, height: number): { baselineNoise: number; anomalousRegions: Array<{ region: [number, number, number, number]; noiseLevel: number }> } {
+function analyzeImageNoise(_imageData: ImageData, _width: number, _height: number): { baselineNoise: number; anomalousRegions: Array<{ region: [number, number, number, number]; noiseLevel: number }> } {
   return { baselineNoise: 12.5, anomalousRegions: [] }
 }
 
-function analyzeImageEdges(imageData: ImageData, width: number, height: number): { edgeConsistency: number; suspiciousEdges: Array<{ start: [number, number]; end: [number, number]; score: number }> } {
+function analyzeImageEdges(_imageData: ImageData, _width: number, _height: number): { edgeConsistency: number; suspiciousEdges: Array<{ start: [number, number]; end: [number, number]; score: number }> } {
   return { edgeConsistency: 0.87, suspiciousEdges: [] }
 }
 
-function performFFTAnalysis(imageData: ImageData, width: number, height: number): { spectralAnomalies: Array<{ frequency: number; amplitude: number; expected: number }> } {
+function performFFTAnalysis(_imageData: ImageData, _width: number, _height: number): { spectralAnomalies: Array<{ frequency: number; amplitude: number; expected: number }> } {
   return { spectralAnomalies: [] }
 }
 
-function performWaveletAnalysis(imageData: ImageData, width: number, height: number): { decompositionLevels: number; anomalies: Array<{ level: number; coefficient: number; position: [number, number] }> } {
+function performWaveletAnalysis(_imageData: ImageData, _width: number, _height: number): { decompositionLevels: number; anomalies: Array<{ level: number; coefficient: number; position: [number, number] }> } {
   return { decompositionLevels: 3, anomalies: [] }
 }
 
-function detectDWTHiddenData(imageData: ImageData, width: number, height: number): { probability: number; estimatedSize: number } {
+function detectDWTHiddenData(_imageData: ImageData, _width: number, _height: number): { probability: number; estimatedSize: number } {
   return { probability: 0.15, estimatedSize: 0 }
 }
 
 // Additional helper functions for enhanced analysis
-function detectTextRegions(imageData: ImageData, width: number, height: number): any[] {
+function detectTextRegions(_imageData: ImageData, _width: number, _height: number): any[] {
   return []
 }
 
@@ -1917,20 +1914,20 @@ function extractNumbersFromText(text: string): string[] {
   return text.match(numberRegex) || []
 }
 
-function detectQRPatterns(imageData: ImageData, width: number, height: number): any[] {
+function detectQRPatterns(_imageData: ImageData, _width: number, _height: number): any[] {
   return []
 }
 
-function detectBarcodePatterns(imageData: ImageData, width: number, height: number): any[] {
+function detectBarcodePatterns(_imageData: ImageData, _width: number, _height: number): any[] {
   return []
 }
 
-function calculatePerceptualHash(buffer: ArrayBuffer, type: 'phash' | 'dhash' | 'ahash'): string {
+function calculatePerceptualHash(_buffer: ArrayBuffer, _type: 'phash' | 'dhash' | 'ahash'): string {
   // Simplified hash calculation - in production would use proper perceptual hashing
   return 'abcdef123456789'
 }
 
-function detectFaceRegions(imageData: ImageData, width: number, height: number): any[] {
+function detectFaceRegions(_imageData: ImageData, _width: number, _height: number): any[] {
   return []
 }
 
@@ -1955,16 +1952,16 @@ function parseGPSCoordinate(coord: any, ref: string): number | null {
   return null
 }
 
-function calculateSensorNoise(buffer: ArrayBuffer): number[] {
+function calculateSensorNoise(_buffer: ArrayBuffer): number[] {
   // Simplified sensor noise calculation
   return [0.1, 0.2, 0.15, 0.18, 0.12]
 }
 
-function detectColorFilterArray(buffer: ArrayBuffer): string {
+function detectColorFilterArray(_buffer: ArrayBuffer): string {
   return 'RGGB' // Common Bayer pattern
 }
 
-function extractQuantizationTables(buffer: ArrayBuffer): number[][] {
+function extractQuantizationTables(_buffer: ArrayBuffer): number[][] {
   // Simplified quantization table extraction
   return [[16, 11, 10, 16, 24, 40, 51, 61]]
 }
@@ -1976,7 +1973,7 @@ function detectSocialMediaPlatform(exifData: any): string | undefined {
   return undefined
 }
 
-function calculateImageHash(data: any): string {
+function calculateImageHash(_data: any): string {
   // Simplified image hash calculation
   return 'hash123456'
 }
@@ -1986,31 +1983,31 @@ function compareHashes(hash1: string, hash2: string): number {
   return hash1 === hash2 ? 1.0 : 0.5
 }
 
-function detectVisibleWatermarks(buffer: ArrayBuffer): Array<{ text?: string; logo?: string; position: { x: number; y: number; width: number; height: number }; opacity: number }> {
+function detectVisibleWatermarks(_buffer: ArrayBuffer): Array<{ text?: string; logo?: string; position: { x: number; y: number; width: number; height: number }; opacity: number }> {
   return []
 }
 
-function detectInvisibleWatermarks(buffer: ArrayBuffer): Array<{ type: 'frequency' | 'spatial' | 'transform'; data: string; confidence: number; method: string }> {
+function detectInvisibleWatermarks(_buffer: ArrayBuffer): Array<{ type: 'frequency' | 'spatial' | 'transform'; data: string; confidence: number; method: string }> {
   return []
 }
 
-function detectCopyMoveForensics(buffer: ArrayBuffer): Array<{ source: [number, number, number, number]; target: [number, number, number, number]; confidence: number }> {
+function detectCopyMoveForensics(_buffer: ArrayBuffer): Array<{ source: [number, number, number, number]; target: [number, number, number, number]; confidence: number }> {
   return []
 }
 
-function detectImageSplicing(buffer: ArrayBuffer): Array<{ region: [number, number, number, number]; confidence: number; indicators: string[] }> {
+function detectImageSplicing(_buffer: ArrayBuffer): Array<{ region: [number, number, number, number]; confidence: number; indicators: string[] }> {
   return []
 }
 
-function detectResampling(buffer: ArrayBuffer): { detected: boolean; factor: number; direction: 'up' | 'down' } {
+function detectResampling(_buffer: ArrayBuffer): { detected: boolean; factor: number; direction: 'up' | 'down' } {
   return { detected: false, factor: 1, direction: 'up' }
 }
 
-function analyzeCompressionHistory(buffer: ArrayBuffer): { recompressions: number; qualityFactors: number[]; ghostingArtifacts: boolean } {
+function analyzeCompressionHistory(_buffer: ArrayBuffer): { recompressions: number; qualityFactors: number[]; ghostingArtifacts: boolean } {
   return { recompressions: 1, qualityFactors: [85], ghostingArtifacts: false }
 }
 
-function analyzeDeviceConsistency(exifData: any, buffer: ArrayBuffer): { consistent: boolean; inconsistencies: string[]; fabricatedMetadata: boolean } {
+function analyzeDeviceConsistency(_exifData: any, _buffer: ArrayBuffer): { consistent: boolean; inconsistencies: string[]; fabricatedMetadata: boolean } {
   return { consistent: true, inconsistencies: [], fabricatedMetadata: false }
 }
 
