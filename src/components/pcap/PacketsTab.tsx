@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, Download, Copy, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
+import toast from 'react-hot-toast';
 
 interface PacketsTabProps {
   packets: any[];
@@ -9,6 +10,7 @@ interface PacketsTabProps {
   selectedPacketIndex: number | null;
   onSelectPacket: (index: number) => void;
   onOpenPacketDetail: (packet: any) => void;
+  externalFilter?: string;
 }
 
 export const PacketsTab: React.FC<PacketsTabProps> = ({
@@ -17,7 +19,8 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
   onApplyFilter,
   selectedPacketIndex,
   onSelectPacket,
-  onOpenPacketDetail
+  onOpenPacketDetail,
+  externalFilter
 }) => {
   const [displayFilter, setDisplayFilter] = useState('');
   const [quickFilter, setQuickFilter] = useState('');
@@ -25,6 +28,13 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; packet: any } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Sync external filter with display filter
+  useEffect(() => {
+    if (externalFilter !== undefined && externalFilter !== displayFilter) {
+      setDisplayFilter(externalFilter);
+    }
+  }, [externalFilter]);
 
   // Filter packets based on search
   const filteredPackets = packets.filter(pkt => {
@@ -256,6 +266,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
               onApplyFilter(`frame.number == ${contextMenu.packet.index}`);
+              toast.success(`Filter applied: frame.number == ${contextMenu.packet.index}`);
               setContextMenu(null);
             }}
           >
@@ -266,6 +277,8 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             onClick={() => {
               if (contextMenu.packet.tcpStream !== undefined) {
                 onFollowStream(contextMenu.packet);
+              } else {
+                toast.error('No TCP stream available for this packet');
               }
               setContextMenu(null);
             }}
@@ -276,6 +289,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
               navigator.clipboard.writeText(JSON.stringify(contextMenu.packet, null, 2));
+              toast.success('Packet data copied to clipboard');
               setContextMenu(null);
             }}
           >
@@ -284,7 +298,13 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
-              navigator.clipboard.writeText(contextMenu.packet.data || '');
+              const hexData = contextMenu.packet.data || contextMenu.packet.rawLayers?.frame?.['frame.raw'] || '';
+              if (hexData) {
+                navigator.clipboard.writeText(hexData);
+                toast.success('Hex data copied to clipboard');
+              } else {
+                toast.error('No hex data available for this packet');
+              }
               setContextMenu(null);
             }}
           >
@@ -294,6 +314,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted border-t"
             onClick={() => {
               onApplyFilter(`ip.src == ${contextMenu.packet.source}`);
+              toast.success(`Filter applied: ip.src == ${contextMenu.packet.source}`);
               setContextMenu(null);
             }}
           >
@@ -303,6 +324,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
               onApplyFilter(`ip.dst == ${contextMenu.packet.destination}`);
+              toast.success(`Filter applied: ip.dst == ${contextMenu.packet.destination}`);
               setContextMenu(null);
             }}
           >

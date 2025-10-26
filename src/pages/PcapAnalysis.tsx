@@ -528,6 +528,7 @@ const PcapAnalysis: React.FC = () => {
                 selectedPacketIndex={selectedPacketIndex}
                 onSelectPacket={setSelectedPacketIndex}
                 onOpenPacketDetail={setSelectedPacket}
+                externalFilter={currentFilter}
               />
             )}
 
