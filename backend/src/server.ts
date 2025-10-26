@@ -13,7 +13,6 @@ import pythonRoutes from './routes/python.js';
 import pcapRoutes from './routes/pcap.js';
 import audioRoutes from './routes/audio.js';
 import jobsRoutes from './routes/jobs.js';
-import threatIntelRoutes from './routes/threatIntel.js';
 import followRoutes from './routes/follow.js';
 import eventLogsRoutes from './routes/eventlogs.js';
 
@@ -61,7 +60,6 @@ app.use('/api/v1/python', pythonRoutes);
 app.use('/api/v1/pcap', pcapRoutes);
 app.use('/api/v1/audio', audioRoutes);
 app.use('/api/v1/jobs', jobsRoutes);
-app.use('/api/v1/threat-intel', threatIntelRoutes);
 app.use('/api/v1/follow', followRoutes);
 app.use('/api/v1/eventlogs', eventLogsRoutes);
 

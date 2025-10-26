@@ -117,13 +117,9 @@ export const checkVirusTotal = async (indicator: string, type: 'ip' | 'domain' |
   }
 
   try {
-    // Call backend proxy instead of direct API call
-    const response = await axios.post('/api/threat-intel/virustotal', {
-      ip: type === 'ip' ? indicator : undefined,
-      domain: type === 'domain' ? indicator : undefined,
-      hash: type === 'hash' ? indicator : undefined,
-      apiKey,
-    });
+    // Use the working Vercel serverless API
+    const vtType = type === 'hash' ? 'file-hash' : type;
+    const response = await axios.get(`/api/threat-intel?service=virustotal&type=${vtType}&query=${encodeURIComponent(indicator)}`);
 
     const data = response.data.data.attributes;
     const stats = data.last_analysis_stats || {};
@@ -183,11 +179,8 @@ export const checkAbuseIPDB = async (ip: string): Promise<ThreatIntelResult> => 
   }
 
   try {
-    // Call backend proxy instead of direct API call
-    const response = await axios.post('/api/threat-intel/abuseipdb', {
-      ip,
-      apiKey,
-    });
+    // Use the working Vercel serverless API
+    const response = await axios.get(`/api/threat-intel?service=abuseipdb&query=${encodeURIComponent(ip)}`);
 
     const data = response.data.data;
     const score = data.abuseConfidenceScore || 0;
@@ -242,12 +235,9 @@ export const checkAlienVault = async (indicator: string, type: 'ip' | 'domain' |
   }
 
   try {
-    // Call backend proxy instead of direct API call
-    const response = await axios.post('/api/threat-intel/alienvault', {
-      ip: type === 'ip' ? indicator : undefined,
-      domain: type === 'domain' ? indicator : undefined,
-      apiKey,
-    });
+    // Use the working Vercel serverless API (defaults to 'general' section)
+    const otxType = type === 'hash' ? 'file' : type;
+    const response = await axios.get(`/api/threat-intel?service=alienvault&type=${otxType}&query=${encodeURIComponent(indicator)}&section=general`);
 
     const data = response.data;
     const pulseCount = data.pulse_info?.count || 0;
