@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Database, Network, Download, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { Globe, Database, Network, Download, ExternalLink, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface StreamsTabProps {
@@ -235,7 +235,23 @@ export const StreamsTab: React.FC<StreamsTabProps> = ({
           {conversations
             .filter(conv => !searchTerm || conv.source?.toLowerCase().includes(searchTerm.toLowerCase()) || conv.destination?.toLowerCase().includes(searchTerm.toLowerCase()))
             .map((conv, idx) => (
-              <div key={idx} className="bg-card border border-border rounded-lg p-4">
+              <div key={idx} className="bg-card border border-border rounded-lg p-4 relative">
+                {/* Warning badge for first 2 streams */}
+                {idx < 2 && (
+                  <div 
+                    className="absolute top-2 right-2 group cursor-help"
+                    title="May fail - handshake packets might not have stream IDs"
+                  >
+                    <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded text-xs text-yellow-600 dark:text-yellow-400">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>May fail</span>
+                    </div>
+                    <div className="absolute top-full right-0 mt-1 hidden group-hover:block w-48 p-2 bg-popover border border-border rounded shadow-lg text-xs z-10">
+                      Handshake packets (SYN/SYN-ACK) may not contain stream IDs. Try streams further down if this fails.
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
