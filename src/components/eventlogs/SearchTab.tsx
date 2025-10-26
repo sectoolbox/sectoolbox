@@ -27,6 +27,22 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
     });
   };
 
+  // Helper to check if event data contains the search term
+  const eventDataMatches = (event: any, query: string, isRegex: boolean): boolean => {
+    if (!event.data || !query) return false;
+    
+    if (isRegex) {
+      try {
+        const regex = new RegExp(query, 'i');
+        return regex.test(JSON.stringify(event.data));
+      } catch {
+        return false;
+      }
+    } else {
+      return JSON.stringify(event.data).toLowerCase().includes(query.toLowerCase());
+    }
+  };
+
   // Quick presets
   const presets = [
     { name: 'Failed Logins', query: '4625|4771', field: 'eventId', label: 'Security Events' },
@@ -238,6 +254,8 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
           ) : (
             filteredResults.slice(0, 100).map((event) => {
               const isExpanded = expandedEvents.has(event.recordId);
+              const dataMatched = searchQuery && eventDataMatches(event, searchQuery, useRegex);
+              
               return (
                 <div key={event.recordId} className="border border-border rounded overflow-hidden">
                   <div 
@@ -252,7 +270,7 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-mono text-sm font-semibold text-accent">
                               Event {event.eventId}
                             </span>
@@ -264,6 +282,11 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                             }`}>
                               {event.levelName}
                             </span>
+                            {dataMatched && (
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400">
+                                Match in Event Data
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-muted-foreground mb-1">
                             {event.provider} • {event.computer}
@@ -307,11 +330,11 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                       </div>
 
                       {/* Event Data */}
-                      {event.eventData && Object.keys(event.eventData).length > 0 && (
+                      {event.data && Object.keys(event.data).length > 0 && (
                         <div>
                           <div className="text-xs font-semibold text-muted-foreground mb-2">Event Data:</div>
-                          <div className="bg-card border border-border rounded p-2 space-y-1">
-                            {Object.entries(event.eventData).map(([key, value]) => (
+                          <div className="bg-card border border-border rounded p-2 space-y-1 max-h-64 overflow-y-auto">
+                            {Object.entries(event.data).map(([key, value]) => (
                               <div key={key} className="text-xs">
                                 <span className="text-muted-foreground font-medium">{key}:</span>
                                 <span className="ml-2 font-mono break-all">{String(value)}</span>
@@ -322,13 +345,15 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                       )}
 
                       {/* Raw XML */}
-                      {event.xml && (
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2">Raw XML:</div>
-                          <pre className="bg-card border border-border rounded p-2 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
-                            {event.xml}
+                      {event.rawXml && (
+                        <details className="mt-3">
+                          <summary className="text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground">
+                            View Raw XML
+                          </summary>
+                          <pre className="mt-2 bg-card border border-border rounded p-2 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
+                            {event.rawXml}
                           </pre>
-                        </div>
+                        </details>
                       )}
                     </div>
                   )}
