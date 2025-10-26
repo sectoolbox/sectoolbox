@@ -265,8 +265,23 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-muted"
             onClick={() => {
-              onApplyFilter(`frame.number == ${contextMenu.packet.index}`);
-              toast.success(`Filter applied: frame.number == ${contextMenu.packet.index}`);
+              // Format filter based on protocol and IPs (more useful than frame.number)
+              const pkt = contextMenu.packet;
+              let filter = '';
+              
+              if (pkt.protocol === 'TCP' || pkt.protocol === 'UDP') {
+                // Filter by protocol + source/dest IP + ports
+                filter = `${pkt.protocol.toLowerCase()} and ((ip.src == ${pkt.source} and ${pkt.protocol.toLowerCase()}.srcport == ${pkt.srcPort}) or (ip.dst == ${pkt.destination} and ${pkt.protocol.toLowerCase()}.dstport == ${pkt.destPort}))`;
+              } else if (pkt.protocol) {
+                // Just filter by protocol and IPs
+                filter = `${pkt.protocol.toLowerCase()} and (ip.src == ${pkt.source} or ip.dst == ${pkt.destination})`;
+              } else {
+                // Fallback to IP only
+                filter = `ip.src == ${pkt.source} or ip.dst == ${pkt.destination}`;
+              }
+              
+              onApplyFilter(filter);
+              toast.success('Filter applied for this conversation');
               setContextMenu(null);
             }}
           >
@@ -300,8 +315,32 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
             onClick={() => {
               const hexData = contextMenu.packet.data || contextMenu.packet.rawLayers?.frame?.['frame.raw'] || '';
               if (hexData) {
-                navigator.clipboard.writeText(hexData);
-                toast.success('Hex data copied to clipboard');
+                // Format as hex dump like in the packet detail modal
+                const formatHexDump = (hexString: string) => {
+                  const hex = hexString.replace(/[:\s]/g, '');
+                  const lines: string[] = [];
+
+                  for (let i = 0; i < hex.length; i += 32) {
+                    const chunk = hex.substr(i, 32);
+                    const offset = (i / 2).toString(16).padStart(4, '0').toUpperCase();
+                    const hexPart = chunk.match(/.{1,2}/g)?.join(' ') || '';
+                    const asciiPart = chunk
+                      .match(/.{1,2}/g)
+                      ?.map(byte => {
+                        const code = parseInt(byte, 16);
+                        return code >= 32 && code <= 126 ? String.fromCharCode(code) : '.';
+                      })
+                      .join('') || '';
+
+                    lines.push(`${offset}  ${hexPart.padEnd(47, ' ')}  ${asciiPart}`);
+                  }
+
+                  return lines.join('\n');
+                };
+                
+                const formattedHex = formatHexDump(hexData);
+                navigator.clipboard.writeText(formattedHex);
+                toast.success('Hex dump copied to clipboard');
               } else {
                 toast.error('No hex data available for this packet');
               }
