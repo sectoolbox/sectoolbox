@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { useBackendJob } from '../hooks/useBackendJob';
 import { toast } from '../hooks/use-toast';
+import { apiClient } from '../services/api';
 
 type TabType = 'events' | 'timeline' | 'analysis' | 'search' | 'export';
 
@@ -40,20 +41,12 @@ export const EventLogs: React.FC = () => {
     setIsAnalyzing(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const response = await apiClient.analyzeEventLog(file);
 
-      const response = await fetch('/api/v1/eventlogs/analyze', {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-
-      if (result.jobId) {
-        startJob(result.jobId);
+      if (response.jobId) {
+        startJob(response.jobId);
       } else {
-        toast({ title: 'Error', description: result.error || 'Failed to start analysis', variant: 'destructive' });
+        toast({ title: 'Error', description: response.error || 'Failed to start analysis', variant: 'destructive' });
         setIsAnalyzing(false);
       }
     } catch (error: any) {

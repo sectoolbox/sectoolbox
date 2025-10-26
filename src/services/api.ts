@@ -67,6 +67,21 @@ class ApiClient {
     return response.data;
   }
 
+  // Event Log analysis
+  async analyzeEventLog(file: File) {
+    console.log('Analyzing Event Log:', file.name);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post('/api/v1/eventlogs/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    console.log('Event Log analyze response:', response.data);
+    return response.data;
+  }
+
   // Job status
   async getJobStatus(jobId: string) {
     console.log('Fetching job status for:', jobId);
