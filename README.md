@@ -9,85 +9,124 @@
 [![Vite](https://img.shields.io/badge/Vite-7.1-646CFF?logo=vite)](https://vitejs.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Live Website](https://sectoolbox.cc/) • [Documentation](https://github.com/sectoolbox/sectoolbox/docs) • [Discord](https://discord.gg/SvvKKMzE5Q)
+[Live Website](https://sectoolbox.cc/) • [Documentation](docs/) • [Discord](https://discord.gg/SvvKKMzE5Q)
 
 </div>
 
 ## Overview
 
-Sectoolbox is a web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with React and TypeScript, it delivers powerful forensics and exploitation tools directly in your browser with complete client-side processing.
+Sectoolbox is a comprehensive web-based security analysis platform designed for CTF players, security researchers, and penetration testers. Built with modern web technologies, it delivers powerful forensics and exploitation tools directly in your browser with intelligent client-side and server-side processing.
 
-## Main Tools
-```
-PCAP Analysis - Network packet capture parsing
-USB PCAP - USB protocol analysis
-Image Analysis - Steganography, EXIF, barcodes
-Audio Analysis - Spectrograms, frequency analysis
-Memory Forensics - Process analysis, credential hunting
-Folder Scanner - Bulk file scanning
-Crypto Tools - Encoding/decoding operations
-Network - DNS, IP info, headers analysis
-Threat Intel - VirusTotal, HIBP, AbuseIPDB integrations
-Python Forensics - Full Python environment in browser
-Digital Forensics - Disk image analysis
-Dashboard - Quick file upload and tool directory
+## Features
+
+### Analysis Tools
+
+**Network Forensics:**
+- PCAP Analysis - Deep packet inspection with tshark integration
+- USB PCAP - USB protocol analysis and packet decoding
+- Network Intelligence - DNS lookups, IP info, headers analysis
+
+**File Analysis:**
+- Image Analysis - Steganography detection, EXIF extraction, barcode scanning
+- Audio Analysis - Spectrograms, frequency analysis, hidden data detection
+- Memory Forensics - Process analysis, credential hunting, artifact extraction
+- Event Log Analysis - Windows EVTX parsing with MITRE ATT&CK mapping
+
+**Security Tools:**
+- Threat Intelligence - VirusTotal, AbuseIPDB, AlienVault OTX, HIBP integrations
+- Crypto Tools - Encoding/decoding, hash analysis, cipher identification
+- Python Forensics - Full Python 3.11 environment in browser via WebAssembly
+- Folder Scanner - Bulk file analysis and pattern detection
+
+**Additional Features:**
+- Real-time job processing with WebSocket updates
+- Automated threat detection and IOC extraction
+- CTF flag pattern recognition (HTB, picoCTF, etc.)
+- Export results in multiple formats (JSON, CSV)
+
+## Quick Start
+
+### Try Online
+
+Visit [sectoolbox.cc](https://sectoolbox.cc/) to use the platform instantly - no installation required.
+
+### Run Locally
+
+```bash
+# Clone repository
+git clone https://github.com/sectoolbox/sectoolbox.git
+cd sectoolbox
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Visit http://localhost:5173
 ```
 
-## Run locally?
-> ### Go to [Getting Started](https://github.com/sectoolbox/sectoolbox/blob/main/docs/getting-started.md)
+For detailed setup instructions, see [Getting Started](docs/getting-started.md).
+
+### Deploy Your Own Instance
+
+Deploy to production using Vercel and Railway:
+
+```bash
+# Deploy frontend to Vercel
+vercel deploy
+
+# Deploy backend to Railway
+railway up
+```
+
+For complete deployment guide, see [Deployment Documentation](docs/deployment.md).
 
 
 ## Technical Stack
 
-- **Frontend**: <kbd>React 19, TypeScript 5.8, Vite 7</kbd>
-- **Backend**: <kbd>Node.js, Express, TypeScript</kbd>
-- **UI Framework**: <kbd>Tailwind CSS, shadcn/ui</kbd>
-- **Queue System**: <kbd>Bull with Redis</kbd>
-- **Python Runtime**: <kbd>Pyodide 0.28.3 (Python 3.11 in WebAssembly)</kbd>
-- **Code Editor**: <kbd>Monaco Editor</kbd>
+- **Frontend**: React 19, TypeScript 5.8, Vite 7
+- **Backend**: Node.js, Express, TypeScript
+- **UI Framework**: Tailwind CSS, shadcn/ui
+- **Queue System**: Bull with Redis
+- **Python Runtime**: Pyodide 0.28.3 (Python 3.11 in WebAssembly)
+- **Code Editor**: Monaco Editor
 - **Deployment**: 
-  - Frontend + API Functions: <kbd>Vercel</kbd>
-  - Backend + Redis: <kbd>Railway</kbd>
+  - Frontend + API Functions: Vercel
+  - Backend + Redis: Railway
 
+For detailed architecture information, see [Architecture Documentation](docs/architecture.md).
 
-## Architecture
+## Documentation
 
-Sectoolbox uses a hybrid architecture optimized for both performance and deployment flexibility:
+Comprehensive documentation is available in the `/docs` directory:
 
-### **Frontend (Vercel)**
-- React SPA served via Vercel's CDN
-- Client-side analysis for lightweight operations
-- WebAssembly (Pyodide) for in-browser Python execution
+- **[Getting Started](docs/getting-started.md)** - Installation and setup guide
+- **[API Reference](docs/api.md)** - Complete API documentation for all endpoints
+- **[Architecture](docs/architecture.md)** - System architecture and design decisions
+- **[Security](docs/security.md)** - Security practices and threat model
+- **[Deployment](docs/deployment.md)** - Production deployment guide for Vercel and Railway
+- **[Contributing](docs/contributing.md)** - Contribution guidelines and development standards
 
-### **API Functions (Vercel Serverless)**
-Located in `/api/`:
-- `nmap.js` - Port scanning via HackerTarget API
-- `threat-intel.js` - Threat intelligence lookups
-- `passivedns.js` - DNS history queries
-- `headers.js` - HTTP header analysis
-- `archive.js` - Wayback Machine integration
-
-### **Backend Server (Railway)**
-Located in `/backend/`:
-- Express server for heavy processing tasks
-- Bull queue system with Redis for job management
-- WebSocket support for real-time updates
-- Workers for:
-  - PCAP analysis (tshark integration)
-  - Audio spectrogram generation
-  - Python script execution
-
-**Communication**: Frontend ↔ Backend API (REST + WebSocket) ↔ Redis ↔ Workers
-
+Additional documentation:
+- [Adding File Upload Analysis Pages](docs/add_file_upload_analysis_page.md)
+- [Adding Backend Tools](docs/add_tool_in_backend.md)
+- [Event Log Automated Analysis](docs/eventlog_automated_analysis.md)
+- [Environment Variables](docs/env_variables.md)
 
 ## Project Structure
 
 ```
 sectoolbox/
-├── api/                      # Vercel serverless functions (HackerTarget, DNS, etc.)
+├── api/                      # Vercel serverless functions
+│   ├── threat-intel.js       # Threat intelligence integrations
+│   ├── nmap.js               # Port scanning
+│   ├── headers.js            # HTTP header analysis
+│   ├── passivedns.js         # DNS history queries
+│   └── archive.js            # Wayback Machine integration
 ├── backend/                  # Railway backend server
 │   └── src/
-│       ├── routes/           # API endpoints
+│       ├── routes/           # REST API endpoints
 │       ├── workers/          # Background job processors
 │       ├── services/         # Queue, WebSocket, storage
 │       └── utils/            # Shared utilities
@@ -105,19 +144,28 @@ sectoolbox/
 
 - **Discord**: [Join our server](https://discord.gg/SvvKKMzE5Q)
 - **GitHub Discussions**: [Ask questions](https://github.com/sectoolbox/sectoolbox/discussions)
+- **Bug Reports**: [Open an issue](https://github.com/sectoolbox/sectoolbox/issues)
 - **Contributors**: [View contributors](https://github.com/sectoolbox/sectoolbox/graphs/contributors)
+
+## Contributing
+
+We welcome contributions from the community. Before contributing, please review:
+
+- [Contributing Guidelines](docs/contributing.md) - Development standards and PR process
+- [Code of Conduct](docs/contributing.md#code-of-conduct) - Community standards
+- [Security Policy](docs/security.md) - Reporting vulnerabilities
 
 ## Authors
 
 - **Zeb** - [@zebbern](https://github.com/zebbern)
 - **Kimmi** - [@Opkimmi](https://github.com/Opkimmi)
 
-> **Built for the cybersecurity community with modern web technologies**
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-<div align="center">
+Built for the cybersecurity community with modern web technologies.
 
-### ⭐ Star us on GitHub if you find this project useful!⭐
-
-</div>
+Star us on GitHub if you find this project useful.
