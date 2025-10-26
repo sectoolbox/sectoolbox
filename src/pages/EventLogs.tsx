@@ -12,8 +12,9 @@ import { SearchTab } from '../components/eventlogs/SearchTab';
 import { TimelineTab } from '../components/eventlogs/TimelineTab';
 import { MitreTab } from '../components/eventlogs/MitreTab';
 import { ThreatIntelTab } from '../components/eventlogs/ThreatIntelTab';
+import { OrganizedTab } from '../components/eventlogs/OrganizedTab';
 
-type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export' | 'mitre' | 'threatintel';
+type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export' | 'mitre' | 'threatintel' | 'organized';
 
 export const EventLogs: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -221,6 +222,9 @@ export const EventLogs: React.FC = () => {
               <TabButton active={activeTab === 'threatintel'} onClick={() => setActiveTab('threatintel')}>
                 Threat Intel
               </TabButton>
+              <TabButton active={activeTab === 'organized'} onClick={() => setActiveTab('organized')}>
+                Organized
+              </TabButton>
               <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')}>
                 Timeline
               </TabButton>
@@ -252,6 +256,9 @@ export const EventLogs: React.FC = () => {
               )}
               {activeTab === 'threatintel' && parsedData.iocs && (
                 <ThreatIntelTab iocs={parsedData.iocs} />
+              )}
+              {activeTab === 'organized' && parsedData.events && (
+                <OrganizedTab events={parsedData.events} />
               )}
               {activeTab === 'timeline' && parsedData.events && (
                 <TimelineTab events={parsedData.events} analysis={parsedData.analysis} />
