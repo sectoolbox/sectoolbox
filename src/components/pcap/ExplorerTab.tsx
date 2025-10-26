@@ -35,43 +35,46 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
     const results: any[] = [];
 
     if (searchMode === 'simple') {
-      // Search across all fields
+      // Search across relevant fields only
       packets.forEach(pkt => {
-        const searchIn = JSON.stringify(pkt).toLowerCase();
-        if (searchIn.includes(searchTerm.toLowerCase())) {
+        const matchedFields = findMatchedFields(pkt, searchTerm, searchField);
+        if (matchedFields.length > 0) {
           results.push({
             packet: pkt,
-            matchedIn: findMatchedFields(pkt, searchTerm)
+            matchedIn: matchedFields
           });
         }
       });
     } else if (searchMode === 'regex') {
-      // Regex search
+      // Regex search - only search in actual packet content (payload, info, visible fields)
       try {
         const regex = new RegExp(searchTerm, 'gi');
         packets.forEach(pkt => {
-          const searchIn = JSON.stringify(pkt);
-          if (regex.test(searchIn)) {
+          const matchedFields: string[] = [];
+          
+          // Search in visible/important fields only, not entire JSON
+          if (pkt.info && regex.test(pkt.info)) matchedFields.push('info');
+          if (pkt.payload && regex.test(pkt.payload)) matchedFields.push('payload');
+          if (pkt.source && regex.test(pkt.source)) matchedFields.push('source');
+          if (pkt.destination && regex.test(pkt.destination)) matchedFields.push('destination');
+          if (pkt.protocol && regex.test(pkt.protocol)) matchedFields.push('protocol');
+          
+          // Search in layers data if available
+          if (pkt.layers) {
+            const layersStr = JSON.stringify(pkt.layers);
+            if (regex.test(layersStr)) matchedFields.push('layers');
+          }
+          
+          if (matchedFields.length > 0) {
             results.push({
               packet: pkt,
-              matchedIn: ['Regex match']
+              matchedIn: matchedFields
             });
           }
         });
       } catch (e) {
         // Invalid regex
       }
-    } else {
-      // Field-specific search
-      packets.forEach(pkt => {
-        const fieldValue = getFieldValue(pkt, searchField);
-        if (fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase())) {
-          results.push({
-            packet: pkt,
-            matchedIn: [searchField]
-          });
-        }
-      });
     }
 
     setSearchResults(results);
@@ -170,8 +173,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <option value="destination">Destination IP</option>
                 <option value="protocol">Protocol</option>
                 <option value="info">Info</option>
-                <option value="httpUri">HTTP URI</option>
-                <option value="dnsQuery">DNS Query</option>
+                <option value="payload">Payload</option>
               </select>
             )}
             <input
@@ -291,28 +293,42 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
             </Button>
           </div>
           <div className="max-h-96 overflow-auto">
-            {searchResults.map((result, idx) => (
-              <div key={idx} className="border-b last:border-b-0 p-3 hover:bg-muted/10">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-accent">Frame {result.packet.index}</span>
-                    <span className="text-xs px-2 py-1 bg-accent/20 rounded">{result.packet.protocol}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {result.packet.source} → {result.packet.destination}
-                    </span>
+            {searchResults.map((result, idx) => {
+              // Get the actual matched content to display
+              const getMatchedContent = () => {
+                for (const field of result.matchedIn) {
+                  const content = result.packet[field];
+                  if (content) return { field, content: String(content) };
+                }
+                return { field: 'info', content: result.packet.info || 'No content' };
+              };
+              
+              const { field, content } = getMatchedContent();
+              
+              return (
+                <div key={idx} className="border-b last:border-b-0 p-3 hover:bg-muted/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-accent">Frame {result.packet.index}</span>
+                      <span className="text-xs px-2 py-1 bg-accent/20 rounded">{result.packet.protocol}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {result.packet.source} → {result.packet.destination}
+                      </span>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => onJumpToPacket(result.packet.index)}>
+                      Jump
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => onJumpToPacket(result.packet.index)}>
-                    Jump
-                  </Button>
+                  <div className="text-xs text-muted-foreground mb-1">
+                    Matched in: {result.matchedIn.join(', ')}
+                  </div>
+                  <div className="text-xs font-mono bg-muted/20 p-2 rounded">
+                    <div className="text-muted-foreground mb-1">{field}:</div>
+                    <div className="line-clamp-2 break-all">{content}</div>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mb-1">
-                  Matched in: {result.matchedIn.join(', ')}
-                </div>
-                <div className="text-xs font-mono bg-muted/20 p-2 rounded truncate">
-                  {result.packet.info}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -327,20 +343,27 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   );
 };
 
-function findMatchedFields(packet: any, searchTerm: string): string[] {
+function findMatchedFields(packet: any, searchTerm: string, searchField?: string): string[] {
   const matched: string[] = [];
   const term = searchTerm.toLowerCase();
 
-  Object.entries(packet).forEach(([key, value]) => {
+  // If specific field selected, only search that field
+  if (searchField && searchField !== 'all') {
+    const value = packet[searchField];
     if (value && String(value).toLowerCase().includes(term)) {
-      matched.push(key);
+      matched.push(searchField);
+    }
+    return matched.length > 0 ? matched : [];
+  }
+
+  // Otherwise search all relevant fields
+  const fieldsToSearch = ['source', 'destination', 'protocol', 'info', 'payload'];
+  fieldsToSearch.forEach(field => {
+    const value = packet[field];
+    if (value && String(value).toLowerCase().includes(term)) {
+      matched.push(field);
     }
   });
 
-  return matched.length > 0 ? matched : ['packet data'];
-}
-
-function getFieldValue(packet: any, field: string): any {
-  if (field === 'all') return JSON.stringify(packet);
-  return packet[field];
+  return matched.length > 0 ? matched : [];
 }
