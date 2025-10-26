@@ -619,19 +619,16 @@ const AudioAnalysis: React.FC = () => {
       </div>
 
       {/* Upload Section */}
-      {!file ? (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Upload Audio File</h2>
+      <div className="flex-none px-6 py-4 bg-background">
+        {!file ? (
           <div
             className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">
-              Drop your audio file here or click to browse
-            </p>
+            <p className="text-lg font-medium mb-2">Drop audio file here or click to browse</p>
             <p className="text-sm text-muted-foreground">
-              MP3, WAV, OGG, M4A, FLAC - All audio formats supported
+              Supports MP3, WAV, OGG, M4A, FLAC - All audio formats supported
             </p>
             <input
               ref={fileInputRef}
@@ -644,36 +641,51 @@ const AudioAnalysis: React.FC = () => {
               className="hidden"
             />
           </div>
-        </Card>
-      ) : (
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <FileAudio className="w-5 h-5 text-accent" />
+        ) : (
+          <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
+                <Music className="w-5 h-5 text-accent" />
+              </div>
               <div>
                 <p className="font-medium">{file.name}</p>
                 <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
               </div>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setFile(null)
-                resetAnalysis()
-              }}
-            >
-              Remove File
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                variant="outline"
+                className="hover:bg-accent hover:text-white hover:border-accent hover:scale-105 transition-all duration-200 tracking-wide"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Analyze
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFile(null)
+                  resetAnalysis()
+                }}
+                disabled={isAnalyzing}
+                className="hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 transition-all duration-200 tracking-wide"
+              >
+                Remove
+              </Button>
+            </div>
           </div>
-        </Card>
-      )}
-
-      {!file && (
-        <div className="invisible">
-          {/* Spacer */}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Analysis Section */}
       {file && (

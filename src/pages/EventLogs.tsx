@@ -101,77 +101,87 @@ export const EventLogs: React.FC = () => {
         </div>
 
         {/* File Upload Section */}
-        {!parsedData && (
-          <Card className="p-8">
-            <div className="space-y-6">
-              <div className="flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <div className="flex justify-center">
-                    <div className="p-4 bg-accent/10 rounded-full">
-                      <Upload className="w-12 h-12 text-accent" />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Upload Event Log File</h3>
-                    <p className="text-muted-foreground">
-                      Select a Windows Event Log (.evtx) file to analyze
-                      <br />
-                      Maximum file size: 1.5GB
-                    </p>
-                  </div>
+        {!parsedData && !file && (
+          <div className="flex-none px-6 py-4 bg-background">
+            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer">
+              <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium mb-2">Drop Event Log file here or click to browse</p>
+              <p className="text-sm text-muted-foreground">
+                Supports .evtx files | Maximum file size: 1.5GB
+              </p>
+              <input
+                id="evtx-upload"
+                type="file"
+                accept=".evtx"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <label htmlFor="evtx-upload">
+                <Button variant="outline" className="mt-4 cursor-pointer" asChild>
+                  <span>Choose File</span>
+                </Button>
+              </label>
+            </div>
+          </div>
+        )}
 
-                  <div className="flex flex-col items-center gap-3">
-                    <input
-                      id="evtx-upload"
-                      type="file"
-                      accept=".evtx"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <label htmlFor="evtx-upload">
-                      <Button size="lg" className="w-full cursor-pointer" asChild>
-                        <span>Choose File</span>
-                      </Button>
-                    </label>
-
-                    {file && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-mono">{file.name}</span>
-                        <span className="text-muted-foreground">
-                          ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {file && (
-                    <Button 
-                      onClick={handleAnalyze}
-                      size="lg"
-                      disabled={isAnalyzing}
-                      className="w-64"
-                    >
-                      {isAnalyzing ? 'Analyzing...' : 'Analyze Event Log'}
-                    </Button>
-                  )}
+        {!parsedData && file && (
+          <div className="flex-none px-6 py-4 bg-background">
+            <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-accent" />
                 </div>
-              </div>
-
-              {/* Job Progress */}
-              {isAnalyzing && jobStatus && (
-                <div className="bg-muted/20 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Activity className="w-5 h-5 animate-spin text-accent" />
-                    <span className="font-medium">Processing event log file...</span>
-                  </div>
+                <div>
+                  <p className="font-medium">{file.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {jobStatus.message || 'Parsing events and analyzing for threats...'}
+                    {(file.size / (1024 * 1024)).toFixed(2)} MB
                   </p>
                 </div>
-              )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                  variant="outline"
+                  className="hover:bg-accent hover:text-white hover:border-accent hover:scale-105 transition-all duration-200 tracking-wide"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin mr-2" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="w-4 h-4 mr-2" />
+                      Analyze
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={isAnalyzing}
+                  className="hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 transition-all duration-200 tracking-wide"
+                >
+                  Remove
+                </Button>
+              </div>
             </div>
-          </Card>
+
+            {/* Job Progress */}
+            {isAnalyzing && jobStatus && (
+              <div className="mt-4 bg-muted/20 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Activity className="w-5 h-5 animate-spin text-accent" />
+                  <span className="font-medium">Processing event log file...</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {jobStatus.message || 'Parsing events and analyzing for threats...'}
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Analysis Results */}

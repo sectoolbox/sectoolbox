@@ -1218,32 +1218,47 @@ export default function ImageAnalysis() {
       </div>
 
       {!file ? (
-        <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Upload Image File</h2>
+        <div className="flex-none px-6 py-4 bg-background">
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">Drop your image file here or click to browse</p>
+            <p className="text-lg font-medium mb-2">Drop image file here or click to browse</p>
             <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF files up to 500MB</p>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
           </div>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <ImageIcon className="w-5 h-5 text-accent" />
+        <div className="flex-none px-6 py-4 bg-background">
+          <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
+                <ImageIcon className="w-5 h-5 text-accent" />
+              </div>
               <div>
                 <p className="font-medium">{file.name}</p>
                 <p className="text-sm text-muted-foreground">{(file.size/1024/1024).toFixed(2)} MB</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button onClick={analyze} disabled={isAnalyzing} size="sm">
-                {isAnalyzing ? 'Analyzing…' : 'Analyze'}
+              <Button
+                onClick={analyze}
+                disabled={isAnalyzing}
+                variant="outline"
+                className="hover:bg-accent hover:text-white hover:border-accent hover:scale-105 transition-all duration-200 tracking-wide"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Analyze
+                  </>
+                )}
               </Button>
               <Button
-                variant="destructive"
-                size="sm"
+                variant="outline"
                 onClick={() => {
                   setFile(null)
                   setImageUrl(null)
@@ -1257,8 +1272,10 @@ export default function ImageAnalysis() {
                   setAdvancedProcessingResult(null)
                   setBarcodeResults([])
                 }}
+                disabled={isAnalyzing}
+                className="hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 transition-all duration-200 tracking-wide"
               >
-                Remove File
+                Remove
               </Button>
             </div>
           </div>
