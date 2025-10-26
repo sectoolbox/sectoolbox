@@ -1,5 +1,125 @@
 [
   {
+    "date": "2025-10-26",
+    "version": "v2.1.5",
+    "title": "Unified Upload Experience Across All Tools",
+    "description": "Standardized file upload interface across PCAP, Audio, Image, and Event Log analyzers for consistent user experience.",
+    "changes": [
+      "Applied consistent upload card styling to all analysis pages",
+      "Unified button design: outline style with hover effects and color fills",
+      "Remove button now highlights red on hover across all tools",
+      "Added smooth scale animations (1.05x) on button hover",
+      "Eliminated duplicate upload sections for cleaner interface",
+      "Icon-based file display with rounded accent backgrounds",
+      "Consistent spacing and padding across all upload areas"
+    ]
+  },
+  {
+    "date": "2025-10-25",
+    "version": "v2.1.4",
+    "title": "PCAP Analysis Time Estimation & Progress Improvements",
+    "description": "Enhanced PCAP analysis with upload progress feedback and estimated completion times for better user experience.",
+    "changes": [
+      "Added estimated analysis time warning based on file size",
+      "Formula: (file size in MB × 2.5 seconds) + 8 seconds upload time",
+      "Yellow warning badge displays before analysis starts",
+      "Upload progress message shown during file transfer phase",
+      "Fixed polling status handling for Bull queue 'active' state",
+      "Progress tracking now updates smoothly from 0% to 100%",
+      "Timestamp-based state updates force React re-renders for accurate UI"
+    ]
+  },
+  {
+    "date": "2025-10-23",
+    "version": "v2.1.3",
+    "title": "Progress Tracking System Overhaul",
+    "description": "Complete redesign of progress tracking with time-based updates and improved WebSocket connectivity.",
+    "changes": [
+      "Implemented time-based progress updates (every 500ms) during analysis",
+      "WebSocket URL now automatically derived from backend API URL",
+      "Added comprehensive debug logging throughout progress update flow",
+      "Progress bar smoothly increments from 20% to 80% during processing",
+      "Redesigned ProgressTracker component with dark theme styling",
+      "Compact single-line progress display with gradient animation",
+      "Removed confusing bulk progress messages in favor of clean updates"
+    ]
+  },
+  {
+    "date": "2025-10-21",
+    "version": "v2.1.2",
+    "title": "Virtual Scrolling for Large PCAP Files",
+    "description": "Implemented react-window virtual scrolling to handle 20,000+ packet captures without performance degradation.",
+    "changes": [
+      "Added react-window FixedSizeList for PacketsTab rendering",
+      "Handles 20,000+ packets with smooth 60fps scrolling",
+      "Only renders ~100 visible DOM elements regardless of dataset size",
+      "Filtering and search still work on full packet dataset",
+      "Fixed react-window v1.8.10 TypeScript import compatibility",
+      "Overscan of 5 items for smooth scrolling experience",
+      "Maintains all existing functionality (export, details, follow stream)"
+    ]
+  },
+  {
+    "date": "2025-10-20",
+    "version": "v2.1.1",
+    "title": "Live Backend Progress Integration",
+    "description": "Backend analysis progress now displays in real-time on the frontend with granular status updates.",
+    "changes": [
+      "Progress messages sync from backend worker to frontend UI",
+      "Granular progress stages: File received (5%), Starting tshark (10%), Processing (20-80%), Analyzing (85%), Finalizing (95%)",
+      "Dual-track system: WebSocket for real-time + polling fallback every 3 seconds",
+      "Bull queue progress properly stored and retrieved via API",
+      "Fixed CORS origin parsing with trim() for proper whitelist handling",
+      "Single in-flight polling requests prevent API spam",
+      "WebSocket handlers deduplicated to prevent memory leaks"
+    ]
+  },
+  {
+    "date": "2025-10-19",
+    "version": "v2.1.0",
+    "title": "Code Quality & Error Handling Improvements",
+    "description": "Major refactoring pass to remove console noise, improve error handling, and enhance backend reliability.",
+    "changes": [
+      "Removed 200+ console.log statements across codebase",
+      "Improved error handling with user-friendly toast notifications",
+      "Enhanced backend worker error recovery and retry logic",
+      "Fixed TypeScript errors in core library files (imageAnalysis, pcap, etc.)",
+      "Cleaned up unused imports and variables across all components",
+      "Better error messages for WebSocket connection failures",
+      "Standardized async/await error handling patterns"
+    ]
+  },
+  {
+    "date": "2025-10-18",
+    "version": "v2.0.9",
+    "title": "Event Log Analyzer - Organized Data View",
+    "description": "Added comprehensive Organized tab showing all event data fields with unique values and occurrence counts.",
+    "changes": [
+      "New Organized tab displays all event data fields systematically",
+      "Shows unique values per field with event occurrence counts",
+      "Fixed Event Data display in SearchTab results",
+      "Added match indicator badges for search results",
+      "Renamed AnalysisTab to OverviewTab for clarity",
+      "Event details now shown in MITRE ATT&CK tab",
+      "Improved field extraction and parsing logic"
+    ]
+  },
+  {
+    "date": "2025-10-17",
+    "version": "v2.0.8",
+    "title": "Event Log Analysis Intelligence Integration",
+    "description": "Integrated automated threat intelligence with MITRE ATT&CK mapping and timeline visualization.",
+    "changes": [
+      "Automated event log analysis with threat detection",
+      "MITRE ATT&CK technique mapping for security events",
+      "Timeline visualization showing event chronology",
+      "Threat intelligence tab with IOC correlation",
+      "Fixed CORS issues by proxying threat APIs through backend",
+      "Comprehensive event data field parsing and display",
+      "Intelligent event categorization and severity scoring"
+    ]
+  },
+  {
     "date": "2025-10-16",
     "version": "v2.0.3",
     "title": "Python Forensics UI Polish & Source Map Fix",
