@@ -450,6 +450,17 @@ const PcapAnalysis: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Estimated analysis time warning */}
+        {file && !isAnalyzing && (
+          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-3">
+            <Activity className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-500">
+              This {(file.size / 1024 / 1024).toFixed(1)} MB capture will take approximately{' '}
+              {Math.ceil((file.size / 1024 / 1024) * 2.5 + 8)} seconds to analyze with full packet inspection.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Notice/Progress Bar */}
