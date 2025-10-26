@@ -95,14 +95,14 @@ const PcapAnalysis: React.FC = () => {
     }
 
     setIsAnalyzing(true);
-    setNotice('Starting deep analysis...');
+    setNotice('Uploading file to server...');
     resetResults();
 
     try {
       const response = await apiClient.analyzePcap(targetFile, 'full');
 
       if (response.jobId) {
-        setNotice(`Analysis started: ${response.jobId}`);
+        setNotice(`Connecting to backend for analysis...`);
         startJob(response.jobId);
       } else {
         // Immediate response (shouldn't happen with async worker)
@@ -453,11 +453,11 @@ const PcapAnalysis: React.FC = () => {
       </div>
 
       {/* Notice/Progress Bar */}
-      {isAnalyzing && jobStatus && (
+      {isAnalyzing && (
         <div className="flex-none px-6 py-4">
           <ProgressTracker 
-            progress={jobStatus.progress || 0}
-            message={jobStatus.message}
+            progress={jobStatus?.progress || 0}
+            message={jobStatus?.message || 'Uploading file to server...'}
           />
         </div>
       )}
