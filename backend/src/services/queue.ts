@@ -4,6 +4,7 @@ import { createClient } from 'redis';
 let pythonQueue: Bull.Queue;
 let pcapQueue: Bull.Queue;
 let audioQueue: Bull.Queue;
+let eventLogQueue: Bull.Queue;
 let redisClient: ReturnType<typeof createClient>;
 
 export async function initializeQueue() {
@@ -62,6 +63,15 @@ export async function initializeQueue() {
     }
   });
 
+  eventLogQueue = new Bull('eventlog-jobs', redisUrl, {
+    defaultJobOptions: {
+      attempts: 2,
+      timeout: 600000, // 10 minutes for large files
+      removeOnComplete: 50,
+      removeOnFail: 25
+    }
+  });
+
   console.log('Bull queues initialized');
 }
 
@@ -78,6 +88,11 @@ export function getPcapQueue() {
 export function getAudioQueue() {
   if (!audioQueue) throw new Error('Audio queue not initialized');
   return audioQueue;
+}
+
+export function getEventLogQueue() {
+  if (!eventLogQueue) throw new Error('Event log queue not initialized');
+  return eventLogQueue;
 }
 
 export function getRedisClient() {

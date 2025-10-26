@@ -20,7 +20,8 @@ import {
   FileImage,
   HardDrive,
   XCircle,
-  Code
+  Code,
+  Activity
 } from 'lucide-react'
 import Footer from './Footer'
 import {
@@ -106,6 +107,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: BarChart3,
       description: 'Analyze network packet captures',
       keywords: ['network', 'packet', 'traffic', 'wireshark', 'tcpdump']
+    },
+    {
+      path: '/eventlogs',
+      label: 'Event Logs',
+      icon: Activity,
+      description: 'Analyze Windows Event Logs (.evtx)',
+      keywords: ['evtx', 'windows', 'logs', 'security', 'system', 'events']
     },
     {
       path: '/image',

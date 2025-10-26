@@ -13,6 +13,7 @@ const AudioAnalysis = lazy(() => import('./pages/AudioAnalysis'))
 const Network = lazy(() => import('./pages/Network'))
 const ThreatIntel = lazy(() => import('./pages/ThreatIntel'))
 const PythonForensics = lazy(() => import('./pages/PythonForensics'))
+const EventLogs = lazy(() => import('./pages/EventLogs'))
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
               <Route path="/network" element={<Network />} />
               <Route path="/threat-intel" element={<ThreatIntel />} />
               <Route path="/python" element={<PythonForensics />} />
+              <Route path="/eventlogs" element={<EventLogs />} />
             </Routes>
           </Suspense>
         </Layout>
