@@ -283,12 +283,6 @@ storage/
 - Analyzes frequency spectrum
 - Detects hidden data in audio
 
-**Python Worker** (`pythonWorker.ts`)
-- Executes user-selected Python scripts
-- Sandboxed execution environment
-- Script metadata parsing
-- Category-based organization
-
 **Event Log Worker** (`eventLogWorker.ts`)
 - Parses Windows EVTX files
 - Extracts structured event data

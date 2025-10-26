@@ -1,7 +1,6 @@
 import Bull from 'bull';
 import { createClient } from 'redis';
 
-let pythonQueue: Bull.Queue;
 let pcapQueue: Bull.Queue;
 let audioQueue: Bull.Queue;
 let eventLogQueue: Bull.Queue;
@@ -30,18 +29,6 @@ export async function initializeQueue() {
   }
 
   // Create Bull queues
-  pythonQueue = new Bull('python-jobs', redisUrl, {
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000
-      },
-      removeOnComplete: 100,
-      removeOnFail: 50
-    }
-  });
-
   pcapQueue = new Bull('pcap-jobs', redisUrl, {
     defaultJobOptions: {
       attempts: 2,
@@ -70,11 +57,6 @@ export async function initializeQueue() {
   });
 
   console.log('Bull queues initialized');
-}
-
-export function getPythonQueue() {
-  if (!pythonQueue) throw new Error('Python queue not initialized');
-  return pythonQueue;
 }
 
 export function getPcapQueue() {

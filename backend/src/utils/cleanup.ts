@@ -1,5 +1,5 @@
 import { listAllJobs, getJobCreationTime, deleteJobFiles } from '../services/storage.js';
-import { getPythonQueue, getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
+import { getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
 
 const CLEANUP_INTERVAL = 15 * 60 * 1000; // Run every 15 minutes
 const MAX_FILE_AGE = 60 * 60 * 1000; // 1 hour
@@ -55,7 +55,7 @@ async function runCleanup() {
 
 async function cleanQueueJobs() {
   try {
-    const queues = [getPythonQueue(), getPcapQueue(), getAudioQueue(), getEventLogQueue()];
+    const queues = [getPcapQueue(), getAudioQueue(), getEventLogQueue()];
     const now = Date.now();
     let totalCleaned = 0;
 

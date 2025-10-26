@@ -17,7 +17,6 @@ async function startWorkers() {
     console.log('Queue initialized');
 
     // Import and start all workers
-    await import('./pythonWorker.js');
     await import('./pcapWorker.js');
     await import('./audioWorker.js');
     await import('./eventLogWorker.js');

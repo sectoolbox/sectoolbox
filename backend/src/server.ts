@@ -9,7 +9,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 // Routes
-import pythonRoutes from './routes/python.js';
 import pcapRoutes from './routes/pcap.js';
 import audioRoutes from './routes/audio.js';
 import jobsRoutes from './routes/jobs.js';
@@ -58,10 +57,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Health check
 app.get('/health', async (req, res) => {
   try {
-    const { getRedisClient, getPythonQueue, getPcapQueue, getAudioQueue, getEventLogQueue } = await import('./services/queue.js');
+    const { getRedisClient, getPcapQueue, getAudioQueue, getEventLogQueue } = await import('./services/queue.js');
     
     const redisClient = getRedisClient();
-    const pythonQueue = getPythonQueue();
     const pcapQueue = getPcapQueue();
     const audioQueue = getAudioQueue();
     const eventLogQueue = getEventLogQueue();
@@ -70,8 +68,7 @@ app.get('/health', async (req, res) => {
     const redisStatus = redisClient?.isOpen ? 'connected' : 'disconnected';
     
     // Get queue stats
-    const [pythonCounts, pcapCounts, audioCounts, eventLogCounts] = await Promise.all([
-      pythonQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
+    const [pcapCounts, audioCounts, eventLogCounts] = await Promise.all([
       pcapQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
       audioQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 })),
       eventLogQueue?.getJobCounts().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0 }))
@@ -83,7 +80,6 @@ app.get('/health', async (req, res) => {
       uptime: process.uptime(),
       redis: redisStatus,
       queues: {
-        python: pythonCounts,
         pcap: pcapCounts,
         audio: audioCounts,
         eventLog: eventLogCounts
@@ -103,7 +99,6 @@ app.get('/health', async (req, res) => {
 });
 
 // API Routes
-app.use('/api/v1/python', pythonRoutes);
 app.use('/api/v1/pcap', pcapRoutes);
 app.use('/api/v1/audio', audioRoutes);
 app.use('/api/v1/jobs', jobsRoutes);

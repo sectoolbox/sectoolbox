@@ -15,27 +15,6 @@ class ApiClient {
     });
   }
 
-  // Python script execution
-  async listPythonScripts() {
-    const response = await this.client.get('/api/v1/python/scripts');
-    return response.data;
-  }
-
-  async executePythonScript(scriptId: string, file: File) {
-    // API call
-    const formData = new FormData();
-    formData.append('scriptId', scriptId);
-    formData.append('file', file);
-
-    const response = await this.client.post('/api/v1/python/execute', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    // API call
-    return response.data;
-  }
-
   // PCAP analysis
   async analyzePcap(file: File, depth: 'quick' | 'full' = 'full') {
     // API call
