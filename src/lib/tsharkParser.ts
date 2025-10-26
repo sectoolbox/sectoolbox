@@ -98,12 +98,18 @@ export function parseTsharkPackets(rawPackets: any[]): any {
         bytes: 0,
         protocols: new Set(),
         firstSeen: timestamp,
-        tcpStream: layers.tcp?.['tcp.stream'] // Store the first packet's stream ID
+        tcpStream: undefined // Will be set when we find a valid stream ID
       };
       conv.packets++;
       conv.bytes += size;
       conv.protocols.add(protocol);
       conv.lastSeen = timestamp;
+      
+      // Update tcpStream if we find one (prefer any valid stream ID over undefined)
+      if (layers.tcp?.['tcp.stream'] !== undefined && conv.tcpStream === undefined) {
+        conv.tcpStream = layers.tcp['tcp.stream'];
+      }
+      
       conversations.set(convKey, conv);
     }
 
