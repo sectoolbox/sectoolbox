@@ -5,6 +5,9 @@ import { Card } from '../components/ui/card';
 import { useBackendJob } from '../hooks/useBackendJob';
 import { toast } from '../hooks/use-toast';
 import { apiClient } from '../services/api';
+import { EventsTab } from '../components/eventlogs/EventsTab';
+import { AnalysisTab } from '../components/eventlogs/AnalysisTab';
+import { ExportTab } from '../components/eventlogs/ExportTab';
 
 type TabType = 'events' | 'timeline' | 'analysis' | 'search' | 'export';
 
@@ -153,18 +156,12 @@ export const EventLogs: React.FC = () => {
               {/* Job Progress */}
               {isAnalyzing && jobStatus && (
                 <div className="bg-muted/20 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-3">
                     <Activity className="w-5 h-5 animate-spin text-accent" />
-                    <span className="font-medium">Processing...</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2 mb-2">
-                    <div 
-                      className="bg-accent h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${jobStatus.progress || 0}%` }}
-                    />
+                    <span className="font-medium">Processing event log file...</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {jobStatus.progress || 0}% - {jobStatus.message || 'Processing...'}
+                    {jobStatus.message || 'Parsing events and analyzing for threats...'}
                   </p>
                 </div>
               )}
@@ -227,11 +224,37 @@ export const EventLogs: React.FC = () => {
 
             {/* Tab Content */}
             <div>
-              {activeTab === 'events' && <div className="text-muted-foreground">Events tab - Coming soon</div>}
-              {activeTab === 'timeline' && <div className="text-muted-foreground">Timeline tab - Coming soon</div>}
-              {activeTab === 'analysis' && <div className="text-muted-foreground">Analysis tab - Coming soon</div>}
-              {activeTab === 'search' && <div className="text-muted-foreground">Search tab - Coming soon</div>}
-              {activeTab === 'export' && <div className="text-muted-foreground">Export tab - Coming soon</div>}
+              {activeTab === 'events' && parsedData.events && (
+                <EventsTab events={parsedData.events} />
+              )}
+              {activeTab === 'timeline' && (
+                <div className="text-muted-foreground p-6 text-center">
+                  <p>Timeline visualization - Coming soon</p>
+                  <p className="text-sm mt-2">Will display events over time with visual timeline chart</p>
+                </div>
+              )}
+              {activeTab === 'analysis' && (
+                <AnalysisTab 
+                  analysis={parsedData.analysis}
+                  iocs={parsedData.iocs}
+                  threats={parsedData.threats}
+                />
+              )}
+              {activeTab === 'search' && (
+                <div className="text-muted-foreground p-6 text-center">
+                  <p>Advanced search - Coming soon</p>
+                  <p className="text-sm mt-2">Will include regex search, field filters, and quick presets</p>
+                </div>
+              )}
+              {activeTab === 'export' && (
+                <ExportTab 
+                  events={parsedData.events}
+                  analysis={parsedData.analysis}
+                  iocs={parsedData.iocs}
+                  threats={parsedData.threats}
+                  metadata={parsedData.metadata}
+                />
+              )}
             </div>
           </div>
         )}
