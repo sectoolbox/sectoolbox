@@ -408,17 +408,8 @@ const PcapAnalysis: React.FC = () => {
                 variant="outline"
                 className="hover:bg-blue-600 hover:text-white hover:border-blue-600 hover:scale-105 transition-all duration-200 tracking-wide"
               >
-                {isAnalyzing ? (
-                  <>
-                    <Activity className="w-4 h-4 animate-spin mr-2" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Keyboard className="w-4 h-4 mr-2" />
-                    USB PCAP
-                  </>
-                )}
+                <Keyboard className="w-4 h-4 mr-2" />
+                USB PCAP
               </Button>
               <Button
                 onClick={() => startAnalysis()}
