@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-// @ts-ignore - react-window types issue
-import { FixedSizeList as List } from 'react-window';
+import { FixedSizeList } from 'react-window';
 import { Search, Filter, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
@@ -224,7 +223,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           </table>
 
           {/* Virtualized Tbody */}
-          <List
+          <FixedSizeList
             height={600}
             itemCount={sortedPackets.length}
             itemSize={40}
@@ -272,7 +271,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
                 </div>
               );
             }}
-          </List>
+          </FixedSizeList>
         </div>
       </div>
 
