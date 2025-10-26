@@ -140,12 +140,21 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                       </div>
                     </div>
 
-                    {/* Show preview of evidence even when collapsed */}
-                    {!isExpanded && finding.evidence.length > 0 && (
+                    {/* Show preview - prioritize decoded/extracted value when collapsed */}
+                    {!isExpanded && (
                       <div className="mt-2">
-                        <div className="text-xs font-mono bg-background/30 px-3 py-2 rounded border border-border/50">
-                          {finding.evidence[0]}
-                        </div>
+                        {finding.autoExtracted ? (
+                          <div>
+                            <div className="text-xs font-semibold text-accent mb-1">Extracted Value:</div>
+                            <div className="text-xs font-mono bg-accent/10 border border-accent/30 px-3 py-2 rounded">
+                              {finding.autoExtracted}
+                            </div>
+                          </div>
+                        ) : finding.evidence.length > 0 && (
+                          <div className="text-xs font-mono bg-background/30 px-3 py-2 rounded border border-border/50">
+                            {finding.evidence[0]}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -260,9 +269,18 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                       <div className="flex-1">
                         <div className="font-semibold text-sm">{finding.title}</div>
                         <div className="text-xs text-muted-foreground mt-1">{finding.description}</div>
-                        <div className="text-xs font-mono bg-background/30 px-2 py-1 rounded mt-2 break-all">
-                          {finding.evidence[0]}
-                        </div>
+                        {finding.autoExtracted ? (
+                          <div className="mt-2">
+                            <div className="text-xs font-semibold text-accent mb-1">Extracted Value:</div>
+                            <div className="text-xs font-mono bg-accent/10 border border-accent/30 px-2 py-1 rounded break-all">
+                              {finding.autoExtracted}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs font-mono bg-background/30 px-2 py-1 rounded mt-2 break-all">
+                            {finding.evidence[0]}
+                          </div>
+                        )}
                       </div>
                       <span className="text-xs px-2 py-1 bg-background/50 rounded ml-2">{finding.category}</span>
                     </div>
@@ -462,7 +480,14 @@ export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
                 <div className="flex-1">
                   <div className="font-medium text-sm">{finding.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">{finding.description}</div>
-                  <div className="text-xs font-mono mt-2">{finding.evidence[0]}</div>
+                  {finding.autoExtracted ? (
+                    <div className="mt-2">
+                      <div className="text-xs font-semibold text-accent">Extracted Value:</div>
+                      <div className="text-xs font-mono bg-accent/10 border border-accent/30 px-2 py-1 rounded mt-1">{finding.autoExtracted}</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs font-mono mt-2">{finding.evidence[0]}</div>
+                  )}
                 </div>
                 {finding.frames.length > 0 && (
                   <Button size="sm" variant="ghost" onClick={() => onJumpToPacket(finding.frames[0])}>
