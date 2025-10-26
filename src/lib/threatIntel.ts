@@ -117,19 +117,12 @@ export const checkVirusTotal = async (indicator: string, type: 'ip' | 'domain' |
   }
 
   try {
-    let endpoint = '';
-    if (type === 'ip') {
-      endpoint = `https://www.virustotal.com/api/v3/ip_addresses/${indicator}`;
-    } else if (type === 'domain') {
-      endpoint = `https://www.virustotal.com/api/v3/domains/${indicator}`;
-    } else if (type === 'hash') {
-      endpoint = `https://www.virustotal.com/api/v3/files/${indicator}`;
-    }
-
-    const response = await axios.get(endpoint, {
-      headers: {
-        'x-apikey': apiKey,
-      },
+    // Call backend proxy instead of direct API call
+    const response = await axios.post('/api/threat-intel/virustotal', {
+      ip: type === 'ip' ? indicator : undefined,
+      domain: type === 'domain' ? indicator : undefined,
+      hash: type === 'hash' ? indicator : undefined,
+      apiKey,
     });
 
     const data = response.data.data.attributes;
@@ -163,7 +156,7 @@ export const checkVirusTotal = async (indicator: string, type: 'ip' | 'domain' |
       score: 0,
       details: {},
       timestamp: new Date().toISOString(),
-      error: error.response?.data?.error?.message || error.message,
+      error: error.response?.data?.error || error.message,
     };
     return result;
   }
@@ -190,15 +183,10 @@ export const checkAbuseIPDB = async (ip: string): Promise<ThreatIntelResult> => 
   }
 
   try {
-    const response = await axios.get('https://api.abuseipdb.com/api/v2/check', {
-      params: {
-        ipAddress: ip,
-        maxAgeInDays: 90,
-      },
-      headers: {
-        'Key': apiKey,
-        'Accept': 'application/json',
-      },
+    // Call backend proxy instead of direct API call
+    const response = await axios.post('/api/threat-intel/abuseipdb', {
+      ip,
+      apiKey,
     });
 
     const data = response.data.data;
@@ -227,7 +215,7 @@ export const checkAbuseIPDB = async (ip: string): Promise<ThreatIntelResult> => 
       score: 0,
       details: {},
       timestamp: new Date().toISOString(),
-      error: error.response?.data?.errors?.[0]?.detail || error.message,
+      error: error.response?.data?.error || error.message,
     };
     return result;
   }
@@ -254,19 +242,12 @@ export const checkAlienVault = async (indicator: string, type: 'ip' | 'domain' |
   }
 
   try {
-    let section = '';
-    if (type === 'ip') section = 'IPv4';
-    else if (type === 'domain') section = 'domain';
-    else if (type === 'hash') section = 'file';
-
-    const response = await axios.get(
-      `https://otx.alienvault.com/api/v1/indicators/${section}/${indicator}/general`,
-      {
-        headers: {
-          'X-OTX-API-KEY': apiKey,
-        },
-      }
-    );
+    // Call backend proxy instead of direct API call
+    const response = await axios.post('/api/threat-intel/alienvault', {
+      ip: type === 'ip' ? indicator : undefined,
+      domain: type === 'domain' ? indicator : undefined,
+      apiKey,
+    });
 
     const data = response.data;
     const pulseCount = data.pulse_info?.count || 0;
@@ -294,7 +275,7 @@ export const checkAlienVault = async (indicator: string, type: 'ip' | 'domain' |
       score: 0,
       details: {},
       timestamp: new Date().toISOString(),
-      error: error.response?.data?.detail || error.message,
+      error: error.response?.data?.error || error.message,
     };
     return result;
   }
