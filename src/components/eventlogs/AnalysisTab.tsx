@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Activity, AlertTriangle, Shield, Users, Server, Hash, ChevronDown, ChevronRight, Eye, FileSearch, Flag } from 'lucide-react';
+import { Activity, AlertTriangle, Shield, Users, Server, Hash, ChevronDown, ChevronRight, Eye, FileSearch, Flag, Copy, ExternalLink, Target } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { toast } from 'react-hot-toast';
+import { getTechniquesForEvent, getTacticColor } from '@/lib/mitreAttack';
+import { tryAllDecodings } from '@/lib/decoders';
 
 interface AnalysisTabProps {
   analysis: {
@@ -146,6 +150,7 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
             {threats.map((threat, idx) => {
               const isExpanded = expandedThreats.has(idx);
               const relatedEvent = findEventByIdAndTime(threat.eventId, threat.timestamp);
+              const mitreTechniques = getTechniquesForEvent(threat.eventId);
               
               return (
                 <div key={idx} className="border border-border rounded overflow-hidden">
@@ -173,13 +178,40 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-1">{threat.description}</p>
+                        
+                        {/* MITRE ATT&CK Techniques */}
+                        {mitreTechniques.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {mitreTechniques.map((tech, techIdx) => (
+                              <a
+                                key={techIdx}
+                                href={`https://attack.mitre.org/techniques/${tech.id}/`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium hover:opacity-80 transition-opacity"
+                                style={{ 
+                                  backgroundColor: getTacticColor(tech.tactic) + '33',
+                                  borderColor: getTacticColor(tech.tactic),
+                                  color: getTacticColor(tech.tactic),
+                                  borderWidth: '1px'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Target className="w-3 h-3" />
+                                {tech.id} {tech.name}
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        
                         {/* Show threat details if available */}
                         {threat.details && (
                           <p className="text-sm font-mono bg-muted/30 px-2 py-1 rounded mt-1">
                             {threat.details}
                           </p>
                         )}
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {new Date(threat.timestamp).toLocaleString()}
                         </p>
                       </div>
@@ -294,9 +326,33 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
                 </div>
                 {expandedIOCs.has('ips') && (
                   <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Click any IP to copy</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(iocs.ips!.join('\n'));
+                          toast.success(`Copied ${iocs.ips!.length} IPs to clipboard`);
+                        }}
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Copy All
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {iocs.ips.map((ip, idx) => (
-                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors">
+                        <div 
+                          key={idx} 
+                          className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(ip);
+                            toast.success('IP copied');
+                          }}
+                        >
                           {ip}
                         </div>
                       ))}
@@ -327,9 +383,33 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
                 </div>
                 {expandedIOCs.has('domains') && (
                   <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Click any domain to copy</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(iocs.domains!.join('\n'));
+                          toast.success(`Copied ${iocs.domains!.length} domains to clipboard`);
+                        }}
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Copy All
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {iocs.domains.map((domain, idx) => (
-                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
+                        <div 
+                          key={idx} 
+                          className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(domain);
+                            toast.success('Domain copied');
+                          }}
+                        >
                           {domain}
                         </div>
                       ))}
@@ -493,6 +573,8 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
           <div className="space-y-3">
             {flags.map((flag, idx) => {
               const isExpanded = expandedFlags.has(idx);
+              const additionalDecodings = flag.value && !flag.decoded ? tryAllDecodings(flag.value).filter(d => d.success && d.confidence > 70) : [];
+              
               return (
                 <div key={idx} className="border border-border rounded overflow-hidden">
                   <div 
@@ -523,30 +605,109 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
                             {flag.type}
                           </span>
                           <span className="text-xs text-muted-foreground">{flag.pattern}</span>
+                          {additionalDecodings.length > 0 && (
+                            <Badge className="bg-yellow-500/20 text-yellow-400">
+                              +{additionalDecodings.length} more encodings detected
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm font-mono break-all">
                           {flag.value.length > 80 ? flag.value.substring(0, 80) + '...' : flag.value}
                         </div>
                       </div>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(flag.value);
+                        toast.success('Copied to clipboard');
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
                   </div>
 
                   {isExpanded && (
                     <div className="border-t border-border p-4 bg-muted/5 space-y-3">
                       {/* Full Value */}
                       <div>
-                        <div className="text-xs font-semibold text-muted-foreground mb-2">Full Value:</div>
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center justify-between">
+                          <span>Full Value:</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-xs"
+                            onClick={() => {
+                              navigator.clipboard.writeText(flag.value);
+                              toast.success('Copied to clipboard');
+                            }}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
                         <div className="bg-card border border-border rounded p-2">
                           <pre className="text-xs font-mono break-all whitespace-pre-wrap">{flag.value}</pre>
                         </div>
                       </div>
 
-                      {/* Decoded Value */}
+                      {/* Decoded Value (from Python) */}
                       {flag.decoded && (
                         <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2">Decoded:</div>
-                          <div className="bg-card border border-border rounded p-2">
-                            <pre className="text-xs font-mono break-all whitespace-pre-wrap">{flag.decoded}</pre>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center justify-between">
+                            <span>Decoded ({flag.pattern}):</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs"
+                              onClick={() => {
+                                navigator.clipboard.writeText(flag.decoded!);
+                                toast.success('Copied decoded value');
+                              }}
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              Copy
+                            </Button>
+                          </div>
+                          <div className="bg-green-500/10 border border-green-500/30 rounded p-2">
+                            <pre className="text-xs font-mono break-all whitespace-pre-wrap text-green-400">{flag.decoded}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Decodings */}
+                      {additionalDecodings.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2">
+                            Additional Possible Decodings:
+                          </div>
+                          <div className="space-y-2">
+                            {additionalDecodings.map((decoding, decIdx) => (
+                              <div key={decIdx} className="bg-card border border-border rounded p-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">{decoding.type}</Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      Confidence: {decoding.confidence}%
+                                    </span>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(decoding.decoded);
+                                      toast.success(`Copied ${decoding.type} decoded value`);
+                                    }}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <pre className="text-xs font-mono break-all whitespace-pre-wrap">{decoding.decoded}</pre>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}

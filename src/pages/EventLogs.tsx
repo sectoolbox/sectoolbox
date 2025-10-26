@@ -10,8 +10,10 @@ import { AnalysisTab } from '../components/eventlogs/AnalysisTab';
 import { ExportTab } from '../components/eventlogs/ExportTab';
 import { SearchTab } from '../components/eventlogs/SearchTab';
 import { TimelineTab } from '../components/eventlogs/TimelineTab';
+import { MitreTab } from '../components/eventlogs/MitreTab';
+import { ThreatIntelTab } from '../components/eventlogs/ThreatIntelTab';
 
-type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export';
+type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export' | 'mitre' | 'threatintel';
 
 export const EventLogs: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -206,12 +208,18 @@ export const EventLogs: React.FC = () => {
             </Card>
 
             {/* Tabs */}
-            <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit">
+            <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit flex-wrap">
               <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
                 Overview
               </TabButton>
               <TabButton active={activeTab === 'events'} onClick={() => setActiveTab('events')}>
                 Events
+              </TabButton>
+              <TabButton active={activeTab === 'mitre'} onClick={() => setActiveTab('mitre')}>
+                MITRE ATT&CK
+              </TabButton>
+              <TabButton active={activeTab === 'threatintel'} onClick={() => setActiveTab('threatintel')}>
+                Threat Intel
               </TabButton>
               <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')}>
                 Timeline
@@ -238,6 +246,12 @@ export const EventLogs: React.FC = () => {
               )}
               {activeTab === 'events' && parsedData.events && (
                 <EventsTab events={parsedData.events} />
+              )}
+              {activeTab === 'mitre' && parsedData.events && (
+                <MitreTab events={parsedData.events} />
+              )}
+              {activeTab === 'threatintel' && parsedData.iocs && (
+                <ThreatIntelTab iocs={parsedData.iocs} />
               )}
               {activeTab === 'timeline' && parsedData.events && (
                 <TimelineTab events={parsedData.events} analysis={parsedData.analysis} />
