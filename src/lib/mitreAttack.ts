@@ -438,8 +438,8 @@ export const getTacticsForEvents = (events: any[]): Map<string, number> => {
   return tactics;
 };
 
-export const getTechniquesFrequency = (events: any[]): Map<string, { technique: MitreTechnique; count: number }> => {
-  const frequency = new Map<string, { technique: MitreTechnique; count: number }>();
+export const getTechniquesFrequency = (events: any[]): Map<string, { technique: MitreTechnique; count: number; eventIds: number[] }> => {
+  const frequency = new Map<string, { technique: MitreTechnique; count: number; eventIds: number[] }>();
   
   events.forEach(event => {
     const techniques = getTechniquesForEvent(event.eventId);
@@ -447,8 +447,11 @@ export const getTechniquesFrequency = (events: any[]): Map<string, { technique: 
       const existing = frequency.get(tech.id);
       if (existing) {
         existing.count++;
+        if (!existing.eventIds.includes(event.eventId)) {
+          existing.eventIds.push(event.eventId);
+        }
       } else {
-        frequency.set(tech.id, { technique: tech, count: 1 });
+        frequency.set(tech.id, { technique: tech, count: 1, eventIds: [event.eventId] });
       }
     });
   });

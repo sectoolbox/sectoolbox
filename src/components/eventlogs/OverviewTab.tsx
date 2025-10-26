@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { getTechniquesForEvent, getTacticColor } from '@/lib/mitreAttack';
 import { tryAllDecodings } from '@/lib/decoders';
 
-interface AnalysisTabProps {
+interface OverviewTabProps {
   analysis: {
     topEventIds?: Array<{ eventId: number; count: number }>;
     levelDistribution?: Record<string, number>;
@@ -47,7 +47,7 @@ interface AnalysisTabProps {
   metadata?: any;
 }
 
-export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threats, flags, events, metadata }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threats, flags, events, metadata }) => {
   const [expandedThreats, setExpandedThreats] = useState<Set<number>>(new Set());
   const [expandedIOCs, setExpandedIOCs] = useState<Set<string>>(new Set());
   const [expandedFlags, setExpandedFlags] = useState<Set<number>>(new Set());

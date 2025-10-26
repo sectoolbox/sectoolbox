@@ -6,7 +6,7 @@ import { useBackendJob } from '../hooks/useBackendJob';
 import { toast } from '../hooks/use-toast';
 import { apiClient } from '../services/api';
 import { EventsTab } from '../components/eventlogs/EventsTab';
-import { AnalysisTab } from '../components/eventlogs/AnalysisTab';
+import { OverviewTab } from '../components/eventlogs/OverviewTab';
 import { ExportTab } from '../components/eventlogs/ExportTab';
 import { SearchTab } from '../components/eventlogs/SearchTab';
 import { TimelineTab } from '../components/eventlogs/TimelineTab';
@@ -235,7 +235,7 @@ export const EventLogs: React.FC = () => {
             {/* Tab Content */}
             <div>
               {activeTab === 'overview' && (
-                <AnalysisTab 
+                <OverviewTab 
                   analysis={parsedData.analysis}
                   iocs={parsedData.iocs}
                   threats={parsedData.threats}
