@@ -26,11 +26,16 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: join(__dirname, '../.env') });
 
+// Parse allowed origins with proper trimming
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -44,7 +49,7 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
