@@ -231,6 +231,7 @@ export const EventLogs: React.FC = () => {
                   analysis={parsedData.analysis}
                   iocs={parsedData.iocs}
                   threats={parsedData.threats}
+                  flags={parsedData.flags}
                   events={parsedData.events}
                   metadata={parsedData.metadata}
                 />

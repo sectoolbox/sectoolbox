@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, AlertTriangle, Shield, Users, Server, Hash, ChevronDown, ChevronRight, Eye, FileSearch } from 'lucide-react';
+import { Activity, AlertTriangle, Shield, Users, Server, Hash, ChevronDown, ChevronRight, Eye, FileSearch, Flag } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 
@@ -29,12 +29,24 @@ interface AnalysisTabProps {
     recordId?: number;
     details?: any;
   }>;
+  flags?: Array<{
+    type: string;
+    pattern: string;
+    value: string;
+    decoded?: string;
+    field: string;
+    eventId: number;
+    timestamp: string;
+    context?: string;
+  }>;
   events?: any[];
   metadata?: any;
 }
 
-export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threats, events, metadata }) => {
+export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threats, flags, events, metadata }) => {
   const [expandedThreats, setExpandedThreats] = useState<Set<number>>(new Set());
+  const [expandedIOCs, setExpandedIOCs] = useState<Set<string>>(new Set());
+  const [expandedFlags, setExpandedFlags] = useState<Set<number>>(new Set());
 
   const toggleThreat = (index: number) => {
     const newExpanded = new Set(expandedThreats);
@@ -44,6 +56,16 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
       newExpanded.add(index);
     }
     setExpandedThreats(newExpanded);
+  };
+
+  const toggleIOC = (category: string) => {
+    const newExpanded = new Set(expandedIOCs);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedIOCs(newExpanded);
   };
 
   const findEventByIdAndTime = (eventId: number, timestamp: string) => {
@@ -151,6 +173,12 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-1">{threat.description}</p>
+                        {/* Show threat details if available */}
+                        {threat.details && (
+                          <p className="text-sm font-mono bg-muted/30 px-2 py-1 rounded mt-1">
+                            {threat.details}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {new Date(threat.timestamp).toLocaleString()}
                         </p>
@@ -239,80 +267,321 @@ export const AnalysisTab: React.FC<AnalysisTabProps> = ({ analysis, iocs, threat
           <div className="flex items-center gap-2 mb-4">
             <Hash className="w-5 h-5 text-accent" />
             <h3 className="text-lg font-semibold">Indicators of Compromise (IOCs)</h3>
+            <span className="ml-auto text-sm text-muted-foreground">
+              {(iocs.ips?.length || 0) + (iocs.domains?.length || 0) + (iocs.users?.length || 0) + (iocs.processes?.length || 0) + (iocs.files?.length || 0) + (iocs.hashes?.length || 0)} total
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            {/* IP Addresses */}
             {iocs.ips && iocs.ips.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">IP Addresses</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.ips.map((ip, idx) => (
-                    <div key={idx} className="text-xs font-mono">{ip}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('ips')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('ips') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">IP Addresses</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded font-medium">
+                    {iocs.ips.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('ips') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {iocs.ips.map((ip, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors">
+                          {ip}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Domains */}
             {iocs.domains && iocs.domains.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">Domains</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.domains.map((domain, idx) => (
-                    <div key={idx} className="text-xs font-mono">{domain}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('domains')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('domains') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">Domains</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded font-medium">
+                    {iocs.domains.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('domains') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {iocs.domains.map((domain, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
+                          {domain}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Users */}
             {iocs.users && iocs.users.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">Users</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.users.map((user, idx) => (
-                    <div key={idx} className="text-xs font-mono">{user}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('users')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('users') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">Users</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded font-medium">
+                    {iocs.users.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('users') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {iocs.users.map((user, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors">
+                          {user}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Processes */}
             {iocs.processes && iocs.processes.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">Processes</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.processes.map((process, idx) => (
-                    <div key={idx} className="text-xs font-mono">{process}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('processes')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('processes') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">Processes</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded font-medium">
+                    {iocs.processes.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('processes') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="space-y-1">
+                      {iocs.processes.map((process, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
+                          {process}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Files */}
             {iocs.files && iocs.files.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">Files</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.files.map((file, idx) => (
-                    <div key={idx} className="text-xs font-mono break-all">{file}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('files')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('files') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">Files</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-orange-500/20 text-orange-400 rounded font-medium">
+                    {iocs.files.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('files') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="space-y-1">
+                      {iocs.files.map((file, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
+                          {file}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Hashes */}
             {iocs.hashes && iocs.hashes.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2 text-muted-foreground">Hashes</div>
-                <div className="bg-muted/20 rounded p-2 space-y-1 max-h-32 overflow-y-auto">
-                  {iocs.hashes.map((hash, idx) => (
-                    <div key={idx} className="text-xs font-mono break-all">{hash}</div>
-                  ))}
+              <div className="border border-border rounded overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  onClick={() => toggleIOC('hashes')}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedIOCs.has('hashes') ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-semibold">Hashes</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded font-medium">
+                    {iocs.hashes.length}
+                  </span>
                 </div>
+                {expandedIOCs.has('hashes') && (
+                  <div className="border-t border-border p-3 bg-muted/5">
+                    <div className="space-y-1">
+                      {iocs.hashes.map((hash, idx) => (
+                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
+                          {hash}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {(!iocs.ips?.length && !iocs.domains?.length && !iocs.users?.length && 
             !iocs.processes?.length && !iocs.files?.length && !iocs.hashes?.length) && (
-            <p className="text-sm text-muted-foreground">No IOCs detected in this log file.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No IOCs detected in this log file.</p>
           )}
+        </Card>
+      )}
+
+      {/* CTF Flags Section */}
+      {flags && flags.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Flag className="w-5 h-5 text-green-500" />
+            <h3 className="text-lg font-semibold">CTF Flags & Encoded Data</h3>
+            <span className="ml-auto text-sm text-muted-foreground">
+              {flags.length} found
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {flags.map((flag, idx) => {
+              const isExpanded = expandedFlags.has(idx);
+              return (
+                <div key={idx} className="border border-border rounded overflow-hidden">
+                  <div 
+                    className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                    onClick={() => {
+                      const newExpanded = new Set(expandedFlags);
+                      if (newExpanded.has(idx)) {
+                        newExpanded.delete(idx);
+                      } else {
+                        newExpanded.add(idx);
+                      }
+                      setExpandedFlags(newExpanded);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            flag.type === 'CTF Flag' ? 'bg-green-500/20 text-green-400' :
+                            flag.type === 'Base64 Encoded' ? 'bg-blue-500/20 text-blue-400' :
+                            'bg-purple-500/20 text-purple-400'
+                          }`}>
+                            {flag.type}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{flag.pattern}</span>
+                        </div>
+                        <div className="text-sm font-mono break-all">
+                          {flag.value.length > 80 ? flag.value.substring(0, 80) + '...' : flag.value}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-border p-4 bg-muted/5 space-y-3">
+                      {/* Full Value */}
+                      <div>
+                        <div className="text-xs font-semibold text-muted-foreground mb-2">Full Value:</div>
+                        <div className="bg-card border border-border rounded p-2">
+                          <pre className="text-xs font-mono break-all whitespace-pre-wrap">{flag.value}</pre>
+                        </div>
+                      </div>
+
+                      {/* Decoded Value */}
+                      {flag.decoded && (
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2">Decoded:</div>
+                          <div className="bg-card border border-border rounded p-2">
+                            <pre className="text-xs font-mono break-all whitespace-pre-wrap">{flag.decoded}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Context */}
+                      {flag.context && (
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2">Context:</div>
+                          <div className="bg-card border border-border rounded p-2">
+                            <pre className="text-xs font-mono break-all whitespace-pre-wrap">{flag.context}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Metadata */}
+                      <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-border">
+                        <div>
+                          <span className="text-muted-foreground">Field:</span>
+                          <span className="ml-2 font-mono">{flag.field}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Event ID:</span>
+                          <span className="ml-2 font-mono">{flag.eventId}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Time:</span>
+                          <span className="ml-2 text-xs">{new Date(flag.timestamp).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </Card>
       )}
 

@@ -8,6 +8,8 @@ Auto-deletes the file after processing to save disk space
 import sys
 import json
 import os
+import re
+import base64
 from datetime import datetime
 from collections import defaultdict
 import xml.etree.ElementTree as ET
@@ -251,6 +253,143 @@ def detect_threats(events):
     return threats[:1000]  # Limit threats
 
 
+def detect_ctf_flags(events):
+    """Detect CTF flags and interesting encoded data in event logs"""
+    flags = []
+    
+    # Common CTF flag patterns
+    flag_patterns = [
+        (r'flag\{[^}]{4,}\}', 'Flag Format: flag{...}'),
+        (r'CTF\{[^}]{4,}\}', 'Flag Format: CTF{...}'),
+        (r'FLAG\{[^}]{4,}\}', 'Flag Format: FLAG{...}'),
+        (r'HTB\{[^}]{4,}\}', 'Flag Format: HTB{...}'),
+        (r'picoCTF\{[^}]{4,}\}', 'Flag Format: picoCTF{...}'),
+        (r'[A-Z0-9]{32}', 'Possible MD5 Hash'),
+        (r'[A-Fa-f0-9]{40}', 'Possible SHA1 Hash'),
+        (r'[A-Fa-f0-9]{64}', 'Possible SHA256 Hash'),
+        (r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', 'IP Address'),
+        (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', 'Email Address'),
+    ]
+    
+    # Base64 pattern (at least 20 chars, ending with optional padding)
+    base64_pattern = re.compile(r'[A-Za-z0-9+/]{20,}={0,2}')
+    
+    # Hex pattern (at least 16 chars)
+    hex_pattern = re.compile(r'0x[A-Fa-f0-9]{16,}|[A-Fa-f0-9]{32,}')
+    
+    # URL pattern
+    url_pattern = re.compile(r'https?://[^\s]+')
+    
+    # ROT13 detection (common English words that become gibberish)
+    rot13_indicators = ['synt', 'pgS', 'onFr', 'qrpbqR']
+    
+    for event in events:
+        event_id = event.get('eventId', 0)
+        data = event.get('data', {})
+        timestamp = event.get('timestamp')
+        
+        # Search through all event data fields
+        for key, value in data.items():
+            if not value or not isinstance(value, str):
+                continue
+            
+            value_str = str(value)
+            
+            # Check for flag patterns
+            for pattern, desc in flag_patterns:
+                matches = re.finditer(pattern, value_str, re.IGNORECASE)
+                for match in matches:
+                    flags.append({
+                        'type': 'CTF Flag',
+                        'pattern': desc,
+                        'value': match.group(0),
+                        'field': key,
+                        'eventId': event_id,
+                        'timestamp': timestamp,
+                        'context': value_str[max(0, match.start()-20):min(len(value_str), match.end()+20)]
+                    })
+            
+            # Check for base64 encoded data
+            if len(value_str) > 20:
+                base64_matches = base64_pattern.finditer(value_str)
+                for match in base64_matches:
+                    try:
+                        # Try to decode
+                        decoded = base64.b64decode(match.group(0), validate=True).decode('utf-8', errors='ignore')
+                        # Only report if it decodes to something readable
+                        if decoded and len(decoded) > 4 and any(c.isprintable() for c in decoded):
+                            flags.append({
+                                'type': 'Base64 Encoded',
+                                'pattern': 'Base64 String',
+                                'value': match.group(0)[:100] + ('...' if len(match.group(0)) > 100 else ''),
+                                'decoded': decoded[:200] + ('...' if len(decoded) > 200 else ''),
+                                'field': key,
+                                'eventId': event_id,
+                                'timestamp': timestamp
+                            })
+                    except Exception:
+                        pass
+            
+            # Check for hex patterns
+            hex_matches = hex_pattern.finditer(value_str)
+            for match in hex_matches:
+                hex_str = match.group(0).replace('0x', '')
+                if len(hex_str) >= 32:  # Only report longer hex strings
+                    try:
+                        # Try to decode as hex
+                        decoded = bytes.fromhex(hex_str).decode('utf-8', errors='ignore')
+                        if decoded and len(decoded) > 4 and any(c.isprintable() for c in decoded):
+                            flags.append({
+                                'type': 'Hex Encoded',
+                                'pattern': 'Hex String',
+                                'value': match.group(0)[:100] + ('...' if len(match.group(0)) > 100 else ''),
+                                'decoded': decoded[:200] + ('...' if len(decoded) > 200 else ''),
+                                'field': key,
+                                'eventId': event_id,
+                                'timestamp': timestamp
+                            })
+                    except Exception:
+                        pass
+            
+            # Check for URLs (potential C2 or exfiltration)
+            url_matches = url_pattern.finditer(value_str)
+            for match in url_matches:
+                flags.append({
+                    'type': 'URL Found',
+                    'pattern': 'HTTP/HTTPS URL',
+                    'value': match.group(0),
+                    'field': key,
+                    'eventId': event_id,
+                    'timestamp': timestamp,
+                    'context': value_str[max(0, match.start()-20):min(len(value_str), match.end()+20)]
+                })
+            
+            # Check for ROT13 (look for indicators)
+            for indicator in rot13_indicators:
+                if indicator in value_str:
+                    # Try ROT13 decode
+                    try:
+                        decoded = ''.join([chr((ord(c) - 97 + 13) % 26 + 97) if c.islower() else 
+                                          chr((ord(c) - 65 + 13) % 26 + 65) if c.isupper() else c 
+                                          for c in value_str])
+                        flags.append({
+                            'type': 'Possible ROT13',
+                            'pattern': 'ROT13 Encoding',
+                            'value': value_str[:100] + ('...' if len(value_str) > 100 else ''),
+                            'decoded': decoded[:200] + ('...' if len(decoded) > 200 else ''),
+                            'field': key,
+                            'eventId': event_id,
+                            'timestamp': timestamp
+                        })
+                        break  # Only report once per value
+                    except Exception:
+                        pass
+                    except:
+                        pass
+    
+    return flags[:50]  # Limit to prevent huge outputs
+
+
 def analyze_events(events):
     """Perform analysis on events"""
     if not events:
@@ -319,6 +458,7 @@ def parse_evtx_file(filepath):
         analysis = analyze_events(events)
         iocs = extract_iocs(events)
         threats = detect_threats(events)
+        flags = detect_ctf_flags(events)
         
         return {
             'events': events,
@@ -329,7 +469,8 @@ def parse_evtx_file(filepath):
             },
             'analysis': analysis,
             'iocs': iocs,
-            'threats': threats
+            'threats': threats,
+            'flags': flags
         }
         
     except Exception as e:

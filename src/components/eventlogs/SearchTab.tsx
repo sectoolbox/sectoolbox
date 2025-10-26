@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Clock, AlertCircle } from 'lucide-react';
+import { Search, Filter, Clock, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 
@@ -13,6 +13,19 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
   const [searchField, setSearchField] = useState<'all' | 'eventId' | 'provider' | 'computer' | 'data'>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<'all' | '1h' | '24h' | '7d' | 'custom'>('all');
+  const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
+
+  const toggleEvent = (recordId: number) => {
+    setExpandedEvents(prev => {
+      const next = new Set(prev);
+      if (next.has(recordId)) {
+        next.delete(recordId);
+      } else {
+        next.add(recordId);
+      }
+      return next;
+    });
+  };
 
   // Quick presets
   const presets = [
@@ -223,33 +236,105 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
               <p>No events match your search criteria</p>
             </div>
           ) : (
-            filteredResults.slice(0, 100).map((event) => (
-              <div key={event.recordId} className="p-3 bg-muted/5 rounded border border-border hover:bg-muted/10 transition-colors">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-sm font-semibold text-accent">
-                        Event {event.eventId}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        event.levelName === 'Critical' ? 'bg-red-500/20 text-red-400' :
-                        event.levelName === 'Error' ? 'bg-red-400/20 text-red-300' :
-                        event.levelName === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {event.levelName}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-1">
-                      {event.provider} • {event.computer}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(event.timestamp).toLocaleString()}
+            filteredResults.slice(0, 100).map((event) => {
+              const isExpanded = expandedEvents.has(event.recordId);
+              return (
+                <div key={event.recordId} className="border border-border rounded overflow-hidden">
+                  <div 
+                    className="p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                    onClick={() => toggleEvent(event.recordId)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-semibold text-accent">
+                              Event {event.eventId}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              event.levelName === 'Critical' ? 'bg-red-500/20 text-red-400' :
+                              event.levelName === 'Error' ? 'bg-red-400/20 text-red-300' :
+                              event.levelName === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {event.levelName}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-1">
+                            {event.provider} • {event.computer}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(event.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-border p-4 bg-muted/5 space-y-3">
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Record ID:</span>
+                          <span className="ml-2 font-mono">{event.recordId}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Event ID:</span>
+                          <span className="ml-2 font-mono">{event.eventId}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Level:</span>
+                          <span className="ml-2">{event.levelName} ({event.level})</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Channel:</span>
+                          <span className="ml-2">{event.channel || 'N/A'}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Provider:</span>
+                          <span className="ml-2">{event.provider}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Computer:</span>
+                          <span className="ml-2">{event.computer}</span>
+                        </div>
+                      </div>
+
+                      {/* Event Data */}
+                      {event.eventData && Object.keys(event.eventData).length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2">Event Data:</div>
+                          <div className="bg-card border border-border rounded p-2 space-y-1">
+                            {Object.entries(event.eventData).map(([key, value]) => (
+                              <div key={key} className="text-xs">
+                                <span className="text-muted-foreground font-medium">{key}:</span>
+                                <span className="ml-2 font-mono break-all">{String(value)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Raw XML */}
+                      {event.xml && (
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2">Raw XML:</div>
+                          <pre className="bg-card border border-border rounded p-2 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
+                            {event.xml}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           {filteredResults.length > 100 && (
             <div className="text-center text-sm text-muted-foreground py-3">
