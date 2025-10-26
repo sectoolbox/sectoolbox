@@ -85,48 +85,47 @@ export const EventLogs: React.FC = () => {
   }, [jobStatus]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <div className="flex-none px-6 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Activity className="w-8 h-8 text-accent" />
-              Windows Event Log Analyzer
-            </h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl font-bold">Windows Event Log Analyzer</h1>
+            <p className="text-sm text-muted-foreground">
               Parse and analyze Windows .evtx files - Security, System, Application logs
             </p>
           </div>
         </div>
+      </div>
 
-        {/* File Upload Section */}
+      {/* File Upload or Info */}
+      <div className="flex-none px-6 py-4 bg-background">
         {!parsedData && !file && (
-          <div className="flex-none px-6 py-4 bg-background">
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer">
-              <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium mb-2">Drop Event Log file here or click to browse</p>
-              <p className="text-sm text-muted-foreground">
-                Supports .evtx files | Maximum file size: 1.5GB
-              </p>
-              <input
-                id="evtx-upload"
-                type="file"
-                accept=".evtx"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <label htmlFor="evtx-upload">
-                <Button variant="outline" className="mt-4 cursor-pointer" asChild>
-                  <span>Choose File</span>
-                </Button>
-              </label>
-            </div>
+          <div
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+          >
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Drop Event Log file here or click to browse</p>
+            <p className="text-sm text-muted-foreground">
+              Supports .evtx files | Maximum file size: 1.5GB
+            </p>
+            <input
+              id="evtx-upload"
+              type="file"
+              accept=".evtx"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <label htmlFor="evtx-upload">
+              <Button variant="outline" className="mt-4 cursor-pointer" asChild>
+                <span>Choose File</span>
+              </Button>
+            </label>
           </div>
         )}
 
         {!parsedData && file && (
-          <div className="flex-none px-6 py-4 bg-background">
+          <div>
             <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
@@ -183,9 +182,11 @@ export const EventLogs: React.FC = () => {
             )}
           </div>
         )}
+      </div>
 
-        {/* Analysis Results */}
-        {parsedData && (
+      {/* Analysis Results */}
+      {parsedData && (
+        <div className="flex-1 overflow-auto p-6">
           <div className="space-y-4">
             {/* Header with stats */}
             <Card className="p-4">
@@ -287,8 +288,8 @@ export const EventLogs: React.FC = () => {
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

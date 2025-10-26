@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Info, Layers, Hash, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Info, Layers, Hash, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
@@ -1209,25 +1209,34 @@ export default function ImageAnalysis() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center space-x-2"><ImageIcon className="w-6 h-6 text-accent" /> <span>Image</span></h1>
-          <p className="text-muted-foreground mt-1">Deep image forensics: metadata, steganography, and embedded file detection</p>
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <div className="flex-none px-6 py-4 border-b border-border bg-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Image Analysis</h1>
+            <p className="text-sm text-muted-foreground">
+              Deep image forensics: metadata, steganography, and embedded file detection
+            </p>
+          </div>
         </div>
       </div>
 
-      {!file ? (
-        <div className="flex-none px-6 py-4 bg-background">
-          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" onDragOver={e=>e.preventDefault()} onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
+      {/* File Upload or Info */}
+      <div className="flex-none px-6 py-4 bg-background">
+        {!file ? (
+          <div
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer"
+            onDragOver={e=>e.preventDefault()}
+            onDrop={handleDrop}
+            onClick={()=>fileRef.current?.click()}
+          >
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">Drop image file here or click to browse</p>
             <p className="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, BMP, TIFF files up to 500MB</p>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) onFile(f) }} />
           </div>
-        </div>
-      ) : (
-        <div className="flex-none px-6 py-4 bg-background">
+        ) : (
           <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded bg-accent/20 flex items-center justify-center">
@@ -1279,11 +1288,11 @@ export default function ImageAnalysis() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {imageUrl && metadata && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center"><Eye className="w-5 h-5 text-accent mr-2"/> Image Preview</h3>

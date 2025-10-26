@@ -604,21 +604,20 @@ const AudioAnalysis: React.FC = () => {
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Music className="w-8 h-8 text-accent" />
-            Audio Analysis
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Detect hidden messages in audio files - Morse code, DTMF, LSB steganography, and more
-          </p>
+      <div className="flex-none px-6 py-4 border-b border-border bg-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Audio Analysis</h1>
+            <p className="text-sm text-muted-foreground">
+              Detect hidden messages in audio files - Morse code, DTMF, LSB steganography, and more
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Upload Section */}
+      {/* File Upload or Info */}
       <div className="flex-none px-6 py-4 bg-background">
         {!file ? (
           <div
@@ -689,7 +688,8 @@ const AudioAnalysis: React.FC = () => {
 
       {/* Analysis Section */}
       {file && (
-        <div className="space-y-4">
+        <div className="flex-1 overflow-auto p-6">
+          <div className="space-y-4">
           {/* Action Bar */}
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => fileInputRef.current?.click()} variant="outline">
@@ -1531,6 +1531,8 @@ const AudioAnalysis: React.FC = () => {
               </TabsContent>
             </Tabs>
           )}
+
+          </div>
         </div>
       )}
     </div>
