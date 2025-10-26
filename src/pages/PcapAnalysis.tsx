@@ -28,8 +28,6 @@ const PcapAnalysis: React.FC = () => {
   // File state
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState('');
 
   // Backend integration
   const { jobStatus, startJob } = useBackendJob();
@@ -75,22 +73,14 @@ const PcapAnalysis: React.FC = () => {
       console.log('🔄 PcapAnalysis received jobStatus update:', jobStatus);
       if (jobStatus.status === 'processing') {
         setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`);
-        // Keep progress moving forward but don't override if we're already ahead
-        if (jobStatus.progress > progress) {
-          setProgress(jobStatus.progress);
-          setProgressMessage(jobStatus.message || 'Processing...');
-        }
       } else if (jobStatus.status === 'completed') {
         console.log('📦 Backend results received:', jobStatus.results);
-        setProgress(100);
-        setProgressMessage('Complete!');
         processBackendResults(jobStatus.results);
         setNotice('Analysis completed successfully!');
         setIsAnalyzing(false);
         toast.success('PCAP analysis completed!');
       } else if (jobStatus.status === 'failed') {
         setNotice(`Analysis failed: ${jobStatus.error}`);
-        setProgress(0);
         setIsAnalyzing(false);
         toast.error('Analysis failed');
       }
@@ -105,45 +95,11 @@ const PcapAnalysis: React.FC = () => {
     }
 
     setIsAnalyzing(true);
-    setProgress(0);
-    setProgressMessage('Starting analysis...');
     setNotice('Starting deep analysis...');
     resetResults();
 
-    // Simple progress simulator based on file size
-    const fileSizeMB = targetFile.size / (1024 * 1024);
-    const estimatedTimeMs = Math.max(5000, fileSizeMB * 1000); // At least 5 seconds, or 1 second per MB
-    const intervalMs = 300; // Update every 300ms
-    const totalSteps = Math.floor(estimatedTimeMs / intervalMs);
-    let currentStep = 0;
-
-    const progressInterval = setInterval(() => {
-      currentStep++;
-      const newProgress = Math.min(90, (currentStep / totalSteps) * 90); // Cap at 90%, final 10% when actually done
-      setProgress(newProgress);
-
-      // Update messages based on progress
-      if (newProgress < 20) {
-        setProgressMessage('Uploading and validating file...');
-      } else if (newProgress < 50) {
-        setProgressMessage('Processing packets...');
-      } else if (newProgress < 80) {
-        setProgressMessage('Analyzing protocols...');
-      } else {
-        setProgressMessage('Finalizing results...');
-      }
-
-      if (currentStep >= totalSteps) {
-        clearInterval(progressInterval);
-      }
-    }, intervalMs);
-
     try {
       const response = await apiClient.analyzePcap(targetFile, 'full');
-
-      clearInterval(progressInterval); // Stop progress when we get response
-      setProgress(95);
-      setProgressMessage('Processing results...');
 
       if (response.jobId) {
         setNotice(`Analysis started: ${response.jobId}`);
@@ -151,13 +107,11 @@ const PcapAnalysis: React.FC = () => {
       } else {
         // Immediate response (shouldn't happen with async worker)
         processBackendResults(response);
-        setProgress(100);
         setIsAnalyzing(false);
       }
     } catch (error: any) {
       // Analysis error
       setNotice(`Failed to start analysis: ${error.message}`);
-      setProgress(0);
       setIsAnalyzing(false);
       toast.error('Failed to start analysis');
     }
@@ -499,11 +453,11 @@ const PcapAnalysis: React.FC = () => {
       </div>
 
       {/* Notice/Progress Bar */}
-      {isAnalyzing && (
+      {isAnalyzing && jobStatus && (
         <div className="flex-none px-6 py-4">
           <ProgressTracker 
-            progress={progress}
-            message={progressMessage}
+            progress={jobStatus.progress || 0}
+            message={jobStatus.message}
           />
         </div>
       )}

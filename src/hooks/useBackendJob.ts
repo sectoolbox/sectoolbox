@@ -9,6 +9,7 @@ interface JobStatus {
   message?: string;
   results?: any;
   error?: string;
+  timestamp?: number; // Force re-renders
 }
 
 export function useBackendJob() {
@@ -44,6 +45,7 @@ export function useBackendJob() {
           status: data.status,
           progress: data.progress,
           message: data.message,
+          timestamp: Date.now(),
         });
       }
     });
@@ -102,6 +104,7 @@ export function useBackendJob() {
             status: status.status,
             progress: status.progress || 0,
             message: status.message,
+            timestamp: Date.now(),
           });
         }
         
