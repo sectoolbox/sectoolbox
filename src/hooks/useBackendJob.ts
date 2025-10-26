@@ -24,8 +24,7 @@ export function useBackendJob() {
       message: 'Job queued...',
     });
 
-    // Track whether WebSocket is working
-    let wsConnected = false;
+    // Track polling state
     let pollInterval: NodeJS.Timeout | null = null;
 
     // Connect to WebSocket for real-time updates
@@ -38,11 +37,6 @@ export function useBackendJob() {
     // Listen for progress updates
     wsClient.onJobProgress((data) => {
       if (data.jobId === jobId) {
-        wsConnected = true; // WebSocket is working
-        if (pollInterval) {
-          clearInterval(pollInterval);
-          pollInterval = null;
-        }
         setJobStatus({
           jobId: data.jobId,
           status: data.status,
@@ -55,7 +49,6 @@ export function useBackendJob() {
     // Listen for completion
     wsClient.onJobCompleted((data) => {
       if (data.jobId === jobId) {
-        wsConnected = true; // WebSocket is working
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -74,7 +67,6 @@ export function useBackendJob() {
     // Listen for failures
     wsClient.onJobFailed((data) => {
       if (data.jobId === jobId) {
-        wsConnected = true; // WebSocket is working
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
@@ -90,34 +82,35 @@ export function useBackendJob() {
       }
     });
 
-    // Start polling only as fallback if WebSocket doesn't connect within 5 seconds
-    const fallbackTimeout = setTimeout(() => {
-      if (!wsConnected && !pollInterval) {
-        pollInterval = setInterval(async () => {
-          try {
-            const status = await apiClient.getJobStatus(jobId);
-            if (status.status === 'completed' || status.status === 'failed') {
-              if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-              }
-              setJobStatus(status);
-              setIsLoading(false);
-              wsClient.leaveJob(jobId);
-            }
-          } catch (error: any) {
-            // Silently fail - WebSocket will handle it
+    // Poll for status as fallback with single in-flight request
+    let isPolling = false;
+    pollInterval = setInterval(async () => {
+      if (isPolling) return; // Skip if already polling
+      
+      isPolling = true;
+      try {
+        const status = await apiClient.getJobStatus(jobId);
+        if (status.status === 'completed' || status.status === 'failed') {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
           }
-        }, 3000);
+          setJobStatus(status);
+          setIsLoading(false);
+          wsClient.leaveJob(jobId);
+        }
+      } catch (error: any) {
+        // Silently fail - WebSocket will handle it
+      } finally {
+        isPolling = false;
       }
-    }, 5000);
+    }, 3000);
 
     // Cleanup after 5 minutes
     setTimeout(() => {
       if (pollInterval) {
         clearInterval(pollInterval);
       }
-      clearTimeout(fallbackTimeout);
       if (jobStatus?.status === 'processing') {
         setIsLoading(false);
       }
