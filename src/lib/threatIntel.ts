@@ -41,21 +41,8 @@ interface ThreatIntelCache {
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const CACHE_KEY = 'sectoolbox_threat_intel_cache';
 
-// API Keys (should be set by user in settings)
-const getApiKeys = () => {
-  try {
-    const stored = localStorage.getItem('sectoolbox_api_keys');
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-};
-
-export const setApiKey = (service: string, key: string) => {
-  const keys = getApiKeys();
-  keys[service] = key;
-  localStorage.setItem('sectoolbox_api_keys', JSON.stringify(keys));
-};
+// Note: API keys are stored securely in Vercel environment variables
+// No need to store them client-side
 
 // ========== CACHE MANAGEMENT ==========
 
@@ -103,21 +90,8 @@ export const checkVirusTotal = async (indicator: string, type: 'ip' | 'domain' |
   const cached = getCachedResult(cacheKey);
   if (cached) return cached;
 
-  const apiKey = getApiKeys().virustotal;
-  if (!apiKey) {
-    return {
-      source: 'virustotal',
-      indicator,
-      isMalicious: false,
-      score: 0,
-      details: {},
-      timestamp: new Date().toISOString(),
-      error: 'API key not configured',
-    };
-  }
-
   try {
-    // Use the working Vercel serverless API
+    // Use the Vercel serverless API (API key stored in environment variables)
     const vtType = type === 'hash' ? 'file-hash' : type;
     const response = await axios.get(`/api/threat-intel?service=virustotal&type=${vtType}&query=${encodeURIComponent(indicator)}`);
 
@@ -165,21 +139,8 @@ export const checkAbuseIPDB = async (ip: string): Promise<ThreatIntelResult> => 
   const cached = getCachedResult(cacheKey);
   if (cached) return cached;
 
-  const apiKey = getApiKeys().abuseipdb;
-  if (!apiKey) {
-    return {
-      source: 'abuseipdb',
-      indicator: ip,
-      isMalicious: false,
-      score: 0,
-      details: {},
-      timestamp: new Date().toISOString(),
-      error: 'API key not configured',
-    };
-  }
-
   try {
-    // Use the working Vercel serverless API
+    // Use the Vercel serverless API (API key stored in environment variables)
     const response = await axios.get(`/api/threat-intel?service=abuseipdb&query=${encodeURIComponent(ip)}`);
 
     const data = response.data.data;
@@ -221,21 +182,8 @@ export const checkAlienVault = async (indicator: string, type: 'ip' | 'domain' |
   const cached = getCachedResult(cacheKey);
   if (cached) return cached;
 
-  const apiKey = getApiKeys().alienvault;
-  if (!apiKey) {
-    return {
-      source: 'alienvault',
-      indicator,
-      isMalicious: false,
-      score: 0,
-      details: {},
-      timestamp: new Date().toISOString(),
-      error: 'API key not configured',
-    };
-  }
-
   try {
-    // Use the working Vercel serverless API (defaults to 'general' section)
+    // Use the Vercel serverless API (API key stored in environment variables)
     const otxType = type === 'hash' ? 'file' : type;
     const response = await axios.get(`/api/threat-intel?service=alienvault&type=${otxType}&query=${encodeURIComponent(indicator)}&section=general`);
 

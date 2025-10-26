@@ -28,38 +28,47 @@ export function useBackendJob() {
     wsClient.connect();
     wsClient.joinJob(jobId);
 
+    // Remove any existing listeners to prevent duplicates
+    wsClient.removeAllListeners();
+
     // Listen for progress updates
     wsClient.onJobProgress((data) => {
-      setJobStatus({
-        jobId: data.jobId,
-        status: data.status,
-        progress: data.progress,
-        message: data.message,
-      });
+      if (data.jobId === jobId) {
+        setJobStatus({
+          jobId: data.jobId,
+          status: data.status,
+          progress: data.progress,
+          message: data.message,
+        });
+      }
     });
 
     // Listen for completion
     wsClient.onJobCompleted((data) => {
-      setJobStatus({
-        jobId: data.jobId,
-        status: 'completed',
-        progress: 100,
-        results: data.result,
-      });
-      setIsLoading(false);
-      wsClient.leaveJob(jobId);
+      if (data.jobId === jobId) {
+        setJobStatus({
+          jobId: data.jobId,
+          status: 'completed',
+          progress: 100,
+          results: data.result,
+        });
+        setIsLoading(false);
+        wsClient.leaveJob(jobId);
+      }
     });
 
     // Listen for failures
     wsClient.onJobFailed((data) => {
-      setJobStatus({
-        jobId: data.jobId,
-        status: 'failed',
-        progress: 0,
-        error: data.error,
-      });
-      setIsLoading(false);
-      wsClient.leaveJob(jobId);
+      if (data.jobId === jobId) {
+        setJobStatus({
+          jobId: data.jobId,
+          status: 'failed',
+          progress: 0,
+          error: data.error,
+        });
+        setIsLoading(false);
+        wsClient.leaveJob(jobId);
+      }
     });
 
     // Poll for status as fallback

@@ -3,12 +3,10 @@ import { Shield, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-reac
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { toast } from 'react-hot-toast';
 import {
   checkIndicatorAll,
   getAggregatedScore,
-  setApiKey,
   type ThreatIntelResult,
 } from '@/lib/threatIntel';
 
@@ -23,12 +21,6 @@ interface ThreatIntelTabProps {
 export const ThreatIntelTab: React.FC<ThreatIntelTabProps> = ({ iocs }) => {
   const [checkedIndicators, setCheckedIndicators] = useState<Map<string, ThreatIntelResult[]>>(new Map());
   const [checking, setChecking] = useState<Set<string>>(new Set());
-  const [apiKeys, setApiKeys] = useState({
-    virustotal: '',
-    abuseipdb: '',
-    alienvault: '',
-  });
-  const [showSettings, setShowSettings] = useState(false);
 
   const allIndicators = useMemo(() => {
     const indicators: { value: string; type: 'ip' | 'domain' | 'hash' }[] = [];
@@ -74,14 +66,6 @@ export const ThreatIntelTab: React.FC<ThreatIntelTabProps> = ({ iocs }) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
-  };
-
-  const handleSaveApiKeys = () => {
-    if (apiKeys.virustotal) setApiKey('virustotal', apiKeys.virustotal);
-    if (apiKeys.abuseipdb) setApiKey('abuseipdb', apiKeys.abuseipdb);
-    if (apiKeys.alienvault) setApiKey('alienvault', apiKeys.alienvault);
-    toast.success('API keys saved');
-    setShowSettings(false);
   };
 
   const getStatusIcon = (consensus: string) => {
@@ -130,57 +114,17 @@ export const ThreatIntelTab: React.FC<ThreatIntelTabProps> = ({ iocs }) => {
           <div>
             <h3 className="text-lg font-semibold">Threat Intelligence Lookup</h3>
             <p className="text-sm text-muted-foreground">
-              Check IOCs against VirusTotal, AbuseIPDB, and AlienVault OTX
+              Check IOCs against VirusTotal, AbuseIPDB, and AlienVault OTX (API keys stored securely in environment variables)
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
-              {showSettings ? 'Hide' : 'API Keys'}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleCheckAll}
-              disabled={checkedIndicators.size === allIndicators.length}
-            >
-              Check All (First 10)
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            onClick={handleCheckAll}
+            disabled={checkedIndicators.size === allIndicators.length}
+          >
+            Check All (First 10)
+          </Button>
         </div>
-
-        {showSettings && (
-          <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
-            <div>
-              <label className="text-sm font-medium mb-2 block">VirusTotal API Key</label>
-              <Input
-                type="password"
-                placeholder="Enter your VirusTotal API key"
-                value={apiKeys.virustotal}
-                onChange={(e) => setApiKeys({ ...apiKeys, virustotal: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">AbuseIPDB API Key</label>
-              <Input
-                type="password"
-                placeholder="Enter your AbuseIPDB API key"
-                value={apiKeys.abuseipdb}
-                onChange={(e) => setApiKeys({ ...apiKeys, abuseipdb: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">AlienVault OTX API Key</label>
-              <Input
-                type="password"
-                placeholder="Enter your AlienVault OTX API key"
-                value={apiKeys.alienvault}
-                onChange={(e) => setApiKeys({ ...apiKeys, alienvault: e.target.value })}
-              />
-            </div>
-            <Button onClick={handleSaveApiKeys} size="sm">
-              Save API Keys
-            </Button>
-          </div>
-        )}
       </Card>
 
       {/* Summary Stats */}

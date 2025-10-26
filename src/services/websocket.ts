@@ -67,6 +67,12 @@ class WebSocketClient {
     this.socket?.on('job-failed', callback);
   }
 
+  removeAllListeners() {
+    this.socket?.removeAllListeners('job-progress');
+    this.socket?.removeAllListeners('job-completed');
+    this.socket?.removeAllListeners('job-failed');
+  }
+
   disconnect() {
     this.socket?.disconnect();
     this.socket = null;
