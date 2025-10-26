@@ -23,6 +23,7 @@ router.get('/:jobId', async (req, res) => {
 
     const state = await job.getState();
     const progress = job.progress();
+    const progressData = typeof progress === 'object' ? progress : { progress: progress || 0 };
 
     let results = null;
     if (state === 'completed') {
@@ -36,7 +37,8 @@ router.get('/:jobId', async (req, res) => {
     res.json({
       jobId,
       status: state,
-      progress,
+      progress: progressData.progress || 0,
+      message: progressData.message || null,
       results,
       createdAt: job.timestamp,
       finishedAt: job.finishedOn

@@ -90,6 +90,17 @@ export function useBackendJob() {
       isPolling = true;
       try {
         const status = await apiClient.getJobStatus(jobId);
+        
+        // Update progress even if not complete (for fallback when WebSocket fails)
+        if (status.status === 'processing') {
+          setJobStatus({
+            jobId: status.jobId,
+            status: status.status,
+            progress: status.progress || 0,
+            message: status.message,
+          });
+        }
+        
         if (status.status === 'completed' || status.status === 'failed') {
           if (pollInterval) {
             clearInterval(pollInterval);
