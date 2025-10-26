@@ -1,3 +1,7 @@
+// Image Analysis Library for Forensics
+// Note: Contains mock/stub functions for advanced features (OCR, face detection, etc.)
+// These will show unused parameter warnings but are kept for future implementation
+
 // exifreader will be dynamically imported to avoid build-time resolution issues
 
 import { formatBytes } from './formatting';
@@ -425,8 +429,7 @@ export function extractBitPlaneFromCanvas(ctx: CanvasRenderingContext2D, width: 
 
   for (let i = 0; i < imageData.data.length; i += 4) {
     const r = imageData.data[i]
-    const g = imageData.data[i+1]
-    const b = imageData.data[i+2]
+    // g and b not needed for bit plane extraction
     const bit = ((r >> plane) & 1) * 255
     out[i] = bit
     out[i+1] = bit
@@ -1017,9 +1020,7 @@ export async function performComprehensiveImageAnalysis(file: File): Promise<Ima
     all: allStrings.slice(0, 500), // Increased limit for better analysis
     base64Candidates: patterns.base64 || [],
     urls: patterns.urls || [],
-    totalCount: allStrings.length,
-    patterns: patterns,
-    counts: stringResults.counts
+    totalCount: allStrings.length
   }
   
   result.layers.push({
@@ -1520,9 +1521,9 @@ function performFaceDetection(canvas: HTMLCanvasElement): EnhancedAnalysis['face
   }
 }
 
-function performObjectDetection(canvas: HTMLCanvasElement): EnhancedAnalysis['objectDetection'] {
+function performObjectDetection(_canvas: HTMLCanvasElement): EnhancedAnalysis['objectDetection'] {
   // Mock object detection - in production would use TensorFlow.js models
-  const objects = [
+  const objects: Array<{ class: string; confidence: number; bbox: [number, number, number, number] }> = [
     { class: 'person', confidence: 0.95, bbox: [100, 150, 200, 400] },
     { class: 'car', confidence: 0.88, bbox: [300, 200, 150, 100] }
   ]
@@ -1836,7 +1837,7 @@ function analyzePixelValueDistribution(values: number[]): { entropy: number; uni
   return { entropy, uniformity }
 }
 
-function calculateAdjacentPixelCorrelation(imageData: ImageData): { horizontal: number; vertical: number; diagonal: number } {
+function calculateAdjacentPixelCorrelation(_imageData: ImageData): { horizontal: number; vertical: number; diagonal: number } {
   // Simplified correlation calculation
   return {
     horizontal: 0.95,
