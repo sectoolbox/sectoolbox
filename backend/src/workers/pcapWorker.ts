@@ -110,20 +110,21 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
 
     const chunks: Buffer[] = [];
     let stderr = '';
-    let packetCount = 0;
+    let lastUpdateTime = Date.now();
+    let currentProgress = 20;
+
+    // Time-based progress updates (every 500ms) for smoother UX
+    const progressInterval = setInterval(() => {
+      if (currentProgress < 80) {
+        currentProgress = Math.min(currentProgress + 2, 80); // Increment by 2% every 500ms
+        console.log(`⏱️ Time-based progress update: ${currentProgress}%`);
+        updateProgress(currentProgress, `Processing packets...`);
+      }
+    }, 500);
 
     tshark.stdout.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
-      
-      // Estimate progress based on data received (rough approximation)
-      packetCount += 10; // Increment counter
-      const estimatedProgress = Math.min(80, 20 + Math.floor((packetCount / maxPackets) * 60));
-      
-      // Update more frequently - every 50 packets instead of 100
-      if (packetCount % 50 === 0) {
-        console.log(`📦 Tshark data chunk received, estimated packets: ${packetCount}`);
-        updateProgress(estimatedProgress, `Processing packets (${Math.min(packetCount, maxPackets)} / ${maxPackets})...`);
-      }
+      console.log(`📦 Tshark data chunk received (${chunk.length} bytes)`);
     });
 
     tshark.stderr.on('data', (data) => {
@@ -131,6 +132,8 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
     });
 
     tshark.on('close', (code) => {
+      clearInterval(progressInterval); // Stop time-based updates
+      
       if (code === 0 || code === null) {
         try {
           const fullOutput = Buffer.concat(chunks).toString('utf8');
@@ -152,6 +155,7 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
     });
 
     tshark.on('error', (error) => {
+      clearInterval(progressInterval); // Stop time-based updates on error
       console.error('Failed to spawn tshark:', error);
       reject(new Error(`Failed to run tshark: ${error.message}`));
     });
