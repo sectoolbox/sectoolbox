@@ -15,6 +15,7 @@ import { ExplorerTab } from '../components/pcap/ExplorerTab';
 import { AnalysisTab } from '../components/pcap/AnalysisTab';
 import { FollowStreamModal } from '../components/pcap/FollowStreamModal';
 import { PacketDetailModal } from '../components/pcap/PacketDetailModal';
+import { ProgressTracker } from '../components/ui/ProgressTracker';
 import toast from 'react-hot-toast';
 
 type TabType = 'intelligence' | 'packets' | 'streams' | 'explorer' | 'analysis';
@@ -452,7 +453,16 @@ const PcapAnalysis: React.FC = () => {
       </div>
 
       {/* Notice/Progress Bar */}
-      {notice && (
+      {isAnalyzing && jobStatus && (
+        <div className="flex-none px-6 py-4">
+          <ProgressTracker 
+            progress={jobStatus.progress || 0}
+            message={jobStatus.message}
+          />
+        </div>
+      )}
+      
+      {notice && !isAnalyzing && (
         <div className="flex-none px-6 py-2 bg-muted/20 border-b border-border">
           <div className="flex items-center gap-2 text-sm">
             <Activity className="w-4 h-4 text-accent" />

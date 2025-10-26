@@ -11,14 +11,24 @@ queue.process(async (job) => {
 
   console.log(`Processing PCAP job ${jobId}: ${filename}`);
 
+  // Get file size for progress messages
+  const fileStats = await fs.stat(filePath);
+  const fileSizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
+
   emitJobProgress(jobId, {
-    progress: 10,
-    message: 'Reading PCAP file...',
+    progress: 5,
+    message: `File received (${fileSizeMB} MB)`,
     status: 'processing'
   });
 
   try {
     // Check if tshark is available
+    emitJobProgress(jobId, {
+      progress: 10,
+      message: 'Checking analysis tools...',
+      status: 'processing'
+    });
+
     const hasTshark = await checkTsharkAvailable();
 
     if (!hasTshark) {
@@ -34,8 +44,8 @@ queue.process(async (job) => {
     console.log('Using tshark for analysis');
 
     emitJobProgress(jobId, {
-      progress: 30,
-      message: 'Extracting all packet data with tshark...',
+      progress: 15,
+      message: 'Starting tshark analysis...',
       status: 'processing'
     });
 
@@ -43,11 +53,17 @@ queue.process(async (job) => {
     // Increased limits: quick=500, full=50000 packets
     const maxPackets = depth === 'quick' ? 500 : 50000;
 
+    emitJobProgress(jobId, {
+      progress: 20,
+      message: 'Extracting packet data...',
+      status: 'processing'
+    });
+
     const tsharkOutput = await runTsharkFullDump(filePath, maxPackets, jobId);
 
     emitJobProgress(jobId, {
-      progress: 90,
-      message: 'Packaging results...',
+      progress: 85,
+      message: `Analyzing ${tsharkOutput.length} packets...`,
       status: 'processing'
     });
 
@@ -65,6 +81,12 @@ queue.process(async (job) => {
     };
 
     console.log(`Analysis complete: ${results.totalPackets} packets extracted`);
+
+    emitJobProgress(jobId, {
+      progress: 95,
+      message: 'Finalizing results...',
+      status: 'processing'
+    });
 
     await saveResults(jobId, results);
     emitJobCompleted(jobId, results);
@@ -106,9 +128,22 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
 
     const chunks: Buffer[] = [];
     let stderr = '';
+    let packetCount = 0;
 
     tshark.stdout.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
+      
+      // Estimate progress based on data received (rough approximation)
+      packetCount += 10; // Increment counter
+      const estimatedProgress = Math.min(80, 20 + Math.floor((packetCount / maxPackets) * 60));
+      
+      if (packetCount % 100 === 0) {
+        emitJobProgress(jobId, {
+          progress: estimatedProgress,
+          message: `Processing packets (${Math.min(packetCount, maxPackets)} / ${maxPackets})...`,
+          status: 'processing'
+        });
+      }
     });
 
     tshark.stderr.on('data', (data) => {

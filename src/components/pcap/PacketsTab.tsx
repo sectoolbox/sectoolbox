@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+// @ts-ignore - react-window types issue
+import { FixedSizeList as List } from 'react-window';
 import { Search, Filter, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
@@ -183,9 +185,10 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
         {(quickFilter || displayFilter) && ` (filtered)`}
       </div>
 
-      {/* Packet Table */}
-      <div ref={tableRef} className="bg-card border border-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Packet Table with Virtual Scrolling */}
+      <div ref={tableRef} className="bg-card border border-border rounded-lg overflow-hidden flex-1">
+        <div className="overflow-x-auto h-full flex flex-col">
+          {/* Table Header */}
           <table className="w-full text-sm">
             <thead className="bg-muted/50 sticky top-0">
               <tr className="text-xs text-muted-foreground border-b">
@@ -218,41 +221,58 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
                 <th className="p-2 text-left">Info</th>
               </tr>
             </thead>
-            <tbody>
-              {sortedPackets.map((pkt) => (
-                <tr
-                  key={pkt.index}
-                  className={`border-t cursor-pointer ${getRowColor(pkt)} ${selectedPacketIndex === pkt.index ? 'ring-2 ring-accent' : ''}`}
-                  onClick={() => {
-                    onSelectPacket(pkt.index);
-                    onOpenPacketDetail(pkt);
-                  }}
-                  onContextMenu={(e) => handleRightClick(e, pkt)}
-                  data-frame={pkt.index}
-                >
-                  <td className="p-2 text-accent font-mono text-xs">
-                    {pkt.index}
-                  </td>
-                      <td className="p-2 font-mono text-xs text-muted-foreground">
-                        {new Date(pkt.timestamp).toLocaleTimeString()}
-                      </td>
-                      <td className="p-2 font-mono text-xs">{pkt.source}</td>
-                      <td className="p-2 font-mono text-xs">{pkt.destination}</td>
-                      <td className="p-2">
-                        <span className="px-2 py-1 bg-accent/20 text-accent rounded text-xs font-mono">
-                          {pkt.protocol}
-                        </span>
-                      </td>
-                      <td className="p-2 font-mono text-xs text-muted-foreground">
-                        {pkt.size.toLocaleString()}
-                      </td>
-                  <td className="p-2 text-xs">
-                    <div className="max-w-md truncate">{pkt.info}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
           </table>
+
+          {/* Virtualized Tbody */}
+          <List
+            height={600}
+            itemCount={sortedPackets.length}
+            itemSize={40}
+            width="100%"
+            overscanCount={5}
+          >
+            {({ index, style }: { index: number; style: React.CSSProperties }) => {
+              const pkt = sortedPackets[index];
+              return (
+                <div style={style}>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr
+                        key={pkt.index}
+                        className={`border-t cursor-pointer ${getRowColor(pkt)} ${selectedPacketIndex === pkt.index ? 'ring-2 ring-accent' : ''}`}
+                        onClick={() => {
+                          onSelectPacket(pkt.index);
+                          onOpenPacketDetail(pkt);
+                        }}
+                        onContextMenu={(e) => handleRightClick(e, pkt)}
+                        data-frame={pkt.index}
+                      >
+                        <td className="p-2 text-accent font-mono text-xs w-12">
+                          {pkt.index}
+                        </td>
+                        <td className="p-2 font-mono text-xs text-muted-foreground w-32">
+                          {new Date(pkt.timestamp).toLocaleTimeString()}
+                        </td>
+                        <td className="p-2 font-mono text-xs w-32">{pkt.source}</td>
+                        <td className="p-2 font-mono text-xs w-32">{pkt.destination}</td>
+                        <td className="p-2 w-20">
+                          <span className="px-2 py-1 bg-accent/20 text-accent rounded text-xs font-mono">
+                            {pkt.protocol}
+                          </span>
+                        </td>
+                        <td className="p-2 font-mono text-xs text-muted-foreground w-20">
+                          {pkt.size.toLocaleString()}
+                        </td>
+                        <td className="p-2 text-xs">
+                          <div className="max-w-md truncate">{pkt.info}</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }}
+          </List>
         </div>
       </div>
 
