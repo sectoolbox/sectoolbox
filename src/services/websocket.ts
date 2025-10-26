@@ -1,7 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 
-const WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost:8080';
+// Derive WebSocket URL from backend API URL
+const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
+const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 class WebSocketClient {
   private socket: Socket | null = null;
@@ -10,6 +12,8 @@ class WebSocketClient {
 
   connect() {
     if (this.socket?.connected) return this.socket;
+
+    console.log('🔌 Connecting to WebSocket:', WS_URL);
 
     this.socket = io(WS_URL, {
       transports: ['websocket', 'polling'],
@@ -21,15 +25,15 @@ class WebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
-      // WebSocket connected
+      console.log('✅ WebSocket connected');
     });
 
     this.socket.on('disconnect', (reason) => {
+      console.log('❌ WebSocket disconnected:', reason);
       if (reason === 'io server disconnect') {
         // Server disconnected, attempt manual reconnect
         this.socket?.connect();
       }
-      // WebSocket disconnected
     });
 
     this.socket.on('connect_error', (_error) => {

@@ -36,6 +36,7 @@ export function useBackendJob() {
 
     // Listen for progress updates
     wsClient.onJobProgress((data) => {
+      console.log('📊 Frontend received progress:', data);
       if (data.jobId === jobId) {
         setJobStatus({
           jobId: data.jobId,
@@ -90,6 +91,7 @@ export function useBackendJob() {
       isPolling = true;
       try {
         const status = await apiClient.getJobStatus(jobId);
+        console.log('📡 Polling received status:', status);
         
         // Update progress even if not complete (for fallback when WebSocket fails)
         if (status.status === 'processing') {

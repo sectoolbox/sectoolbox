@@ -16,6 +16,7 @@ queue.process(async (job) => {
   const fileSizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
 
   const updateProgress = (progress: number, message: string) => {
+    console.log(`📊 Progress Update: ${progress}% - ${message}`);
     job.progress({ progress, message });
     emitJobProgress(jobId, { progress, message, status: 'processing' });
   };
@@ -118,7 +119,9 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
       packetCount += 10; // Increment counter
       const estimatedProgress = Math.min(80, 20 + Math.floor((packetCount / maxPackets) * 60));
       
-      if (packetCount % 100 === 0) {
+      // Update more frequently - every 50 packets instead of 100
+      if (packetCount % 50 === 0) {
+        console.log(`📦 Tshark data chunk received, estimated packets: ${packetCount}`);
         updateProgress(estimatedProgress, `Processing packets (${Math.min(packetCount, maxPackets)} / ${maxPackets})...`);
       }
     });
