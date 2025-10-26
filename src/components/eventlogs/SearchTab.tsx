@@ -1,0 +1,263 @@
+import React, { useState, useMemo } from 'react';
+import { Search, Filter, Clock, AlertCircle } from 'lucide-react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+
+interface SearchTabProps {
+  events: any[];
+}
+
+export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [useRegex, setUseRegex] = useState(false);
+  const [searchField, setSearchField] = useState<'all' | 'eventId' | 'provider' | 'computer' | 'data'>('all');
+  const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [timeRange, setTimeRange] = useState<'all' | '1h' | '24h' | '7d' | 'custom'>('all');
+
+  // Quick presets
+  const presets = [
+    { name: 'Failed Logins', query: '4625|4771', field: 'eventId', label: 'Security Events' },
+    { name: 'PowerShell Execution', query: '4103|4104', field: 'eventId', label: 'PowerShell' },
+    { name: 'Account Lockouts', query: '4740', field: 'eventId', label: 'Security' },
+    { name: 'Privilege Escalation', query: '4672|4673', field: 'eventId', label: 'Security' },
+    { name: 'Service Failures', query: '7000|7001|7023', field: 'eventId', label: 'System' },
+    { name: 'Application Errors', query: '1000|1001', field: 'eventId', label: 'Application' },
+  ];
+
+  const applyPreset = (preset: typeof presets[0]) => {
+    setSearchQuery(preset.query);
+    setSearchField('eventId');
+    setUseRegex(true);
+  };
+
+  const filteredResults = useMemo(() => {
+    if (!searchQuery && levelFilter === 'all' && timeRange === 'all') {
+      return events;
+    }
+
+    return events.filter(event => {
+      // Level filter
+      if (levelFilter !== 'all' && event.levelName !== levelFilter) return false;
+
+      // Time filter
+      if (timeRange !== 'all' && timeRange !== 'custom') {
+        const eventTime = new Date(event.timestamp).getTime();
+        const now = Date.now();
+        const ranges = {
+          '1h': 60 * 60 * 1000,
+          '24h': 24 * 60 * 60 * 1000,
+          '7d': 7 * 24 * 60 * 60 * 1000,
+        };
+        if (now - eventTime > ranges[timeRange]) return false;
+      }
+
+      // Search query
+      if (!searchQuery) return true;
+
+      try {
+        if (useRegex) {
+          const regex = new RegExp(searchQuery, 'i');
+          if (searchField === 'all') {
+            return regex.test(String(event.eventId)) ||
+                   regex.test(event.provider || '') ||
+                   regex.test(event.computer || '') ||
+                   regex.test(JSON.stringify(event.data || {}));
+          } else if (searchField === 'eventId') {
+            return regex.test(String(event.eventId));
+          } else if (searchField === 'provider') {
+            return regex.test(event.provider || '');
+          } else if (searchField === 'computer') {
+            return regex.test(event.computer || '');
+          } else if (searchField === 'data') {
+            return regex.test(JSON.stringify(event.data || {}));
+          }
+        } else {
+          const query = searchQuery.toLowerCase();
+          if (searchField === 'all') {
+            return String(event.eventId).toLowerCase().includes(query) ||
+                   (event.provider || '').toLowerCase().includes(query) ||
+                   (event.computer || '').toLowerCase().includes(query) ||
+                   JSON.stringify(event.data || {}).toLowerCase().includes(query);
+          } else if (searchField === 'eventId') {
+            return String(event.eventId).toLowerCase().includes(query);
+          } else if (searchField === 'provider') {
+            return (event.provider || '').toLowerCase().includes(query);
+          } else if (searchField === 'computer') {
+            return (event.computer || '').toLowerCase().includes(query);
+          } else if (searchField === 'data') {
+            return JSON.stringify(event.data || {}).toLowerCase().includes(query);
+          }
+        }
+      } catch (e) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [events, searchQuery, useRegex, searchField, levelFilter, timeRange]);
+
+  return (
+    <div className="space-y-4">
+      {/* Quick Presets */}
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold mb-3">Quick Search Presets</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {presets.map((preset, idx) => (
+            <Button
+              key={idx}
+              variant="outline"
+              size="sm"
+              onClick={() => applyPreset(preset)}
+              className="justify-start"
+            >
+              <AlertCircle className="w-3 h-3 mr-2" />
+              <div className="text-left">
+                <div className="text-xs font-medium">{preset.name}</div>
+                <div className="text-xs text-muted-foreground">{preset.label}</div>
+              </div>
+            </Button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Search Filters */}
+      <Card className="p-4">
+        <div className="space-y-4">
+          {/* Search Input */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Search Query</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Enter search term or regex pattern..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 bg-card border border-border rounded text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded cursor-pointer hover:bg-muted/50">
+                <input
+                  type="checkbox"
+                  checked={useRegex}
+                  onChange={(e) => setUseRegex(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-sm">Regex</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Search Field
+              </label>
+              <select
+                value={searchField}
+                onChange={(e) => setSearchField(e.target.value as any)}
+                className="w-full px-3 py-2 bg-card border border-border rounded text-sm"
+              >
+                <option value="all">All Fields</option>
+                <option value="eventId">Event ID Only</option>
+                <option value="provider">Provider Only</option>
+                <option value="computer">Computer Only</option>
+                <option value="data">Event Data Only</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Level
+              </label>
+              <select
+                value={levelFilter}
+                onChange={(e) => setLevelFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-card border border-border rounded text-sm"
+              >
+                <option value="all">All Levels</option>
+                <option value="Critical">Critical</option>
+                <option value="Error">Error</option>
+                <option value="Warning">Warning</option>
+                <option value="Information">Information</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Time Range
+              </label>
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value as any)}
+                className="w-full px-3 py-2 bg-card border border-border rounded text-sm"
+              >
+                <option value="all">All Time</option>
+                <option value="1h">Last Hour</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Results */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Search Results</h3>
+          <span className="text-sm text-muted-foreground">
+            {filteredResults.length.toLocaleString()} events found
+          </span>
+        </div>
+
+        <div className="space-y-2 max-h-[600px] overflow-y-auto">
+          {filteredResults.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No events match your search criteria</p>
+            </div>
+          ) : (
+            filteredResults.slice(0, 100).map((event) => (
+              <div key={event.recordId} className="p-3 bg-muted/5 rounded border border-border hover:bg-muted/10 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-sm font-semibold text-accent">
+                        Event {event.eventId}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        event.levelName === 'Critical' ? 'bg-red-500/20 text-red-400' :
+                        event.levelName === 'Error' ? 'bg-red-400/20 text-red-300' :
+                        event.levelName === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {event.levelName}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-1">
+                      {event.provider} • {event.computer}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(event.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          {filteredResults.length > 100 && (
+            <div className="text-center text-sm text-muted-foreground py-3">
+              Showing first 100 of {filteredResults.length.toLocaleString()} results
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+};

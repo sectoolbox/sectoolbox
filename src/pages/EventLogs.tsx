@@ -8,12 +8,14 @@ import { apiClient } from '../services/api';
 import { EventsTab } from '../components/eventlogs/EventsTab';
 import { AnalysisTab } from '../components/eventlogs/AnalysisTab';
 import { ExportTab } from '../components/eventlogs/ExportTab';
+import { SearchTab } from '../components/eventlogs/SearchTab';
+import { TimelineTab } from '../components/eventlogs/TimelineTab';
 
-type TabType = 'events' | 'timeline' | 'analysis' | 'search' | 'export';
+type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export';
 
 export const EventLogs: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('events');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [parsedData, setParsedData] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -62,7 +64,7 @@ export const EventLogs: React.FC = () => {
     setFile(null);
     setParsedData(null);
     setIsAnalyzing(false);
-    setActiveTab('events');
+    setActiveTab('overview');
   };
 
   // Watch for job status updates
@@ -205,14 +207,14 @@ export const EventLogs: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit">
+              <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+                Overview
+              </TabButton>
               <TabButton active={activeTab === 'events'} onClick={() => setActiveTab('events')}>
                 Events
               </TabButton>
               <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')}>
                 Timeline
-              </TabButton>
-              <TabButton active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')}>
-                Analysis
               </TabButton>
               <TabButton active={activeTab === 'search'} onClick={() => setActiveTab('search')}>
                 Search
@@ -224,27 +226,23 @@ export const EventLogs: React.FC = () => {
 
             {/* Tab Content */}
             <div>
-              {activeTab === 'events' && parsedData.events && (
-                <EventsTab events={parsedData.events} />
-              )}
-              {activeTab === 'timeline' && (
-                <div className="text-muted-foreground p-6 text-center">
-                  <p>Timeline visualization - Coming soon</p>
-                  <p className="text-sm mt-2">Will display events over time with visual timeline chart</p>
-                </div>
-              )}
-              {activeTab === 'analysis' && (
+              {activeTab === 'overview' && (
                 <AnalysisTab 
                   analysis={parsedData.analysis}
                   iocs={parsedData.iocs}
                   threats={parsedData.threats}
+                  events={parsedData.events}
+                  metadata={parsedData.metadata}
                 />
               )}
-              {activeTab === 'search' && (
-                <div className="text-muted-foreground p-6 text-center">
-                  <p>Advanced search - Coming soon</p>
-                  <p className="text-sm mt-2">Will include regex search, field filters, and quick presets</p>
-                </div>
+              {activeTab === 'events' && parsedData.events && (
+                <EventsTab events={parsedData.events} />
+              )}
+              {activeTab === 'timeline' && parsedData.events && (
+                <TimelineTab events={parsedData.events} analysis={parsedData.analysis} />
+              )}
+              {activeTab === 'search' && parsedData.events && (
+                <SearchTab events={parsedData.events} />
               )}
               {activeTab === 'export' && (
                 <ExportTab 
