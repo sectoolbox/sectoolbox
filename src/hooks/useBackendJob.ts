@@ -96,12 +96,12 @@ export function useBackendJob() {
         const status = await apiClient.getJobStatus(jobId);
         console.log('📡 Polling received status:', status);
         
-        // Update progress even if not complete (for fallback when WebSocket fails)
-        if (status.status === 'processing') {
+        // Update progress for any active/processing status
+        if (status.status === 'processing' || status.status === 'active') {
           console.log('🔄 Setting jobStatus state:', status);
           setJobStatus({
             jobId: status.jobId,
-            status: status.status,
+            status: 'processing', // Normalize to 'processing' for UI
             progress: status.progress || 0,
             message: status.message,
             timestamp: Date.now(),
