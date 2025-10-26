@@ -612,7 +612,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
                           )}
                         </div>
                         <div className="text-sm font-mono break-all">
-                          {flag.value.length > 80 ? flag.value.substring(0, 80) + '...' : flag.value}
+                          {flag.decoded ? (
+                            <span className="text-green-400">
+                              {flag.decoded.length > 80 ? flag.decoded.substring(0, 80) + '...' : flag.decoded}
+                            </span>
+                          ) : (
+                            flag.value.length > 80 ? flag.value.substring(0, 80) + '...' : flag.value
+                          )}
                         </div>
                       </div>
                     </div>
@@ -621,7 +627,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
                       variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigator.clipboard.writeText(flag.value);
+                        navigator.clipboard.writeText(flag.decoded || flag.value);
                         toast.success('Copied to clipboard');
                       }}
                     >
