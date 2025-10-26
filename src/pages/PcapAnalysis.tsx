@@ -405,7 +405,7 @@ const PcapAnalysis: React.FC = () => {
               <Button
                 onClick={() => navigate('/pcap-usb', { state: { pcapFile: file } })}
                 disabled={isAnalyzing}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 shadow-[0_0_0_2px_rgba(30,58,138,0.3)] hover:shadow-[0_0_0_3px_rgba(30,58,138,0.5)] hover:scale-105 transition-all duration-200 tracking-wide"
               >
                 {isAnalyzing ? (
                   <>
@@ -422,7 +422,7 @@ const PcapAnalysis: React.FC = () => {
               <Button
                 onClick={() => startAnalysis()}
                 disabled={isAnalyzing}
-                className="bg-accent hover:bg-accent/90"
+                className="bg-accent hover:bg-accent/90 shadow-[0_0_0_2px_rgba(30,58,138,0.3)] hover:shadow-[0_0_0_3px_rgba(30,58,138,0.5)] hover:scale-105 transition-all duration-200 tracking-wide"
               >
                 {isAnalyzing ? (
                   <>
@@ -444,6 +444,7 @@ const PcapAnalysis: React.FC = () => {
                   setNotice(null);
                 }}
                 disabled={isAnalyzing}
+                className="hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 transition-all duration-200 tracking-wide"
               >
                 Remove
               </Button>
