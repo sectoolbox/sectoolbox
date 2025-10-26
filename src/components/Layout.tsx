@@ -3,15 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Zap,
   Home,
-  Network,
-  Image,
   Lock,
-  Globe,
-  Search as SearchIcon,
+  SearchIcon,
   Menu,
   X,
   FolderOpen,
-  Headphones,
   Wifi,
   ChevronDown,
   BarChart3,
@@ -43,11 +39,6 @@ interface NavItem {
   icon: React.ElementType
   description?: string
   keywords?: string[]
-}
-
-interface NavGroup {
-  label: string
-  items: NavItem[]
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {

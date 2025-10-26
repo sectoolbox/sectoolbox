@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Download, Copy, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
 
@@ -65,7 +65,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
           return pkt.protocol?.toLowerCase() === value.toLowerCase();
         }
       } else if (displayFilter.includes('contains')) {
-        const [field, value] = displayFilter.split('contains').map(s => s.trim());
+        const [, value] = displayFilter.split('contains').map(s => s.trim());
         const searchVal = value.replace(/["']/g, '');
         return JSON.stringify(pkt).toLowerCase().includes(searchVal.toLowerCase());
       } else {
@@ -219,7 +219,7 @@ export const PacketsTab: React.FC<PacketsTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {sortedPackets.map((pkt, idx) => (
+              {sortedPackets.map((pkt) => (
                 <tr
                   key={pkt.index}
                   className={`border-t cursor-pointer ${getRowColor(pkt)} ${selectedPacketIndex === pkt.index ? 'ring-2 ring-accent' : ''}`}

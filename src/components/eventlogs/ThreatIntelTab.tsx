@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Shield, ExternalLink, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Shield, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';

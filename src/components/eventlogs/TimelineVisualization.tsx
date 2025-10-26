@@ -4,8 +4,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -13,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import { Card } from '../ui/card';
@@ -23,10 +20,9 @@ import { detectAnomalies, calculateStatistics } from '@/lib/eventLogUtils';
 
 interface TimelineVisualizationProps {
   events: any[];
-  analysis?: any;
 }
 
-export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ events, analysis }) => {
+export const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({ events }) => {
   const stats = useMemo(() => calculateStatistics(events), [events]);
   const anomalies = useMemo(() => detectAnomalies(events), [events]);
 

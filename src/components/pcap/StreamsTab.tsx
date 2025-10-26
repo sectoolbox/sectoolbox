@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Database, Network, Download, ExternalLink, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Globe, Database, Network, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface StreamsTabProps {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle, Shield, TrendingUp, Users, Globe, Clock, Database, Copy, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Shield, TrendingUp, Globe, Clock, Database, Copy } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Finding } from '../../lib/pcapIntelligence';
 
@@ -22,7 +22,6 @@ interface IntelligenceTabProps {
 
 export const IntelligenceTab: React.FC<IntelligenceTabProps> = ({
   findings,
-  packets,
   httpSessions,
   dnsQueries,
   conversations,

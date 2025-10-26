@@ -1,12 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Shield,
   Search,
   RefreshCw,
   AlertCircle,
-  Copy,
   Download,
-  Database,
   Eye,
   Lock,
   Globe,
@@ -56,10 +54,6 @@ export default function ThreatIntel() {
   useEffect(() => {
     checkApiKeys().then(keys => setApiKeys(keys))
   }, [])
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-  }
 
   const exportData = (data: any, filename: string) => {
     const json = JSON.stringify(data, null, 2)

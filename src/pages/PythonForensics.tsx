@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2, File, ChevronRight, ChevronDown, FileText, Image as ImageIcon, Archive, FileCode, FileQuestion, Zap } from 'lucide-react'
+import { Upload, Play, Download, Trash2, Save, FolderOpen, Package, Terminal, Code, BookOpen, Loader2, AlertCircle, Search, Lock, Unlock, X, Plus, Undo2, Redo2, File, ChevronRight, ChevronDown, FileText, Image as ImageIcon, Archive, FileCode, FileQuestion } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -24,12 +24,6 @@ interface ScriptTab {
   name: string
   code: string
   unsaved: boolean
-}
-
-interface CodeHistoryEntry {
-  timestamp: number
-  code: string
-  label: string
 }
 
 const PythonForensics: React.FC = () => {
@@ -62,8 +56,6 @@ except FileNotFoundError:
     unsaved: false
   }])
   const [activeTabId, setActiveTabId] = useState('default')
-  const [codeHistory, setCodeHistory] = useState<Record<string, CodeHistoryEntry[]>>({})
-  const [showHistory, setShowHistory] = useState(false)
 
   const [output, setOutput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
@@ -90,8 +82,6 @@ except FileNotFoundError:
   const [fileViewMode, setFileViewMode] = useState<'preview' | 'metadata' | 'hex'>('preview')
   const [fileMetadata, setFileMetadata] = useState<any>(null)
   const [hexData, setHexData] = useState<string>('')
-  const [editingMetadata, setEditingMetadata] = useState(false)
-  const [metadataEdits, setMetadataEdits] = useState<Record<string, string>>({})
 
   // Package Manager state
   const [showPackageManager, setShowPackageManager] = useState(false)
@@ -247,180 +237,12 @@ except FileNotFoundError:
     }
   }
 
-  // Placeholder for old Python code (now in pyodideManager.ts)
-  const _oldPythonCode = `
-import sys
-import os
-from io import StringIO
-
-class OutputCapture:
-    def __init__(self):
-        self.output = []
-    def write(self, text):
-        self.output.append(text)
-    def flush(self):
-        pass
-    def get_output(self):
-        result = ''.join(self.output)
-        self.output = []
-        return result
-
-_stdout_capture = OutputCapture()
-_stderr_capture = OutputCapture()
-
-# Shell-like helper functions
-def ls(path='.'):
-    """List files in directory"""
-    try:
-        items = os.listdir(path)
-        for item in sorted(items):
-            full_path = os.path.join(path, item)
-            if os.path.isdir(full_path):
-                print(f"{item}/")
-            else:
-                size = os.path.getsize(full_path)
-                print(f"{item:<30} {size:>10} bytes")
-        return items
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
-
-def cat(filename):
-    """Display file contents"""
-    try:
-        with open(filename, 'rb') as f:
-            data = f.read()
-        try:
-            print(data.decode('utf-8'))
-        except:
-            print(f"Binary file ({len(data)} bytes)")
-            print("Use hexdump() to view binary data")
-    except Exception as e:
-        print(f"Error: {e}")
-
-def head(filename, n=10):
-    """Show first n lines of file"""
-    try:
-        with open(filename, 'r') as f:
-            for i, line in enumerate(f):
-                if i >= n:
-                    break
-                print(line.rstrip())
-    except Exception as e:
-        print(f"Error: {e}")
-
-def tail(filename, n=10):
-    """Show last n lines of file"""
-    try:
-        with open(filename, 'r') as f:
-            lines = f.readlines()
-        for line in lines[-n:]:
-            print(line.rstrip())
-    except Exception as e:
-        print(f"Error: {e}")
-
-def grep(pattern, filename):
-    """Search for pattern in file"""
-    try:
-        import re
-        with open(filename, 'rb') as f:
-            data = f.read()
-        text = data.decode('utf-8', errors='ignore')
-        matches = []
-        for i, line in enumerate(text.split('\\n'), 1):
-            if re.search(pattern, line, re.IGNORECASE):
-                print(f"{i}: {line}")
-                matches.append((i, line))
-        if not matches:
-            print(f"No matches found for '{pattern}'")
-        return matches
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
-
-def hexdump(filename):
-    """Display hex dump of entire file"""
-    try:
-        with open(filename, 'rb') as f:
-            data = f.read()
-        print(f"Hex dump of {filename} ({len(data)} bytes):\\n")
-        for i in range(0, len(data), 16):
-            chunk = data[i:i+16]
-            hex_part = ' '.join(f'{b:02x}' for b in chunk)
-            ascii_part = ''.join(chr(b) if 32 <= b <= 126 else '.' for b in chunk)
-            print(f"{i:08x}  {hex_part:<48}  |{ascii_part}|")
-    except Exception as e:
-        print(f"Error: {e}")
-
-def tree(path='.', prefix='', max_depth=3, _depth=0):
-    """Display directory tree"""
-    if _depth >= max_depth:
-        return
-    try:
-        items = sorted(os.listdir(path))
-        for i, item in enumerate(items):
-            is_last = i == len(items) - 1
-            full_path = os.path.join(path, item)
-            print(f"{prefix}{'└── ' if is_last else '├── '}{item}")
-            if os.path.isdir(full_path):
-                tree(full_path, prefix + ('    ' if is_last else '│   '), max_depth, _depth + 1)
-    except Exception as e:
-        print(f"Error: {e}")
-
-def pwd():
-    """Print working directory"""
-    cwd = os.getcwd()
-    print(cwd)
-    return cwd
-
-def fileinfo(filename):
-    """Show detailed file information"""
-    try:
-        import hashlib
-        stat = os.stat(filename)
-        with open(filename, 'rb') as f:
-            data = f.read()
-
-        print(f"File: {filename}")
-        print(f"Size: {stat.st_size} bytes")
-        print(f"MD5:  {hashlib.md5(data).hexdigest()}")
-        print(f"SHA1: {hashlib.sha1(data).hexdigest()}")
-
-        # Check if printable
-        printable = sum(1 for b in data if 32 <= b <= 126 or b in (9, 10, 13))
-        print(f"Printable: {printable/len(data)*100:.1f}%")
-
-        # File signature
-        if data.startswith(b'\\xff\\xd8\\xff'):
-            print("Type: JPEG image")
-        elif data.startswith(b'\\x89PNG'):
-            print("Type: PNG image")
-        elif data.startswith(b'PK\\x03\\x04'):
-            print("Type: ZIP archive")
-        elif data.startswith(b'%PDF'):
-            print("Type: PDF document")
-        elif data.startswith(b'MZ'):
-            print("Type: PE executable")
-
-    except Exception as e:
-        print(f"Error: {e}")
-`
-
-  const saveToHistory = (tabId: string, code: string, label: string) => {
-    const entry: CodeHistoryEntry = { timestamp: Date.now(), code, label }
-    setCodeHistory(prev => ({
-      ...prev,
-      [tabId]: [...(prev[tabId] || []), entry].slice(-20)
-    }))
-  }
-
   const runCode = async () => {
     if (!pyodide) {
       toast.error('Python environment not loaded')
       return
     }
 
-    saveToHistory(activeTabId, activeTab.code, 'Before run')
     setIsRunning(true)
     setOutput('>>> Running...\n')
 
@@ -639,12 +461,6 @@ _stderr_capture.output = []
     const newTabs = tabs.filter(t => t.id !== tabId)
     setTabs(newTabs)
     if (activeTabId === tabId) setActiveTabId(newTabs[0].id)
-
-    setCodeHistory(prev => {
-      const newHistory = { ...prev }
-      delete newHistory[tabId]
-      return newHistory
-    })
   }
 
   const updateActiveTabCode = (newCode: string) => {
@@ -675,12 +491,6 @@ _stderr_capture.output = []
     }
   }
 
-  const revertToHistory = (entry: CodeHistoryEntry) => {
-    updateActiveTabCode(entry.code)
-    setShowHistory(false)
-    toast.success(`Reverted to: ${entry.label}`)
-  }
-
   const saveScript = () => {
     if (!scriptName.trim()) {
       toast.error('Please enter a script name')
@@ -701,38 +511,7 @@ _stderr_capture.output = []
     toast.success(`Saved: ${scriptName}`)
   }
 
-  const loadSavedScript = (script: { name: string; code: string }) => {
-    const newTab: ScriptTab = {
-      id: `saved-${Date.now()}`,
-      name: script.name + '.py',
-      code: script.code,
-      unsaved: false
-    }
-    setTabs(prev => [...prev, newTab])
-    setActiveTabId(newTab.id)
-    setOutput('')
-    toast.success(`Loaded: ${script.name}`)
-  }
-
-  const deleteSavedScript = (index: number) => {
-    const updated = savedScripts.filter((_, i) => i !== index)
-    setSavedScripts(updated)
-    localStorage.setItem('sectoolbox_python_scripts', JSON.stringify(updated))
-    toast.success('Script deleted')
-  }
-
   const clearOutput = () => setOutput('')
-
-  const deleteUploadedFile = (filePath: string) => {
-    if (!pyodide) return
-    try {
-      pyodide.FS.unlink(`/uploads/${filePath}`)
-      setUploadedFiles(prev => prev.filter(f => f.path !== filePath))
-      toast.success(`Deleted: ${filePath}`)
-    } catch (error) {
-      toast.error('Failed to delete file')
-    }
-  }
 
   const downloadOutput = () => {
     const blob = new Blob([output], { type: 'text/plain' })
@@ -1037,10 +816,10 @@ json.dumps(metadata)
       let hexDump = ''
       for (let i = 0; i < size; i += 16) {
         const hex = Array.from(data.slice(i, i + 16))
-          .map((b: number) => b.toString(16).padStart(2, '0'))
+          .map((b) => (b as number).toString(16).padStart(2, '0'))
           .join(' ')
         const ascii = Array.from(data.slice(i, i + 16))
-          .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+          .map((b) => ((b as number) >= 32 && (b as number) <= 126) ? String.fromCharCode(b as number) : '.')
           .join('')
         hexDump += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
       }
@@ -1082,10 +861,10 @@ json.dumps(metadata)
           preview = `Binary file - Full hex dump (${size} bytes):\n\n`
           for (let i = 0; i < size; i += 16) {
             const hex = Array.from(data.slice(i, i + 16))
-              .map((b: number) => b.toString(16).padStart(2, '0'))
+              .map((b) => (b as number).toString(16).padStart(2, '0'))
               .join(' ')
             const ascii = Array.from(data.slice(i, i + 16))
-              .map((b: number) => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+              .map((b) => ((b as number) >= 32 && (b as number) <= 126) ? String.fromCharCode(b as number) : '.')
               .join('')
             preview += `${i.toString(16).padStart(8, '0')}  ${hex.padEnd(48, ' ')}  |${ascii}|\n`
           }
@@ -1143,7 +922,7 @@ json.dumps(metadata)
     return <FileQuestion className="h-4 w-4 text-gray-400" />
   }
 
-  const renderFileTree = (node: FileTreeNode, depth: number = 0): JSX.Element => {
+  const renderFileTree = (node: FileTreeNode, depth: number = 0): React.ReactElement => {
     const isExpanded = expandedFolders.has(node.path)
     const isSelected = selectedFile === node.path
 
@@ -1207,10 +986,6 @@ json.dumps(metadata)
     )
   }
 
-  const filteredExamples = categoryFilter === 'All'
-    ? pythonScripts
-    : pythonScripts.filter(ex => ex.category === categoryFilter)
-
   const displayOutput = outputFilter.trim()
     ? output.split('\n').filter(line => line.toLowerCase().includes(outputFilter.toLowerCase())).join('\n')
     : output
@@ -1253,7 +1028,7 @@ json.dumps(metadata)
       )}
 
       <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
-      <input ref={folderInputRef} type="file" webkitdirectory="" directory="" onChange={handleFolderUpload} className="hidden" />
+      <input ref={folderInputRef} type="file" {...({ webkitdirectory: '', directory: '' } as any)} onChange={handleFolderUpload} className="hidden" />
 
       <div className="flex justify-center gap-3 mb-4 flex-shrink-0 items-center flex-wrap">
         <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm">
@@ -1661,8 +1436,8 @@ json.dumps(metadata)
                 <Panel defaultSize={40} minSize={25}>
                   <div className="h-full overflow-y-auto p-4 border-r border-border">
                     <div className="space-y-1 group">
-                      {buildFileTree().children && buildFileTree().children.length > 0 ? (
-                        buildFileTree().children.map(child => renderFileTree(child, 0))
+                      {buildFileTree().children && buildFileTree().children!.length > 0 ? (
+                        buildFileTree().children!.map(child => renderFileTree(child, 0))
                       ) : (
                         <div className="text-center text-muted-foreground text-sm py-8">
                           <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Upload, Cloud, Activity, Download, AlertTriangle, Keyboard } from 'lucide-react';
+import { Upload, Cloud, Activity, Download, Keyboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { apiClient } from '../services/api';
 import { useBackendJob } from '../hooks/useBackendJob';
-import { parseTsharkPackets, detectSuspiciousActivity } from '../lib/tsharkParser';
+import { parseTsharkPackets } from '../lib/tsharkParser';
 import { analyzeIntelligence } from '../lib/pcapIntelligence';
 import { extractTcpStream, getAllStreamIds } from '../lib/streamExtractor';
 import { IntelligenceTab } from '../components/pcap/IntelligenceTab';
@@ -29,7 +29,7 @@ const PcapAnalysis: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Backend integration
-  const { jobStatus, isLoading: isBackendLoading, startJob } = useBackendJob();
+  const { jobStatus, startJob } = useBackendJob();
 
   // Analysis results
   const [packets, setPackets] = useState<any[]>([]);
@@ -55,7 +55,6 @@ const PcapAnalysis: React.FC = () => {
   const [followStreamData, setFollowStreamData] = useState<any>(null);
   const [currentFilter, setCurrentFilter] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Handle file upload from dashboard
   useEffect(() => {
@@ -74,7 +73,7 @@ const PcapAnalysis: React.FC = () => {
         setNotice(`Processing: ${jobStatus.progress}% - ${jobStatus.message || ''}`);
       } else if (jobStatus.status === 'completed') {
         console.log('📦 Backend results received:', jobStatus.results);
-        setCurrentJobId(jobStatus.jobId); // Store jobId for Follow Stream
+        // Store jobId for Follow Stream
         processBackendResults(jobStatus.results);
         setNotice('Analysis completed successfully!');
         setIsAnalyzing(false);
@@ -147,7 +146,7 @@ const PcapAnalysis: React.FC = () => {
 
       // Calculate stats
       const timespan = calculateTimespan(parsed.packets);
-      const totalBytes = parsed.conversations.reduce((sum, conv) => sum + conv.bytes, 0);
+      const totalBytes = parsed.conversations.reduce((sum: number, conv: any) => sum + conv.bytes, 0);
 
       setStats({
         totalPackets: parsed.packets.length,
