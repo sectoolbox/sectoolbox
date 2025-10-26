@@ -121,16 +121,16 @@ export const EventLogs: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col items-center gap-3">
-                    <label htmlFor="evtx-upload" className="cursor-pointer">
-                      <input
-                        id="evtx-upload"
-                        type="file"
-                        accept=".evtx"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                      <Button size="lg" className="w-full">
-                        Choose File
+                    <input
+                      id="evtx-upload"
+                      type="file"
+                      accept=".evtx"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="evtx-upload">
+                      <Button size="lg" className="w-full cursor-pointer" asChild>
+                        <span>Choose File</span>
                       </Button>
                     </label>
 
