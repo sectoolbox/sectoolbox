@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -42,6 +43,31 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 8080;
 
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per 15 min
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 uploads per 15 min
+  message: 'Too many file uploads, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const analysisLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30, // 30 analysis requests per 5 min
+  message: 'Too many analysis requests, please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
@@ -53,6 +79,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -98,12 +127,12 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes
-app.use('/api/v1/pcap', pcapRoutes);
-app.use('/api/v1/audio', audioRoutes);
-app.use('/api/v1/jobs', jobsRoutes);
+// API Routes with specific rate limiters
+app.use('/api/v1/pcap', uploadLimiter, pcapRoutes);
+app.use('/api/v1/audio', uploadLimiter, audioRoutes);
+app.use('/api/v1/eventlogs', uploadLimiter, eventLogsRoutes);
+app.use('/api/v1/jobs', analysisLimiter, jobsRoutes);
 app.use('/api/v1/follow', followRoutes);
-app.use('/api/v1/eventlogs', eventLogsRoutes);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

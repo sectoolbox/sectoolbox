@@ -16,6 +16,7 @@ import { AnalysisTab } from '../components/pcap/AnalysisTab';
 import { FollowStreamModal } from '../components/pcap/FollowStreamModal';
 import { PacketDetailModal } from '../components/pcap/PacketDetailModal';
 import { ProgressTracker } from '../components/ui/ProgressTracker';
+import { PacketListSkeleton, ChartSkeleton, AnalysisCardSkeleton } from '../components/SkeletonLoaders';
 import toast from 'react-hot-toast';
 
 type TabType = 'intelligence' | 'packets' | 'streams' | 'explorer' | 'analysis';
@@ -476,8 +477,23 @@ const PcapAnalysis: React.FC = () => {
         </div>
       )}
 
+      {/* Loading Skeletons */}
+      {isAnalyzing && (
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <AnalysisCardSkeleton />
+            <AnalysisCardSkeleton />
+            <AnalysisCardSkeleton />
+          </div>
+          <div className="mb-6">
+            <ChartSkeleton />
+          </div>
+          <PacketListSkeleton count={15} />
+        </div>
+      )}
+
       {/* Main Content - Tabs */}
-      {allPackets.length > 0 && (
+      {allPackets.length > 0 && !isAnalyzing && (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Tab Navigation */}
           <div className="flex-none border-b border-border bg-card">
