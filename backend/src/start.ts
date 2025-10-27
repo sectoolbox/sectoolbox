@@ -7,6 +7,29 @@ const __dirname = dirname(__filename);
 
 console.log('🚀 Starting Sectoolbox backend services...');
 
+// Handle graceful shutdown
+let isShuttingDown = false;
+const shutdown = (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log(`\n${signal} received, shutting down gracefully...`);
+  
+  if (workers) {
+    workers.kill('SIGTERM');
+  }
+  server.kill('SIGTERM');
+  
+  // Force exit after 10 seconds if processes don't exit cleanly
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 // Start the API server
 const server = spawn('node', [join(__dirname, 'server.js')], {
   stdio: 'inherit',
@@ -27,40 +50,38 @@ if (process.env.REDIS_URL) {
 }
 
 server.on('error', (error) => {
-  console.error('Server error:', error);
-  process.exit(1);
+  if (!isShuttingDown) {
+    console.error('Server error:', error);
+    process.exit(1);
+  }
 });
 
 if (workers) {
   workers.on('error', (error: any) => {
-    console.error('Workers error:', error);
-    process.exit(1);
+    if (!isShuttingDown) {
+      console.error('Workers error:', error);
+      process.exit(1);
+    }
   });
 
   workers.on('exit', (code: any) => {
-    console.log(`Workers exited with code ${code}`);
-    server.kill();
-    process.exit(code || 0);
+    if (!isShuttingDown) {
+      console.log(`Workers exited with code ${code}`);
+      server.kill();
+      process.exit(code || 0);
+    }
   });
 }
 
 server.on('exit', (code) => {
-  console.log(`Server exited with code ${code}`);
-  if (workers) workers.kill();
-  process.exit(code || 0);
+  if (!isShuttingDown) {
+    console.log(`Server exited with code ${code}`);
+    if (workers) workers.kill();
+    process.exit(code || 0);
+  } else {
+    console.log('Server shutdown complete');
+    process.exit(0);
+  }
 });
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
-  server.kill('SIGTERM');
-  if (workers) workers.kill('SIGTERM');
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down...');
-  server.kill('SIGINT');
-  if (workers) workers.kill('SIGINT');
-});
-
-console.log('Both server and workers started');
+console.log('✅ Sectoolbox backend services started successfully');
