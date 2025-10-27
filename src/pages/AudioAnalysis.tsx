@@ -32,6 +32,13 @@ import { apiClient } from '../services/api'
 import { useBackendJob } from '../hooks/useBackendJob'
 import toast from 'react-hot-toast'
 import {
+  AudioPlayer,
+  OverviewTab,
+  SteganographyTab,
+  SpectrumTab,
+  EnhanceTab
+} from '../components/audio'
+import {
   loadAudioFile,
   extractMetadata,
   getWaveformData,
@@ -96,10 +103,13 @@ const AudioAnalysis: React.FC = () => {
   const [dtmfResult, setDTMFResult] = useState<DTMFResult | null>(null)
   const [lsbData, setLsbData] = useState<string>('')
   const [spectrogram, setSpectrogram] = useState<SpectrogramData | null>(null)
-  const [frequencyAnomalies, setFrequencyAnomalies] = useState<FrequencyResult[]>([])
+  const [frequencyResult, setFrequencyResult] = useState<FrequencyResult | null>(null)
   const [sstvResult, setSstvResult] = useState<SSTVResult | null>(null)
   const [fskResult, setFskResult] = useState<FSKResult | null>(null)
   const [pskResult, setPskResult] = useState<PSKResult | null>(null)
+
+  // Analysis progress tracking
+  const [analysisProgress, setAnalysisProgress] = useState<Array<{ name: string; progress: number }>>([])
 
   // UI state
   const [stringFilter, setStringFilter] = useState('')
@@ -191,7 +201,7 @@ const AudioAnalysis: React.FC = () => {
     setDTMFResult(null)
     setLsbData('')
     setSpectrogram(null)
-    setFrequencyAnomalies([])
+    setFrequencyResult(null)
     setSstvResult(null)
     setFskResult(null)
     setPskResult(null)
@@ -262,7 +272,9 @@ const AudioAnalysis: React.FC = () => {
 
       // Frequency anomalies
       const anomalies = analyzeFrequencyAnomalies(buffer)
-      setFrequencyAnomalies(anomalies)
+      if (anomalies.length > 0) {
+        setFrequencyResult(anomalies[0])
+      }
 
       // Allow UI to update
       await new Promise(resolve => setTimeout(resolve, 10))
@@ -527,6 +539,156 @@ const AudioAnalysis: React.FC = () => {
         drawWaveform(waveformData)
       }
     }
+  }
+
+  // AudioPlayer component handlers
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      pauseAudio()
+    } else {
+      playAudio()
+    }
+  }
+
+  const handleSeek = (time: number) => {
+    seekTo(time)
+  }
+
+  const handleReverse = async () => {
+    if (!audioBuffer) return
+    setIsAnalyzing(true)
+    const reversed = await reverseAudio(audioBuffer)
+    setAudioBuffer(reversed)
+    setIsReversed(!isReversed)
+    toast.success(isReversed ? 'Audio unreversed' : 'Audio reversed')
+    setIsAnalyzing(false)
+  }
+
+  // Batch analysis handler
+  const handleAnalyzeAll = async () => {
+    if (!audioBuffer) return
+    
+    setIsAnalyzing(true)
+    const tasks = [
+      { name: 'Morse Code', fn: analyzeMorse },
+      { name: 'DTMF', fn: analyzeDTMF },
+      { name: 'LSB Steganography', fn: analyzeLSB },
+      { name: 'String Extraction', fn: analyzeStrings },
+      { name: 'Spectrogram', fn: analyzeSpectrogram },
+      { name: 'Frequency Analysis', fn: analyzeFrequency },
+      { name: 'SSTV', fn: analyzeSStv },
+      { name: 'FSK', fn: analyzeFSK },
+      { name: 'PSK', fn: analyzePSK }
+    ]
+
+    setAnalysisProgress(tasks.map(t => ({ name: t.name, progress: 0 })))
+
+    for (let i = 0; i < tasks.length; i++) {
+      setAnalysisProgress(prev => 
+        prev.map((t, idx) => idx === i ? { ...t, progress: 50 } : t)
+      )
+      await tasks[i].fn()
+      setAnalysisProgress(prev =>
+        prev.map((t, idx) => idx === i ? { ...t, progress: 100 } : t)
+      )
+    }
+
+    setAnalysisProgress([])
+    setIsAnalyzing(false)
+    toast.success('All analyses complete!')
+  }
+
+  // Individual analysis handlers
+  const analyzeMorse = async () => {
+    if (!audioBuffer) return
+    const result = await detectMorseCode(audioBuffer, morseThreshold)
+    setMorseResult(result)
+  }
+
+  const analyzeDTMF = async () => {
+    if (!audioBuffer) return
+    const result = await detectDTMF(audioBuffer)
+    setDTMFResult(result)
+  }
+
+  const analyzeLSB = async () => {
+    if (!file) return
+    const result = await detectLSBSteganography(file)
+    setLsbData(result)
+  }
+
+  const analyzeStrings = async () => {
+    if (!file) return
+    const result = await extractStringsFromAudio(file)
+    setStrings(result)
+  }
+
+  const analyzeSpectrogram = async () => {
+    if (!audioBuffer) return
+    const result = await generateSpectrogram(audioBuffer, fftSize, maxFrequency)
+    setSpectrogram(result)
+  }
+
+  const analyzeFrequency = async () => {
+    if (!audioBuffer) return
+    const result = analyzeFrequencyAnomalies(audioBuffer)
+    // Convert array to single result (use first anomaly or create aggregate)
+    if (result.length > 0) {
+      setFrequencyResult(result[0])
+    }
+  }
+
+  const analyzeSStv = async () => {
+    if (!audioBuffer) return
+    const result = await detectSSTVPattern(audioBuffer)
+    setSstvResult(result)
+  }
+
+  const analyzeFSK = async () => {
+    if (!audioBuffer) return
+    const result = await detectFSK(audioBuffer)
+    setFskResult(result)
+  }
+
+  const analyzePSK = async () => {
+    if (!audioBuffer) return
+    const result = await detectPSK(audioBuffer)
+    setPskResult(result)
+  }
+
+  // Enhancement handlers
+  const handleEQChange = (index: number, gain: number) => {
+    const newBands = [...eqBands]
+    newBands[index] = { ...newBands[index], gain }
+    setEqBands(newBands)
+  }
+
+  const handleResetEQ = () => {
+    setEqBands(EQ_PRESETS['Flat'])
+    setSelectedPreset('Flat')
+  }
+
+  const handleExport = async () => {
+    if (!audioBuffer) return
+    setIsAnalyzing(true)
+    
+    let processedBuffer = audioBuffer
+    
+    // Apply EQ if not flat
+    if (eqBands.some(band => band.gain !== 0)) {
+      processedBuffer = await applyEqualizer(processedBuffer, eqBands)
+    }
+    
+    // Apply noise reduction if enabled
+    if (noiseReduction > 0) {
+      processedBuffer = await applyNoiseReduction(processedBuffer, noiseReduction)
+    }
+    
+    // Export as WAV
+    await exportAsWAV(processedBuffer, file?.name || 'enhanced')
+    
+    toast.success('Audio exported successfully!')
+    setIsAnalyzing(false)
   }
 
   const generateSpectrogramWithBackend = async () => {
@@ -1127,7 +1289,7 @@ const AudioAnalysis: React.FC = () => {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p><span className="text-muted-foreground">Strings Found:</span> {strings.length}</p>
-                      <p><span className="text-muted-foreground">Frequency Peaks:</span> {frequencyAnomalies.length}</p>
+                      <p><span className="text-muted-foreground">Frequency Peaks:</span> {frequencyResult ? 1 : 0}</p>
                       <p><span className="text-muted-foreground">Spectrogram Frames:</span> {spectrogram?.width || 0}</p>
                     </div>
                   </Card>
