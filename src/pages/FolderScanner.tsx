@@ -48,6 +48,17 @@ import {
 type SortField = 'name' | 'size' | 'type' | 'entropy' | 'strings' | 'modified'
 type SortDirection = 'asc' | 'desc'
 
+// Extraction Pattern type for multi-pattern byte extraction
+type ExtractionPattern = {
+  id: string
+  name: string
+  enabled: boolean
+  filenamePattern: string
+  bytePositions: string
+  sortBy: string
+  outputFormat: 'hex' | 'ascii' | 'decimal' | 'binary'
+}
+
 const FolderScanner: React.FC = () => {
   const [scanResult, setScanResult] = useState<FolderScanResult | null>(null)
   const [analyzedFiles, setAnalyzedFiles] = useState<FileEntry[]>([])
@@ -91,24 +102,24 @@ const FolderScanner: React.FC = () => {
   const [searchInput, setSearchInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Byte extraction state
-  const [byteExtractionConfig, setByteExtractionConfig] = useState<ByteExtractionConfig>({
-    enabled: false,
-    filenamePattern: '',
-    bytePositions: '8',
-    sortBy: 'name',
-    metadataSort: {
-      enabled: false,
-      startByte: 9,
-      length: 8,
-      format: 'filetime',
-      ascending: true
-    }
-  })
-  const [extractionResult, setExtractionResult] = useState<CombinedExtractionResult | null>(null)
-  const [showExtractionDetails, setShowExtractionDetails] = useState(false)
+  // Filter history for undo/redo
+  const [filterHistory, setFilterHistory] = useState<FilterOptions[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+
+  // Filter suggestions
+  const [filterSuggestions, setFilterSuggestions] = useState<Array<{
+    id: string
+    message: string
+    action: () => void
+    dismissed: boolean
+  }>>([])
+
+  // Multi-pattern byte extraction state
+  const [extractionPatterns, setExtractionPatterns] = useState<ExtractionPattern[]>([])
+  const [extractionResults, setExtractionResults] = useState<Map<string, CombinedExtractionResult>>(new Map())
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionError, setExtractionError] = useState<string | null>(null)
+  const [showPatternLibrary, setShowPatternLibrary] = useState(false)
 
   // Duplicate detection state
   const [duplicateGroups, setDuplicateGroups] = useState<Map<string, FileEntry[]>>(new Map())
@@ -136,6 +147,7 @@ const FolderScanner: React.FC = () => {
     if (analyzedFiles.length > 0) {
       detectDuplicates()
       performFileCarving()
+      generateFilterSuggestions()
     }
   }, [analyzedFiles])
 
@@ -389,6 +401,127 @@ const FolderScanner: React.FC = () => {
     setSearchInput('')
   }
 
+  // Count active filters
+  const countActiveFilters = (): number => {
+    let count = 0
+    if (filters.searchTerm) count++
+    if (filters.minSize !== undefined) count++
+    if (filters.maxSize !== undefined) count++
+    if (filters.minEntropy !== undefined) count++
+    if (filters.maxEntropy !== undefined) count++
+    if (filters.hasContent !== undefined) count++
+    if (filters.hasStrings !== undefined) count++
+    if (!filters.showHidden) count++
+    return count
+  }
+
+  // Remove specific filter
+  const removeFilter = (filterType: string) => {
+    const newFilters = { ...filters }
+    switch (filterType) {
+      case 'search':
+        newFilters.searchTerm = ''
+        setSearchInput('')
+        break
+      case 'minSize':
+        newFilters.minSize = undefined
+        break
+      case 'maxSize':
+        newFilters.maxSize = undefined
+        break
+      case 'minEntropy':
+        newFilters.minEntropy = undefined
+        break
+      case 'maxEntropy':
+        newFilters.maxEntropy = undefined
+        break
+      case 'hasContent':
+        newFilters.hasContent = undefined
+        break
+      case 'hasStrings':
+        newFilters.hasStrings = undefined
+        break
+      case 'showHidden':
+        newFilters.showHidden = true
+        break
+    }
+    setFilters(newFilters)
+  }
+
+  // Generate filter suggestions based on analysis
+  const generateFilterSuggestions = () => {
+    if (!scanResult || analyzedFiles.length === 0) return
+
+    const suggestions: Array<{ id: string, message: string, action: () => void, dismissed: boolean }> = []
+
+    // High entropy files
+    const highEntropyFiles = analyzedFiles.filter(f => f.analysisResult && f.analysisResult.entropy > 7.5)
+    if (highEntropyFiles.length > 0 && highEntropyFiles.length < analyzedFiles.length * 0.3) {
+      suggestions.push({
+        id: 'high-entropy',
+        message: `Found ${highEntropyFiles.length} high-entropy files (possible encryption) - Show only these?`,
+        action: () => {
+          setFilters({ ...filters, minEntropy: 7.5 })
+          dismissSuggestion('high-entropy')
+        },
+        dismissed: false
+      })
+    }
+
+    // Empty files
+    const emptyFiles = scanResult.files.filter(f => f.size === 0)
+    if (emptyFiles.length > 5) {
+      suggestions.push({
+        id: 'empty-files',
+        message: `Found ${emptyFiles.length} empty files - Filter them out?`,
+        action: () => {
+          setFilters({ ...filters, hasContent: true })
+          dismissSuggestion('empty-files')
+        },
+        dismissed: false
+      })
+    }
+
+    // Files with Base64
+    const base64Files = analyzedFiles.filter(f => 
+      f.analysisResult?.interestingPatterns.base64 && f.analysisResult.interestingPatterns.base64.length > 0
+    )
+    if (base64Files.length > 0 && base64Files.length < analyzedFiles.length * 0.2) {
+      suggestions.push({
+        id: 'base64-files',
+        message: `Found ${base64Files.length} files with Base64 patterns - Investigate these?`,
+        action: () => {
+          // Filter to show only files with base64
+          const base64Hashes = new Set(base64Files.map(f => f.analysisResult?.hash?.sha256).filter(Boolean))
+          setFilteredFiles(analyzedFiles.filter(f => base64Hashes.has(f.analysisResult?.hash?.sha256)))
+          dismissSuggestion('base64-files')
+        },
+        dismissed: false
+      })
+    }
+
+    // Hidden files
+    if (scanResult.hiddenFileCount > analyzedFiles.length * 0.5) {
+      suggestions.push({
+        id: 'hidden-files',
+        message: `${Math.round(scanResult.hiddenFileCount / scanResult.totalFiles * 100)}% are hidden files - Hide them for cleaner view?`,
+        action: () => {
+          setFilters({ ...filters, showHidden: false })
+          dismissSuggestion('hidden-files')
+        },
+        dismissed: false
+      })
+    }
+
+    setFilterSuggestions(suggestions)
+  }
+
+  const dismissSuggestion = (id: string) => {
+    setFilterSuggestions(prev => 
+      prev.map(s => s.id === id ? { ...s, dismissed: true } : s)
+    )
+  }
+
   // CTF Mode: Search for flags across all files
   const searchForFlags = async () => {
     if (!scanResult) return
@@ -586,61 +719,163 @@ const FolderScanner: React.FC = () => {
     setIsCarving(false)
   }
 
-  const handleByteExtraction = async () => {
+  // Pattern management functions
+  const addPattern = () => {
+    const newPattern: ExtractionPattern = {
+      id: `pattern-${Date.now()}`,
+      name: `Pattern ${extractionPatterns.length + 1}`,
+      enabled: true,
+      filenamePattern: '',
+      bytePositions: '0',
+      sortBy: 'name',
+      outputFormat: 'ascii'
+    }
+    setExtractionPatterns([...extractionPatterns, newPattern])
+  }
+
+  const updatePattern = (id: string, updates: Partial<ExtractionPattern>) => {
+    setExtractionPatterns(prev =>
+      prev.map(p => p.id === id ? { ...p, ...updates } : p)
+    )
+  }
+
+  const deletePattern = (id: string) => {
+    setExtractionPatterns(prev => prev.filter(p => p.id !== id))
+    setExtractionResults(prev => {
+      const newResults = new Map(prev)
+      newResults.delete(id)
+      return newResults
+    })
+  }
+
+  const loadPatternPreset = (preset: 'ntfs' | 'png' | 'jpeg' | 'zip' | 'flag-parts') => {
+    let pattern: Partial<ExtractionPattern> = {}
+    
+    switch (preset) {
+      case 'ntfs':
+        pattern = {
+          name: 'NTFS Recycle Bin',
+          filenamePattern: '$I*.txt',
+          bytePositions: '8',
+          sortBy: 'name',
+          outputFormat: 'ascii'
+        }
+        break
+      case 'png':
+        pattern = {
+          name: 'PNG Magic Bytes',
+          filenamePattern: '*.png',
+          bytePositions: '0-3',
+          sortBy: 'name',
+          outputFormat: 'hex'
+        }
+        break
+      case 'jpeg':
+        pattern = {
+          name: 'JPEG Header',
+          filenamePattern: '*.jpg',
+          bytePositions: '0,1',
+          sortBy: 'name',
+          outputFormat: 'hex'
+        }
+        break
+      case 'zip':
+        pattern = {
+          name: 'ZIP Signature',
+          filenamePattern: '*.zip',
+          bytePositions: '0-3',
+          sortBy: 'name',
+          outputFormat: 'hex'
+        }
+        break
+      case 'flag-parts':
+        pattern = {
+          name: 'Sequential Flag Parts',
+          filenamePattern: 'flag*.txt',
+          bytePositions: '0',
+          sortBy: 'natural',
+          outputFormat: 'ascii'
+        }
+        break
+    }
+
+    const newPattern: ExtractionPattern = {
+      id: `pattern-${Date.now()}`,
+      enabled: true,
+      ...pattern
+    } as ExtractionPattern
+
+    setExtractionPatterns([...extractionPatterns, newPattern])
+  }
+
+  const executeAllPatterns = async () => {
     if (!scanResult) {
       setExtractionError('No folder scanned. Please scan a folder first.')
       return
     }
 
-    // Validation
-    if (!byteExtractionConfig.filenamePattern.trim()) {
-      setExtractionError('Please enter a filename pattern (e.g., $I*.txt)')
-      return
-    }
-
-    if (!byteExtractionConfig.bytePositions.trim()) {
-      setExtractionError('Please enter byte position(s) (e.g., 8 or 8,16,24)')
+    const enabledPatterns = extractionPatterns.filter(p => p.enabled)
+    if (enabledPatterns.length === 0) {
+      setExtractionError('No enabled patterns. Please add and enable at least one pattern.')
       return
     }
 
     setIsExtracting(true)
     setExtractionError(null)
-    setExtractionResult(null)
+    const newResults = new Map<string, CombinedExtractionResult>()
 
     try {
-      console.log('Starting byte extraction with config:', byteExtractionConfig)
-      console.log('Total files available:', scanResult.files.length)
+      for (const pattern of enabledPatterns) {
+        if (!pattern.filenamePattern.trim() || !pattern.bytePositions.trim()) {
+          continue
+        }
 
-      const result = await extractBytesFromFiles(scanResult.files, byteExtractionConfig)
+        const config: ByteExtractionConfig = {
+          enabled: true,
+          filenamePattern: pattern.filenamePattern,
+          bytePositions: pattern.bytePositions,
+          sortBy: pattern.sortBy as any,
+          metadataSort: {
+            enabled: false,
+            startByte: 0,
+            length: 8,
+            format: 'filetime',
+            ascending: true
+          }
+        }
 
-      console.log('Extraction result:', result)
+        const result = await extractBytesFromFiles(scanResult.files, config)
+        newResults.set(pattern.id, result)
+      }
 
-      setExtractionResult(result)
-      setShowExtractionDetails(true) // Auto-show details
+      setExtractionResults(newResults)
 
-      if (result.filesProcessed === 0) {
-        setExtractionError(`No files matched pattern "${byteExtractionConfig.filenamePattern}". Try a different pattern.`)
+      if (newResults.size === 0) {
+        setExtractionError('No patterns produced results. Check your filename patterns.')
       }
     } catch (error) {
-      console.error('Byte extraction error:', error)
+      console.error('Pattern extraction error:', error)
       setExtractionError(`Extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsExtracting(false)
     }
   }
 
-  const copyExtractionResult = () => {
-    if (extractionResult) {
-      navigator.clipboard.writeText(extractionResult.combinedString)
+  const copyPatternResult = (patternId: string) => {
+    const result = extractionResults.get(patternId)
+    if (result) {
+      navigator.clipboard.writeText(result.combinedString)
       alert('Copied to clipboard!')
     }
   }
 
-  const exportExtractionResult = () => {
-    if (!extractionResult) return
+  const exportPatternResult = (patternId: string) => {
+    const result = extractionResults.get(patternId)
+    const pattern = extractionPatterns.find(p => p.id === patternId)
+    if (!result || !pattern) return
 
-    const content = `Combined Result: ${extractionResult.combinedString}\n\nDetails:\n` +
-      extractionResult.details.map(d =>
+    const content = `Pattern: ${pattern.name}\nCombined Result: ${result.combinedString}\n\nDetails:\n` +
+      result.details.map(d =>
         `${d.filename} [pos ${d.position}] → '${d.char}' (0x${d.hex}, ASCII ${d.ascii})`
       ).join('\n')
 
@@ -648,7 +883,7 @@ const FolderScanner: React.FC = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `byte-extraction-${Date.now()}.txt`
+    a.download = `extraction-${pattern.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -946,9 +1181,13 @@ const FolderScanner: React.FC = () => {
                 <span>Analysis Complete</span>
               </div>
             )}
-            <Button onClick={() => setShowFilters(!showFilters)} variant="outline">
+            <Button 
+              onClick={() => setShowFilters(!showFilters)} 
+              variant="outline"
+              className={countActiveFilters() > 0 ? 'border-accent text-accent' : ''}
+            >
               <Filter className="w-4 h-4 mr-2" />
-              Filters {showFilters ? '▲' : '▼'}
+              Filters {countActiveFilters() > 0 && `(${countActiveFilters()})`} {showFilters ? '▲' : '▼'}
             </Button>
             <div className="flex-1" />
             <Button onClick={() => handleExport('json')} variant="outline" size="sm">
@@ -968,6 +1207,161 @@ const FolderScanner: React.FC = () => {
               Timeline CSV
             </Button>
           </div>
+
+          {/* Active Filters Bar */}
+          {countActiveFilters() > 0 && (
+            <div className="bg-accent/5 border border-accent/20 rounded px-4 py-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-muted-foreground">Active Filters:</span>
+                
+                {filters.searchTerm && (
+                  <div className="flex items-center gap-1 bg-blue-500/20 border border-blue-500/30 rounded px-2 py-1 text-xs">
+                    <Search className="w-3 h-3" />
+                    <span>Search: "{filters.searchTerm}"</span>
+                    <button 
+                      onClick={() => removeFilter('search')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.minSize !== undefined && (
+                  <div className="flex items-center gap-1 bg-green-500/20 border border-green-500/30 rounded px-2 py-1 text-xs">
+                    <span>Min Size: {formatFileSize(filters.minSize)}</span>
+                    <button 
+                      onClick={() => removeFilter('minSize')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.maxSize !== undefined && (
+                  <div className="flex items-center gap-1 bg-green-500/20 border border-green-500/30 rounded px-2 py-1 text-xs">
+                    <span>Max Size: {formatFileSize(filters.maxSize)}</span>
+                    <button 
+                      onClick={() => removeFilter('maxSize')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.minEntropy !== undefined && (
+                  <div className="flex items-center gap-1 bg-orange-500/20 border border-orange-500/30 rounded px-2 py-1 text-xs">
+                    <Activity className="w-3 h-3" />
+                    <span>Min Entropy: {filters.minEntropy}</span>
+                    <button 
+                      onClick={() => removeFilter('minEntropy')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.maxEntropy !== undefined && (
+                  <div className="flex items-center gap-1 bg-orange-500/20 border border-orange-500/30 rounded px-2 py-1 text-xs">
+                    <Activity className="w-3 h-3" />
+                    <span>Max Entropy: {filters.maxEntropy}</span>
+                    <button 
+                      onClick={() => removeFilter('maxEntropy')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.hasContent !== undefined && (
+                  <div className="flex items-center gap-1 bg-purple-500/20 border border-purple-500/30 rounded px-2 py-1 text-xs">
+                    <FileText className="w-3 h-3" />
+                    <span>{filters.hasContent ? 'Non-empty files' : 'Empty files only'}</span>
+                    <button 
+                      onClick={() => removeFilter('hasContent')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {filters.hasStrings !== undefined && (
+                  <div className="flex items-center gap-1 bg-cyan-500/20 border border-cyan-500/30 rounded px-2 py-1 text-xs">
+                    <span>{filters.hasStrings ? 'Has strings' : 'No strings'}</span>
+                    <button 
+                      onClick={() => removeFilter('hasStrings')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {!filters.showHidden && (
+                  <div className="flex items-center gap-1 bg-yellow-500/20 border border-yellow-500/30 rounded px-2 py-1 text-xs">
+                    <EyeOff className="w-3 h-3" />
+                    <span>Hidden files excluded</span>
+                    <button 
+                      onClick={() => removeFilter('showHidden')}
+                      className="ml-1 hover:text-red-400"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="ml-auto">
+                  <Button onClick={resetFilters} variant="ghost" size="sm" className="text-xs h-6">
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+
+              {/* Result Stats */}
+              <div className="mt-2 text-xs text-muted-foreground">
+                Showing {filteredFiles.length} of {scanResult?.totalFiles || 0} files
+                {filteredFiles.length < (scanResult?.totalFiles || 0) && (
+                  <span className="ml-2 text-accent">
+                    ({Math.round((filteredFiles.length / (scanResult?.totalFiles || 1)) * 100)}% visible)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Filter Suggestions */}
+          {filterSuggestions.filter(s => !s.dismissed).length > 0 && (
+            <div className="space-y-2">
+              {filterSuggestions.filter(s => !s.dismissed).map(suggestion => (
+                <div 
+                  key={suggestion.id}
+                  className="bg-blue-500/10 border border-blue-500/30 rounded p-3 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm">{suggestion.message}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={suggestion.action} variant="outline" size="sm">
+                      Apply
+                    </Button>
+                    <Button 
+                      onClick={() => dismissSuggestion(suggestion.id)} 
+                      variant="ghost" 
+                      size="sm"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Filters Panel */}
           {showFilters && (
@@ -1091,311 +1485,157 @@ const FolderScanner: React.FC = () => {
                 )}
               </div>
 
-              {/* Byte Extractor Section */}
+              {/* Multi-Pattern Byte Extractor Section */}
               <div className="border-t border-border pt-4 mt-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Hash className="w-5 h-5 text-accent" />
-                    <h3 className="text-base font-semibold">Byte Extractor (Forensics)</h3>
+                    <h3 className="text-base font-semibold">Multi-Pattern Byte Extractor</h3>
                   </div>
-                  <label className="flex items-center text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={byteExtractionConfig.enabled}
-                      onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, enabled: e.target.checked })}
-                      className="mr-2"
-                    />
-                    Enable
-                  </label>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setShowPatternLibrary(!showPatternLibrary)} variant="outline" size="sm">
+                      <Layers className="w-4 h-4 mr-1" />
+                      Pattern Library
+                    </Button>
+                    <Button onClick={addPattern} variant="outline" size="sm">
+                      + Add Pattern
+                    </Button>
+                  </div>
                 </div>
 
-                {byteExtractionConfig.enabled && (
-                  <div className="space-y-3 pl-6">
-                    {/* Preset Examples */}
-                    <div className="bg-muted/20 border border-border rounded p-3">
-                      <p className="text-xs font-medium mb-2 text-muted-foreground">🎮 CTF Presets:</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: 'flag*.txt',
-                            bytePositions: '0',
-                            sortBy: 'natural'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          🎯 Sequential Flag Parts (first byte)
-                        </Button>
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: 'part*.txt',
-                            bytePositions: '0-10',
-                            sortBy: 'natural'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          📝 Multi-byte Extraction (0-10)
-                        </Button>
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: '*.png',
-                            bytePositions: '0-3',
-                            sortBy: 'name'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          🖼️ Image Magic Bytes
-                        </Button>
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: '$I*.txt',
-                            bytePositions: '8',
-                            sortBy: 'name'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          🗑️ NTFS Recycle Bin ($I files)
-                        </Button>
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: '*.bin',
-                            bytePositions: '0',
-                            sortBy: 'modified'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          ⏰ Time-based Sorting
-                        </Button>
-                      </div>
+                {/* Pattern Library */}
+                {showPatternLibrary && (
+                  <div className="bg-muted/20 border border-border rounded p-3 mb-3">
+                    <p className="text-xs font-medium mb-2 text-muted-foreground">Quick Load Presets:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => loadPatternPreset('ntfs')} variant="outline" size="sm" className="text-xs">
+                        NTFS Recycle Bin
+                      </Button>
+                      <Button onClick={() => loadPatternPreset('png')} variant="outline" size="sm" className="text-xs">
+                        PNG Magic Bytes
+                      </Button>
+                      <Button onClick={() => loadPatternPreset('jpeg')} variant="outline" size="sm" className="text-xs">
+                        JPEG Header
+                      </Button>
+                      <Button onClick={() => loadPatternPreset('zip')} variant="outline" size="sm" className="text-xs">
+                        ZIP Signature
+                      </Button>
+                      <Button onClick={() => loadPatternPreset('flag-parts')} variant="outline" size="sm" className="text-xs">
+                        Sequential Flag Parts
+                      </Button>
                     </div>
+                  </div>
+                )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="md:col-span-2">
-                        <label className="text-xs font-medium block mb-1">Filename Pattern (wildcards supported)</label>
-                        <Input
-                          placeholder="e.g., $I*.txt or file*.bin"
-                          value={byteExtractionConfig.filenamePattern}
-                          onChange={(e) => {
-                            setByteExtractionConfig({ ...byteExtractionConfig, filenamePattern: e.target.value })
-                            setExtractionError(null)
-                          }}
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Use * for multiple chars, ? for single char</p>
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-medium block mb-1">Byte Position(s)</label>
-                        <Input
-                          placeholder="8 or 8,16,24 or 8-12"
-                          value={byteExtractionConfig.bytePositions}
-                          onChange={(e) => {
-                            setByteExtractionConfig({ ...byteExtractionConfig, bytePositions: e.target.value })
-                            setExtractionError(null)
-                          }}
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Single, multiple, or range</p>
-                      </div>
-
-                      <div className="md:col-span-3">
-                        <label className="text-xs font-medium block mb-1">Sort Files By</label>
-                        <select
-                          value={byteExtractionConfig.sortBy}
-                          onChange={(e) => {
-                            const newSortBy = e.target.value as any
-                            setByteExtractionConfig({
-                              ...byteExtractionConfig,
-                              sortBy: newSortBy,
-                              // Enable metadata sort when "metadata" is selected
-                              metadataSort: {
-                                ...byteExtractionConfig.metadataSort!,
-                                enabled: newSortBy === 'metadata'
-                              }
-                            })
-                          }}
-                          className="w-full p-2 bg-background border border-border rounded text-sm"
-                        >
-                          <optgroup label="Name">
-                            <option value="name">Alphabetical (A→Z)</option>
-                            <option value="name-reverse">Alphabetical (Z→A)</option>
-                            <option value="natural">Natural Sort (1,2,10 not 1,10,2)</option>
-                          </optgroup>
-                          <optgroup label="Time">
-                            <option value="modified">Modified Date (Old→New)</option>
-                            <option value="modified-reverse">Modified Date (New→Old)</option>
-                            <option value="created">Created Date (Old→New)</option>
-                          </optgroup>
-                          <optgroup label="Size">
-                            <option value="size">File Size (Small→Large)</option>
-                            <option value="size-reverse">File Size (Large→Small)</option>
-                          </optgroup>
-                          <optgroup label="Metadata">
-                            <option value="metadata">Custom Metadata Field</option>
-                          </optgroup>
-                        </select>
-                      </div>
-
-                      {/* Metadata Sort Configuration */}
-                      {byteExtractionConfig.sortBy === 'metadata' && (
-                        <div className="md:col-span-3 bg-blue-500/5 border border-blue-500/20 rounded p-3 space-y-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Hash className="w-4 h-4 text-blue-400" />
-                            <h4 className="text-xs font-semibold text-blue-400">Metadata Sort Configuration</h4>
+                {/* Pattern List */}
+                {extractionPatterns.length > 0 && (
+                  <div className="space-y-3">
+                    {extractionPatterns.map((pattern, idx) => (
+                      <Card key={pattern.id} className={`p-3 ${pattern.enabled ? 'border-accent' : 'border-muted opacity-60'}`}>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={pattern.enabled}
+                                onChange={(e) => updatePattern(pattern.id, { enabled: e.target.checked })}
+                                className="mr-1"
+                              />
+                              <Input
+                                value={pattern.name}
+                                onChange={(e) => updatePattern(pattern.id, { name: e.target.value })}
+                                className="text-sm font-medium w-48"
+                                placeholder="Pattern name"
+                              />
+                            </div>
+                            <Button onClick={() => deletePattern(pattern.id)} variant="ghost" size="sm">
+                              <XCircle className="w-4 h-4 text-red-400" />
+                            </Button>
                           </div>
 
                           <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <label className="text-xs font-medium block mb-1">Start Byte</label>
-                              <Input
-                                type="number"
-                                placeholder="9"
-                                value={byteExtractionConfig.metadataSort?.startByte ?? 9}
-                                onChange={(e) => setByteExtractionConfig({
-                                  ...byteExtractionConfig,
-                                  metadataSort: {
-                                    ...byteExtractionConfig.metadataSort!,
-                                    startByte: parseInt(e.target.value) || 0
-                                  }
-                                })}
-                                className="text-xs"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-medium block mb-1">Length (bytes)</label>
-                              <Input
-                                type="number"
-                                placeholder="8"
-                                value={byteExtractionConfig.metadataSort?.length ?? 8}
-                                onChange={(e) => setByteExtractionConfig({
-                                  ...byteExtractionConfig,
-                                  metadataSort: {
-                                    ...byteExtractionConfig.metadataSort!,
-                                    length: parseInt(e.target.value) || 1
-                                  }
-                                })}
-                                className="text-xs"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-medium block mb-1">Sort Direction</label>
-                              <select
-                                value={byteExtractionConfig.metadataSort?.ascending ?? true ? 'asc' : 'desc'}
-                                onChange={(e) => setByteExtractionConfig({
-                                  ...byteExtractionConfig,
-                                  metadataSort: {
-                                    ...byteExtractionConfig.metadataSort!,
-                                    ascending: e.target.value === 'asc'
-                                  }
-                                })}
-                                className="w-full p-2 bg-background border border-border rounded text-xs"
-                              >
-                                <option value="asc">Ascending (Low→High / Old→New)</option>
-                                <option value="desc">Descending (High→Low / New→Old)</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium block mb-1">Interpret As</label>
+                            <Input
+                              value={pattern.filenamePattern}
+                              onChange={(e) => updatePattern(pattern.id, { filenamePattern: e.target.value })}
+                              placeholder="e.g., *.txt"
+                              className="text-xs"
+                            />
+                            <Input
+                              value={pattern.bytePositions}
+                              onChange={(e) => updatePattern(pattern.id, { bytePositions: e.target.value })}
+                              placeholder="e.g., 0 or 0-3"
+                              className="text-xs"
+                            />
                             <select
-                              value={byteExtractionConfig.metadataSort?.format ?? 'filetime'}
-                              onChange={(e) => setByteExtractionConfig({
-                                ...byteExtractionConfig,
-                                metadataSort: {
-                                  ...byteExtractionConfig.metadataSort!,
-                                  format: e.target.value as MetadataFormat
-                                }
-                              })}
-                              className="w-full p-2 bg-background border border-border rounded text-xs"
+                              value={pattern.sortBy}
+                              onChange={(e) => updatePattern(pattern.id, { sortBy: e.target.value })}
+                              className="p-2 bg-background border border-border rounded text-xs"
                             >
-                              <option value="uint-le">Unsigned Integer (Little Endian)</option>
-                              <option value="uint-be">Unsigned Integer (Big Endian)</option>
-                              <option value="int-le">Signed Integer (Little Endian)</option>
-                              <option value="int-be">Signed Integer (Big Endian)</option>
-                              <option value="filetime">Windows FILETIME (64-bit)</option>
-                              <option value="unix32">Unix Timestamp (32-bit)</option>
-                              <option value="unix64">Unix Timestamp (64-bit)</option>
-                              <option value="ascii">ASCII String</option>
-                              <option value="hex">Raw Bytes (hex comparison)</option>
+                              <option value="name">Alphabetical</option>
+                              <option value="natural">Natural Sort</option>
+                              <option value="modified">Modified Date</option>
+                              <option value="size">File Size</option>
                             </select>
                           </div>
 
-                          <div className="text-xs text-blue-400 bg-blue-500/10 rounded p-2">
-                            <p className="font-medium mb-1">Example: NTFS $I Deletion Time</p>
-                            <p className="text-muted-foreground">Start: 9, Length: 8, Format: Windows FILETIME</p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="md:col-span-3 flex items-center gap-6">
-                        <label className="flex items-center text-xs cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={byteExtractionConfig.hideNullBytes ?? false}
-                            onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, hideNullBytes: e.target.checked })}
-                            className="mr-2"
-                          />
-                          Hide null bytes (0x00)
-                        </label>
-                        <label className="flex items-center text-xs cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={byteExtractionConfig.onlyPrintable ?? false}
-                            onChange={(e) => setByteExtractionConfig({ ...byteExtractionConfig, onlyPrintable: e.target.checked })}
-                            className="mr-2"
-                          />
-                          Only printable ASCII (32-126)
-                        </label>
-                      </div>
-
-                      <div className="md:col-span-3">
-                        <Button
-                          onClick={handleByteExtraction}
-                          variant="default"
-                          size="sm"
-                          className="w-full"
-                          disabled={isExtracting}
-                        >
-                          {isExtracting ? (
-                            <>
-                              <Activity className="w-4 h-4 mr-2 animate-spin" />
-                              Extracting...
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="w-4 h-4 mr-2" />
-                              Extract Characters
-                            </>
+                          {extractionResults.has(pattern.id) && (
+                            <div className="bg-accent/10 border border-accent/20 rounded p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-accent">Result:</span>
+                                <div className="flex gap-1">
+                                  <Button onClick={() => copyPatternResult(pattern.id)} variant="ghost" size="sm" className="h-6">
+                                    <Copy className="w-3 h-3" />
+                                  </Button>
+                                  <Button onClick={() => exportPatternResult(pattern.id)} variant="ghost" size="sm" className="h-6">
+                                    <Download className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="bg-background border border-border rounded p-2 font-mono text-xs break-all max-h-20 overflow-y-auto">
+                                {extractionResults.get(pattern.id)!.combinedString || '(empty)'}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {extractionResults.get(pattern.id)!.filesProcessed} files, {extractionResults.get(pattern.id)!.details.length} bytes
+                              </p>
+                            </div>
                           )}
-                        </Button>
-                      </div>
-
-                      {extractionError && (
-                        <div className="md:col-span-3">
-                          <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-400 flex items-start gap-2">
-                            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                            <span>{extractionError}</span>
-                          </div>
                         </div>
+                      </Card>
+                    ))}
+
+                    <Button
+                      onClick={executeAllPatterns}
+                      variant="default"
+                      className="w-full"
+                      disabled={isExtracting}
+                    >
+                      {isExtracting ? (
+                        <>
+                          <Activity className="w-4 h-4 mr-2 animate-spin" />
+                          Extracting...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 mr-2" />
+                          Execute All Enabled Patterns
+                        </>
                       )}
-                    </div>
+                    </Button>
+
+                    {extractionError && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-400 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span>{extractionError}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {extractionPatterns.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Hash className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">No extraction patterns defined</p>
+                    <p className="text-xs mt-1">Click "Add Pattern" or load from Pattern Library</p>
                   </div>
                 )}
               </div>
@@ -1405,77 +1645,6 @@ const FolderScanner: React.FC = () => {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset Filters
                 </Button>
-              </div>
-            </Card>
-          )}
-
-          {/* Extraction Result Box */}
-          {extractionResult && extractionResult.filesProcessed > 0 && (
-            <Card className="p-4 bg-accent/5 border-accent/20">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Hash className="w-5 h-5 text-accent" />
-                    Extraction Result
-                  </h3>
-                  <div className="flex gap-2">
-                    <Button onClick={copyExtractionResult} variant="outline" size="sm">
-                      <Copy className="w-3 h-3 mr-1" />
-                      Copy
-                    </Button>
-                    <Button onClick={exportExtractionResult} variant="outline" size="sm">
-                      <Download className="w-3 h-3 mr-1" />
-                      Export
-                    </Button>
-                    <Button
-                      onClick={() => setShowExtractionDetails(!showExtractionDetails)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      {showExtractionDetails ? 'Hide' : 'Show'} Details {showExtractionDetails ? '▲' : '▼'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Combined String:</p>
-                  <div className="bg-background border border-border rounded p-3 font-mono text-sm break-all">
-                    {extractionResult.combinedString || '(empty)'}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {extractionResult.filesProcessed} files processed, {extractionResult.details.length} bytes extracted
-                  </p>
-                </div>
-
-                {showExtractionDetails && (
-                  <div>
-                    <p className="text-xs font-medium mb-2">Details:</p>
-                    <div className="bg-background border border-border rounded p-3 max-h-64 overflow-auto">
-                      <table className="w-full text-xs font-mono">
-                        <thead className="border-b border-border">
-                          <tr>
-                            <th className="text-left p-1">File</th>
-                            <th className="text-center p-1">Pos</th>
-                            <th className="text-center p-1">Char</th>
-                            <th className="text-center p-1">Hex</th>
-                            <th className="text-center p-1">ASCII</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {extractionResult.details.map((detail, idx) => (
-                            <tr key={idx} className="border-b border-border/30">
-                              <td className="p-1 text-muted-foreground">{detail.filename}</td>
-                              <td className="p-1 text-center">{detail.position}</td>
-                              <td className="p-1 text-center text-accent font-bold">{detail.char}</td>
-                              <td className="p-1 text-center text-green-400">0x{detail.hex}</td>
-                              <td className="p-1 text-center text-blue-400">{detail.ascii}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
             </Card>
           )}
