@@ -65,8 +65,9 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     let stdout = '';
     let stderr = '';
 
-    // Use python3 or python depending on system
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    // Use python from venv (Railway/Docker) or system python
+    // In Docker, PATH includes /opt/venv/bin, so 'python' works
+    const pythonCmd = process.env.VIRTUAL_ENV ? 'python' : (process.platform === 'win32' ? 'python' : 'python3');
 
     const proc = spawn(pythonCmd, [scriptPath, filePath], {
       cwd: path.dirname(scriptPath)
