@@ -33,7 +33,9 @@ import {
   SteganographyTab,
   SpectrumTab,
   EnhanceTab,
-  WaveformVisualizer
+  WaveformVisualizer,
+  ABComparisonPanel,
+  type AudioRegion
 } from '../components/audio'
 import {
   loadAudioFile,
@@ -114,6 +116,13 @@ const AudioAnalysis: React.FC = () => {
   const [noiseReduction, setNoiseReduction] = useState(0)
   const [enhancedBuffer, setEnhancedBuffer] = useState<AudioBuffer | null>(null)
   const [showEnhanceControls, setShowEnhanceControls] = useState(false)
+
+  // A/B Comparison state
+  const [regionA, setRegionA] = useState<AudioRegion | null>(null)
+  const [regionB, setRegionB] = useState<AudioRegion | null>(null)
+  const [selectionMode, setSelectionMode] = useState<'none' | 'A' | 'B'>('none')
+  const [playbackSpeedA, setPlaybackSpeedA] = useState(1.0)
+  const [playbackSpeedB, setPlaybackSpeedB] = useState(1.0)
 
   // Interactive waveform state - removed (now handled by WaveformVisualizer component)
   
@@ -672,6 +681,110 @@ const AudioAnalysis: React.FC = () => {
     setIsAnalyzing(false)
   }
 
+  // A/B Comparison handlers
+  const handleRegionChange = (region: AudioRegion | null, label: 'A' | 'B') => {
+    if (label === 'A') {
+      setRegionA(region)
+    } else {
+      setRegionB(region)
+    }
+    // Exit selection mode after creating region
+    setSelectionMode('none')
+  }
+
+  const handleClearRegion = (label: 'A' | 'B') => {
+    if (label === 'A') {
+      setRegionA(null)
+    } else {
+      setRegionB(null)
+    }
+  }
+
+  const playRegion = async (region: AudioRegion, speed: number) => {
+    if (!audioBuffer) return
+
+    stopAudio()
+
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+    audioContextRef.current = audioContext
+
+    let bufferToPlay = enhancedBuffer || audioBuffer
+    if (isReversed) {
+      bufferToPlay = reverseAudio(bufferToPlay)
+    }
+
+    const source = audioContext.createBufferSource()
+    source.buffer = bufferToPlay
+    source.playbackRate.value = speed
+
+    // Create stereo panner
+    const panner = audioContext.createStereoPanner()
+    panner.pan.value = stereoBalance / 100
+    pannerNodeRef.current = panner
+
+    source.connect(panner)
+    panner.connect(audioContext.destination)
+
+    source.onended = () => {
+      setIsPlaying(false)
+      pauseTimeRef.current = 0
+      setCurrentTime(region.startTime)
+    }
+
+    // Start from region start time, duration is region length
+    const duration = region.endTime - region.startTime
+    source.start(0, region.startTime, duration)
+    startTimeRef.current = audioContext.currentTime
+    pauseTimeRef.current = region.startTime
+    sourceNodeRef.current = source
+    setIsPlaying(true)
+    setCurrentTime(region.startTime)
+
+    // Update current time during playback
+    const interval = setInterval(() => {
+      const elapsed = (audioContext.currentTime - startTimeRef.current) * speed
+      const newTime = region.startTime + elapsed
+      if (newTime <= region.endTime) {
+        setCurrentTime(newTime)
+      } else {
+        clearInterval(interval)
+      }
+    }, 100)
+
+    source.onended = () => {
+      clearInterval(interval)
+      setIsPlaying(false)
+      setCurrentTime(region.startTime)
+    }
+  }
+
+  const handlePlayRegion = (label: 'A' | 'B') => {
+    const region = label === 'A' ? regionA : regionB
+    const speed = label === 'A' ? playbackSpeedA : playbackSpeedB
+    if (region) {
+      playRegion(region, speed)
+    }
+  }
+
+  const handleCompareRegions = async () => {
+    if (!regionA || !regionB) return
+
+    // Play region A, then region B
+    await playRegion(regionA, playbackSpeedA)
+    
+    // Wait for region A to finish
+    const durationA = (regionA.endTime - regionA.startTime) / playbackSpeedA
+    setTimeout(() => {
+      playRegion(regionB, playbackSpeedB)
+    }, durationA * 1000 + 200) // Add 200ms gap between regions
+  }
+
+  const handleSwapRegions = () => {
+    const tempA = regionA
+    setRegionA(regionB)
+    setRegionB(tempA)
+  }
+
   const generateSpectrogramWithBackend = async () => {
     if (!file) {
       toast.error('Please upload a file first')
@@ -962,8 +1075,35 @@ const AudioAnalysis: React.FC = () => {
                     currentTime={currentTime}
                     isPlaying={isPlaying}
                     onSeek={seekTo}
+                    regionA={regionA}
+                    regionB={regionB}
+                    onRegionChange={handleRegionChange}
+                    selectionMode={selectionMode}
                   />
                 </div>
+
+                {/* A/B Comparison Panel */}
+                {audioBuffer && (
+                  <div className="mt-4">
+                    <ABComparisonPanel
+                      regionA={regionA}
+                      regionB={regionB}
+                      selectionMode={selectionMode}
+                      onSelectionModeChange={setSelectionMode}
+                      onClearRegion={handleClearRegion}
+                      onPlayRegion={handlePlayRegion}
+                      onCompareRegions={handleCompareRegions}
+                      onSwapRegions={handleSwapRegions}
+                      playbackSpeedA={playbackSpeedA}
+                      playbackSpeedB={playbackSpeedB}
+                      onSpeedChange={(label, speed) => {
+                        if (label === 'A') setPlaybackSpeedA(speed)
+                        else setPlaybackSpeedB(speed)
+                      }}
+                      isPlaying={isPlaying}
+                    />
+                  </div>
+                )}
 
                 {/* Audio Enhancement Controls */}
                 <div className="border-t border-border pt-4">

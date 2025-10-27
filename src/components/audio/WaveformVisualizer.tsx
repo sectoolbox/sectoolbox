@@ -1,11 +1,22 @@
 import React, { useRef, useEffect, useState } from 'react'
 
+export interface AudioRegion {
+  startTime: number
+  endTime: number
+  label: 'A' | 'B'
+  color: string
+}
+
 interface WaveformVisualizerProps {
   backendWaveform: string | null
   audioBuffer: AudioBuffer | null
   currentTime: number
   isPlaying: boolean
   onSeek: (time: number) => void
+  regionA: AudioRegion | null
+  regionB: AudioRegion | null
+  onRegionChange: (region: AudioRegion | null, label: 'A' | 'B') => void
+  selectionMode: 'none' | 'A' | 'B'
 }
 
 export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
@@ -13,15 +24,21 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   audioBuffer,
   currentTime,
   isPlaying,
-  onSeek
+  onSeek,
+  regionA,
+  regionB,
+  onRegionChange,
+  selectionMode
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hoverTime, setHoverTime] = useState<number | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [isSelectingRegion, setIsSelectingRegion] = useState(false)
+  const [regionStartTime, setRegionStartTime] = useState<number | null>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
 
-  // Draw interactive overlay (playhead, hover indicator, time markers)
+  // Draw interactive overlay (playhead, hover indicator, time markers, regions)
   const drawOverlay = () => {
     const canvas = canvasRef.current
     if (!canvas || !audioBuffer) return
@@ -35,6 +52,79 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height)
+
+    // Draw Region A (blue)
+    if (regionA) {
+      const startX = (regionA.startTime / duration) * width
+      const endX = (regionA.endTime / duration) * width
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.2)' // blue-500 with opacity
+      ctx.fillRect(startX, 0, endX - startX, height)
+      
+      // Region A borders
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(startX, 0)
+      ctx.lineTo(startX, height)
+      ctx.moveTo(endX, 0)
+      ctx.lineTo(endX, height)
+      ctx.stroke()
+
+      // Region A label
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.9)'
+      ctx.fillRect(startX + 5, 5, 30, 20)
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 14px monospace'
+      ctx.fillText('A', startX + 13, 20)
+    }
+
+    // Draw Region B (orange)
+    if (regionB) {
+      const startX = (regionB.startTime / duration) * width
+      const endX = (regionB.endTime / duration) * width
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.2)' // orange-500 with opacity
+      ctx.fillRect(startX, 0, endX - startX, height)
+      
+      // Region B borders
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.8)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(startX, 0)
+      ctx.lineTo(startX, height)
+      ctx.moveTo(endX, 0)
+      ctx.lineTo(endX, height)
+      ctx.stroke()
+
+      // Region B label
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.9)'
+      ctx.fillRect(startX + 5, 30, 30, 20)
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 14px monospace'
+      ctx.fillText('B', startX + 13, 45)
+    }
+
+    // Draw active selection in progress
+    if (isSelectingRegion && regionStartTime !== null && hoverTime !== null) {
+      const startX = (regionStartTime / duration) * width
+      const endX = (hoverTime / duration) * width
+      const minX = Math.min(startX, endX)
+      const maxX = Math.max(startX, endX)
+      
+      const color = selectionMode === 'A' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(249, 115, 22, 0.3)'
+      ctx.fillStyle = color
+      ctx.fillRect(minX, 0, maxX - minX, height)
+      
+      ctx.strokeStyle = selectionMode === 'A' ? '#3b82f6' : '#f97316'
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.beginPath()
+      ctx.moveTo(minX, 0)
+      ctx.lineTo(minX, height)
+      ctx.moveTo(maxX, 0)
+      ctx.lineTo(maxX, height)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
 
     // Draw time markers every 5 seconds
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
@@ -145,7 +235,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [currentTime, hoverTime, isDragging, isPlaying, audioBuffer])
+  }, [currentTime, hoverTime, isDragging, isPlaying, audioBuffer, regionA, regionB, isSelectingRegion, regionStartTime, selectionMode])
 
   // Handle mouse/touch interactions
   const handleInteractionStart = (clientX: number) => {
@@ -156,8 +246,16 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     const progress = Math.max(0, Math.min(1, x / rect.width))
     const time = progress * audioBuffer.duration
     
-    setIsDragging(true)
-    onSeek(time)
+    // If in selection mode, start region selection
+    if (selectionMode !== 'none') {
+      setIsSelectingRegion(true)
+      setRegionStartTime(time)
+      setIsDragging(false)
+    } else {
+      // Normal seek behavior
+      setIsDragging(true)
+      onSeek(time)
+    }
   }
 
   const handleInteractionMove = (clientX: number) => {
@@ -176,6 +274,26 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   }
 
   const handleInteractionEnd = () => {
+    if (isSelectingRegion && regionStartTime !== null && hoverTime !== null && selectionMode !== 'none') {
+      // Create the region
+      const startTime = Math.min(regionStartTime, hoverTime)
+      const endTime = Math.max(regionStartTime, hoverTime)
+      
+      // Only create region if there's a meaningful duration (at least 0.1 seconds)
+      if (endTime - startTime >= 0.1) {
+        const newRegion: AudioRegion = {
+          startTime,
+          endTime,
+          label: selectionMode,
+          color: selectionMode === 'A' ? '#3b82f6' : '#f97316'
+        }
+        onRegionChange(newRegion, selectionMode)
+      }
+      
+      setIsSelectingRegion(false)
+      setRegionStartTime(null)
+    }
+    
     setIsDragging(false)
   }
 
@@ -194,7 +312,8 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
 
   const handleMouseLeave = () => {
     setHoverTime(null)
-    setIsDragging(false)
+    // Don't reset isDragging or isSelectingRegion on mouse leave
+    // This allows dragging outside the canvas
   }
 
   // Touch events
@@ -214,14 +333,16 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     handleInteractionEnd()
   }
 
-  // Global mouse up handler for dragging outside canvas
+  // Global mouse up handler for dragging/selecting outside canvas
   useEffect(() => {
-    if (isDragging) {
-      const handleGlobalMouseUp = () => setIsDragging(false)
+    if (isDragging || isSelectingRegion) {
+      const handleGlobalMouseUp = () => {
+        handleInteractionEnd()
+      }
       window.addEventListener('mouseup', handleGlobalMouseUp)
       return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging])
+  }, [isDragging, isSelectingRegion])
 
   if (!backendWaveform) {
     return (
@@ -276,8 +397,16 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
 
       {/* Instructions */}
       <div className="mt-2 text-xs text-slate-500 text-center">
-        {isDragging ? (
+        {isSelectingRegion ? (
+          <span className="text-blue-400 font-medium">
+            Selecting Region {selectionMode}... Release to create
+          </span>
+        ) : isDragging ? (
           <span className="text-blue-400 font-medium">Dragging...</span>
+        ) : selectionMode !== 'none' ? (
+          <span className="text-amber-400 font-medium">
+            Click and drag to select Region {selectionMode}
+          </span>
         ) : (
           <span>Click or drag to seek • Hover to preview time</span>
         )}
