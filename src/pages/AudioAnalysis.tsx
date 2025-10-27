@@ -100,13 +100,9 @@ const AudioAnalysis: React.FC = () => {
   const [rightChannel, setRightChannel] = useState<Float32Array | null>(null)
   const [strings, setStrings] = useState<string[]>([])
   const [morseResult, setMorseResult] = useState<MorseResult | null>(null)
-  const [dtmfResult, setDTMFResult] = useState<DTMFResult | null>(null)
   const [lsbData, setLsbData] = useState<string>('')
   const [spectrogram, setSpectrogram] = useState<SpectrogramData | null>(null)
   const [frequencyResult, setFrequencyResult] = useState<FrequencyResult | null>(null)
-  const [sstvResult, setSstvResult] = useState<SSTVResult | null>(null)
-  const [fskResult, setFskResult] = useState<FSKResult | null>(null)
-  const [pskResult, setPskResult] = useState<PSKResult | null>(null)
 
   // Analysis progress tracking
   const [analysisProgress, setAnalysisProgress] = useState<Array<{ name: string; progress: number }>>([])
@@ -198,13 +194,9 @@ const AudioAnalysis: React.FC = () => {
     setRightChannel(null)
     setStrings([])
     setMorseResult(null)
-    setDTMFResult(null)
     setLsbData('')
     setSpectrogram(null)
     setFrequencyResult(null)
-    setSstvResult(null)
-    setFskResult(null)
-    setPskResult(null)
     stopAudio()
   }
 
@@ -256,13 +248,6 @@ const AudioAnalysis: React.FC = () => {
       // Allow UI to update
       await new Promise(resolve => setTimeout(resolve, 10))
 
-      // Detect DTMF (async and limited)
-      const dtmf = await detectDTMF(buffer)
-      setDTMFResult(dtmf)
-
-      // Allow UI to update
-      await new Promise(resolve => setTimeout(resolve, 10))
-
       // LSB steganography
       const lsb = await detectLSBSteganography(selectedFile)
       setLsbData(lsb)
@@ -286,21 +271,6 @@ const AudioAnalysis: React.FC = () => {
       // Allow UI to update before drawing
       await new Promise(resolve => setTimeout(resolve, 10))
       drawSpectrogram(spectro)
-
-      // Detect SSTV patterns
-      await new Promise(resolve => setTimeout(resolve, 10))
-      const sstv = await detectSSTVPattern(buffer)
-      setSstvResult(sstv)
-
-      // Detect FSK encoding
-      await new Promise(resolve => setTimeout(resolve, 10))
-      const fsk = await detectFSK(buffer)
-      setFskResult(fsk)
-
-      // Detect PSK encoding
-      await new Promise(resolve => setTimeout(resolve, 10))
-      const psk = await detectPSK(buffer)
-      setPskResult(psk)
     } catch (error) {
       console.error('Analysis error:', error)
       alert('Failed to analyze audio: ' + (error as Error).message)
@@ -571,14 +541,10 @@ const AudioAnalysis: React.FC = () => {
     setIsAnalyzing(true)
     const tasks = [
       { name: 'Morse Code', fn: analyzeMorse },
-      { name: 'DTMF', fn: analyzeDTMF },
       { name: 'LSB Steganography', fn: analyzeLSB },
       { name: 'String Extraction', fn: analyzeStrings },
       { name: 'Spectrogram', fn: analyzeSpectrogram },
-      { name: 'Frequency Analysis', fn: analyzeFrequency },
-      { name: 'SSTV', fn: analyzeSStv },
-      { name: 'FSK', fn: analyzeFSK },
-      { name: 'PSK', fn: analyzePSK }
+      { name: 'Frequency Analysis', fn: analyzeFrequency }
     ]
 
     setAnalysisProgress(tasks.map(t => ({ name: t.name, progress: 0 })))
@@ -603,12 +569,6 @@ const AudioAnalysis: React.FC = () => {
     if (!audioBuffer) return
     const result = await detectMorseCode(audioBuffer, morseThreshold)
     setMorseResult(result)
-  }
-
-  const analyzeDTMF = async () => {
-    if (!audioBuffer) return
-    const result = await detectDTMF(audioBuffer)
-    setDTMFResult(result)
   }
 
   const analyzeLSB = async () => {
@@ -636,24 +596,6 @@ const AudioAnalysis: React.FC = () => {
     if (result.length > 0) {
       setFrequencyResult(result[0])
     }
-  }
-
-  const analyzeSStv = async () => {
-    if (!audioBuffer) return
-    const result = await detectSSTVPattern(audioBuffer)
-    setSstvResult(result)
-  }
-
-  const analyzeFSK = async () => {
-    if (!audioBuffer) return
-    const result = await detectFSK(audioBuffer)
-    setFskResult(result)
-  }
-
-  const analyzePSK = async () => {
-    if (!audioBuffer) return
-    const result = await detectPSK(audioBuffer)
-    setPskResult(result)
   }
 
   // Enhancement handlers
