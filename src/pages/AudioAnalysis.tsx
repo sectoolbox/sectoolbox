@@ -1065,7 +1065,7 @@ const AudioAnalysis: React.FC = () => {
   )
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="flex-none px-6 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
@@ -1149,7 +1149,7 @@ const AudioAnalysis: React.FC = () => {
 
       {/* Analysis Section */}
       {file && (
-        <div className="flex-1 overflow-auto p-6">
+        <div className="px-6 pb-6">
           <div className="space-y-4">
           {/* Action Bar */}
           <div className="flex flex-wrap items-center gap-3">
