@@ -22,15 +22,25 @@ router.post('/spectrogram', upload.single('file'), async (req, res) => {
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
 
-    const queue = getAudioQueue();
-    await queue.add({ jobId, filePath, task: 'spectrogram', filename: file.originalname }, { jobId });
+    try {
+      const queue = getAudioQueue();
+      await queue.add({ jobId, filePath, task: 'spectrogram', filename: file.originalname }, { jobId });
 
-    res.json({
-      jobId,
-      status: 'queued',
-      message: 'Audio analysis queued'
-    });
+      res.json({
+        jobId,
+        status: 'queued',
+        message: 'Audio analysis queued'
+      });
+    } catch (queueError: any) {
+      // Queue not available - return helpful error
+      console.error('Audio queue error:', queueError);
+      return res.status(503).json({ 
+        error: 'Audio processing queue not available. Please ensure Redis is configured on Railway.',
+        details: queueError.message 
+      });
+    }
   } catch (error: any) {
+    console.error('Audio route error:', error);
     res.status(500).json({ error: error.message });
   }
 });
