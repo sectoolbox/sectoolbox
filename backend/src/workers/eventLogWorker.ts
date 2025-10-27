@@ -32,7 +32,12 @@ queue.process(async (job) => {
     });
 
     // Run Python script to parse the .evtx file
-    const scriptPath = path.join(__dirname, '..', 'scripts', 'pythonScripts', 'evtx-parser.py');
+    // In production (Docker), scripts are in /app/python-scripts
+    // In development, they're in src/scripts/pythonScripts
+    const scriptPath = fs.existsSync('/app/python-scripts/evtx-parser.py')
+      ? '/app/python-scripts/evtx-parser.py'
+      : path.join(__dirname, '..', 'scripts', 'pythonScripts', 'evtx-parser.py');
+    
     const pythonOutput = await runPythonParser(scriptPath, filePath, jobId);
 
     emitJobProgress(jobId, {
@@ -66,12 +71,11 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     let stdout = '';
     let stderr = '';
 
-    // Determine Python command - use absolute path to venv in Docker/Railway
+    // Determine Python command
+    // In Docker, use python3 (system-wide with packages installed in venv but accessible)
     let pythonCmd = 'python3';
     if (process.platform === 'win32') {
       pythonCmd = 'python';
-    } else if (fs.existsSync('/opt/venv/bin/python')) {
-      pythonCmd = '/opt/venv/bin/python';
     }
 
     console.log(`Using Python command: ${pythonCmd}`);

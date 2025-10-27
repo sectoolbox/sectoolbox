@@ -30,14 +30,16 @@ COPY requirements.txt ./
 # Install Node.js dependencies
 RUN npm install
 
-# Create Python virtual environment and install dependencies
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies system-wide
+RUN pip3 install --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
+
+# Copy Python scripts to a location accessible after build
+RUN mkdir -p /app/python-scripts && \
+    cp -r src/scripts/pythonScripts/* /app/python-scripts/ || true
 
 # Build TypeScript
 RUN npm run build
