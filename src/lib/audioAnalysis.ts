@@ -186,7 +186,6 @@ function parseWAVFile(arrayBuffer: ArrayBuffer, audioContext: AudioContext): Aud
 
     // Find fmt chunk
     let offset = 12
-    let fmtChunkSize = 0
     let audioFormat = 0
     let numChannels = 0
     let sampleRate = 0
@@ -202,7 +201,6 @@ function parseWAVFile(arrayBuffer: ArrayBuffer, audioContext: AudioContext): Aud
       const chunkSize = view.getUint32(offset + 4, true)
 
       if (chunkId === 'fmt ') {
-        fmtChunkSize = chunkSize
         audioFormat = view.getUint16(offset + 8, true)
         numChannels = view.getUint16(offset + 10, true)
         sampleRate = view.getUint32(offset + 12, true)

@@ -284,7 +284,7 @@ const AudioAnalysis: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 10))
 
       // Frequency anomalies
-      const anomalies = analyzeFrequencyAnomalies(buffer)
+      const anomalies = await analyzeFrequencyAnomalies(buffer)
       if (anomalies.length > 0) {
         setFrequencyResult(anomalies[0])
       }
