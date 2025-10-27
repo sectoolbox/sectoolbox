@@ -32,7 +32,8 @@ import {
   OverviewTab,
   SteganographyTab,
   SpectrumTab,
-  EnhanceTab
+  EnhanceTab,
+  WaveformVisualizer
 } from '../components/audio'
 import {
   loadAudioFile,
@@ -114,10 +115,8 @@ const AudioAnalysis: React.FC = () => {
   const [enhancedBuffer, setEnhancedBuffer] = useState<AudioBuffer | null>(null)
   const [showEnhanceControls, setShowEnhanceControls] = useState(false)
 
-  // Interactive waveform state
-  const [hoverTime, setHoverTime] = useState<number | null>(null)
-  const [hoverAmplitude, setHoverAmplitude] = useState<number | null>(null)
-
+  // Interactive waveform state - removed (now handled by WaveformVisualizer component)
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -955,108 +954,15 @@ const AudioAnalysis: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Waveform - Hybrid: Backend image + Canvas overlay */}
-                <div className="relative">
-                  {backendWaveform ? (
-                    // Backend-generated waveform with interactive overlay
-                    <div className="relative w-full">
-                      <img 
-                        src={backendWaveform} 
-                        alt="Audio Waveform" 
-                        className="w-full border border-border rounded"
-                        style={{ display: 'block', width: '100%', height: 'auto' }}
-                      />
-                      <canvas
-                        ref={canvasRef}
-                        width={1200}
-                        height={200}
-                        className="absolute top-0 left-0 w-full h-full cursor-pointer"
-                        style={{ pointerEvents: 'auto' }}
-                        onClick={(e) => {
-                          if (!audioBuffer) return
-                          const canvas = canvasRef.current
-                          if (!canvas) return
-
-                          const rect = canvas.getBoundingClientRect()
-                          const x = e.clientX - rect.left
-                          const clickProgress = x / rect.width
-                          const seekTime = clickProgress * audioBuffer.duration
-
-                          seekTo(seekTime)
-                        }}
-                        onMouseMove={(e) => {
-                          if (!audioBuffer) return
-                          const canvas = canvasRef.current
-                          if (!canvas) return
-
-                          const rect = canvas.getBoundingClientRect()
-                          const x = e.clientX - rect.left
-                          const progress = x / rect.width
-                          const time = progress * audioBuffer.duration
-
-                          setHoverTime(time)
-                          setHoverAmplitude(progress) // Use progress as approximate amplitude
-                        }}
-                        onMouseLeave={() => {
-                          setHoverTime(null)
-                          setHoverAmplitude(null)
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    // Fallback: Loading state
-                    <canvas
-                      ref={canvasRef}
-                      width={800}
-                      height={150}
-                      className="w-full border border-border rounded cursor-pointer"
-                      onClick={(e) => {
-                        if (!audioBuffer) return
-                        const canvas = canvasRef.current
-                        if (!canvas) return
-
-                        const rect = canvas.getBoundingClientRect()
-                        const x = e.clientX - rect.left
-                        const clickProgress = x / rect.width
-                        const seekTime = clickProgress * audioBuffer.duration
-
-                        seekTo(seekTime)
-                      }}
-                      onMouseMove={(e) => {
-                        if (!audioBuffer || !waveformData) return
-                        const canvas = canvasRef.current
-                        if (!canvas) return
-
-                        const rect = canvas.getBoundingClientRect()
-                        const x = e.clientX - rect.left
-                        const progress = x / rect.width
-                        const time = progress * audioBuffer.duration
-
-                        const dataIndex = Math.floor(progress * waveformData.length)
-                        const amplitude = waveformData[dataIndex] || 0
-
-                        setHoverTime(time)
-                        setHoverAmplitude(amplitude)
-                      }}
-                      onMouseLeave={() => {
-                        setHoverTime(null)
-                        setHoverAmplitude(null)
-                      }}
-                    />
-                  )}
-
-                  {/* Hover tooltip */}
-                  {hoverTime !== null && hoverAmplitude !== null && (
-                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-background border border-accent rounded px-3 py-2 text-xs font-mono shadow-lg pointer-events-none z-10">
-                      <div className="text-accent font-semibold mb-1">Waveform Info</div>
-                      <div>Time: {formatDuration(hoverTime)}</div>
-                      <div>Amplitude: {(hoverAmplitude * 100).toFixed(1)}%</div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Click anywhere on the waveform to seek to that position • Hover to see details
-                  </p>
+                {/* Waveform Visualizer */}
+                <div className="mt-4">
+                  <WaveformVisualizer
+                    backendWaveform={backendWaveform}
+                    audioBuffer={audioBuffer}
+                    currentTime={currentTime}
+                    isPlaying={isPlaying}
+                    onSeek={seekTo}
+                  />
                 </div>
 
                 {/* Audio Enhancement Controls */}
