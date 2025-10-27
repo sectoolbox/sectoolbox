@@ -1,6 +1,7 @@
 import express from 'express';
 import { getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
 import { readResults } from '../services/storage.js';
+import { JOB_STATUS } from '../utils/constants.js';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/:jobId', async (req, res) => {
     const progressData = typeof progress === 'object' ? progress : { progress: progress || 0 };
 
     let results = null;
-    if (state === 'completed') {
+    if (state === JOB_STATUS.COMPLETED) {
       try {
         results = await readResults(jobId);
       } catch (error) {

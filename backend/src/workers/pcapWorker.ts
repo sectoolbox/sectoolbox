@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import { getPcapQueue } from '../services/queue.js';
 import { saveResults } from '../services/storage.js';
 import { emitJobProgress, emitJobCompleted, emitJobFailed } from '../services/websocket.js';
+import { JOB_STATUS } from '../utils/constants.js';
 import { promises as fs } from 'fs';
 
 const queue = getPcapQueue();
@@ -18,7 +19,7 @@ queue.process(async (job) => {
   const updateProgress = (progress: number, message: string) => {
     console.log(`📊 Progress Update: ${progress}% - ${message}`);
     job.progress({ progress, message });
-    emitJobProgress(jobId, { progress, message, status: 'processing' });
+    emitJobProgress(jobId, { progress, message, status: JOB_STATUS.PROCESSING });
   };
 
   updateProgress(5, `File received (${fileSizeMB} MB)`);

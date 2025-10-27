@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import { getAudioQueue } from '../services/queue.js';
 import { saveResults } from '../services/storage.js';
 import { emitJobProgress, emitJobCompleted, emitJobFailed } from '../services/websocket.js';
+import { JOB_STATUS } from '../utils/constants.js';
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 
@@ -13,7 +14,7 @@ queue.process(async (job) => {
   emitJobProgress(jobId, {
     progress: 10,
     message: 'Starting audio analysis...',
-    status: 'processing'
+    status: JOB_STATUS.PROCESSING
   });
 
   try {
@@ -54,7 +55,7 @@ async function generateWaveform(audioPath: string, jobId: string): Promise<any> 
     emitJobProgress(jobId, {
       progress: 20,
       message: 'Generating waveform with FFmpeg...',
-      status: 'processing'
+      status: JOB_STATUS.PROCESSING
     });
 
     const ffmpeg = spawn('ffmpeg', [
@@ -76,7 +77,7 @@ async function generateWaveform(audioPath: string, jobId: string): Promise<any> 
         emitJobProgress(jobId, {
           progress: 50,
           message: 'Processing waveform data...',
-          status: 'processing'
+          status: JOB_STATUS.PROCESSING
         });
 
         try {
@@ -115,7 +116,7 @@ async function generateSpectrogram(audioPath: string, jobId: string): Promise<an
     emitJobProgress(jobId, {
       progress: 60,
       message: 'Generating spectrogram with FFmpeg...',
-      status: 'processing'
+      status: JOB_STATUS.PROCESSING
     });
 
     const ffmpeg = spawn('ffmpeg', [
@@ -136,7 +137,7 @@ async function generateSpectrogram(audioPath: string, jobId: string): Promise<an
         emitJobProgress(jobId, {
           progress: 80,
           message: 'Processing spectrogram data...',
-          status: 'processing'
+          status: JOB_STATUS.PROCESSING
         });
 
         try {

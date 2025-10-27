@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getEventLogQueue } from '../services/queue.js';
 import { saveUploadedFile } from '../services/storage.js';
 import { validateFileSize, validateFileType } from '../utils/validators.js';
-import { FILE_SIZE_LIMITS, ALLOWED_EXTENSIONS } from '../utils/constants.js';
+import { FILE_SIZE_LIMITS, ALLOWED_EXTENSIONS, JOB_STATUS } from '../utils/constants.js';
 
 const router = express.Router();
 const upload = multer({ 
@@ -31,7 +31,7 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
 
     res.json({
       jobId,
-      status: 'queued',
+      status: JOB_STATUS.QUEUED,
       message: 'Event log analysis queued'
     });
   } catch (error: any) {

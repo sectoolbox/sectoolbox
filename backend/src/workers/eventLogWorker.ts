@@ -5,6 +5,7 @@ import { saveResults } from '../services/storage.js';
 import { emitJobProgress, emitJobCompleted, emitJobFailed } from '../services/websocket.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { JOB_STATUS } from '../utils/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,14 +20,14 @@ queue.process(async (job) => {
   emitJobProgress(jobId, {
     progress: 10,
     message: 'Reading event log file...',
-    status: 'processing'
+    status: JOB_STATUS.PROCESSING
   });
 
   try {
     emitJobProgress(jobId, {
       progress: 30,
       message: 'Parsing events with Python parser...',
-      status: 'processing'
+      status: JOB_STATUS.PROCESSING
     });
 
     // Run Python script to parse the .evtx file
@@ -36,7 +37,7 @@ queue.process(async (job) => {
     emitJobProgress(jobId, {
       progress: 90,
       message: 'Finalizing results...',
-      status: 'processing'
+      status: JOB_STATUS.PROCESSING
     });
 
     // Add metadata
@@ -112,7 +113,7 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
         emitJobProgress(jobId, {
           progress,
           message: 'Parsing events...',
-          status: 'processing'
+          status: JOB_STATUS.PROCESSING
         });
       }
     }, 2000);
