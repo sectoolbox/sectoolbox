@@ -17,8 +17,7 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  BarChart3,
-  Cloud
+  BarChart3
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -28,11 +27,6 @@ import { apiClient } from '../services/api'
 import { useBackendJob } from '../hooks/useBackendJob'
 import toast from 'react-hot-toast'
 import {
-  AudioPlayer,
-  OverviewTab,
-  SteganographyTab,
-  SpectrumTab,
-  EnhanceTab,
   WaveformVisualizer,
   ABComparisonPanel,
   AnalysisResultsPanel,
@@ -43,7 +37,6 @@ import {
   loadAudioFile,
   extractMetadata,
   getWaveformData,
-  separateChannels,
   extractStringsFromAudio,
   detectMorseCode,
   detectLSBSteganography,
@@ -67,11 +60,7 @@ import {
   detectDTMF,
   detectBinaryAudio,
   detectSpectralAnomalies,
-  detectRepeatedPatterns,
-  type DTMFResult,
-  type BinaryAudioResult,
-  type SpectralAnomaly,
-  type PatternMatch
+  detectRepeatedPatterns
 } from '../lib/audioDecoders'
 
 const AudioAnalysis: React.FC = () => {
@@ -82,7 +71,7 @@ const AudioAnalysis: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   // Backend spectrogram
-  const [useBackendFFT, setUseBackendFFT] = useState(false)
+  const useBackendFFT = false
   const { jobStatus, startJob } = useBackendJob()
 
   // Audio playback state
@@ -99,8 +88,6 @@ const AudioAnalysis: React.FC = () => {
 
   // Analysis results
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null)
-  const [leftChannel, setLeftChannel] = useState<Float32Array | null>(null)
-  const [rightChannel, setRightChannel] = useState<Float32Array | null>(null)
   const [strings, setStrings] = useState<string[]>([])
   const [morseResult, setMorseResult] = useState<MorseResult | null>(null)
   const [lsbData, setLsbData] = useState<string>('')
@@ -111,14 +98,11 @@ const AudioAnalysis: React.FC = () => {
   const [backendWaveform, setBackendWaveform] = useState<string | null>(null)
   const [backendSpectrogram, setBackendSpectrogram] = useState<string | null>(null)
 
-  // Analysis progress tracking
-  const [analysisProgress, setAnalysisProgress] = useState<Array<{ name: string; progress: number }>>([])
-
   // UI state
   const [stringFilter, setStringFilter] = useState('')
   const [debouncedStringFilter, setDebouncedStringFilter] = useState('')
-  const [fftSize, setFftSize] = useState(2048)
-  const [maxFrequency, setMaxFrequency] = useState(20000)
+  const fftSize = 2048
+  const maxFrequency = 20000
   const [morseThreshold, setMorseThreshold] = useState(0.1)
   const [activeTab, setActiveTab] = useState<'overview' | 'morse' | 'spectrum' | 'auto-decode' | 'strings'>('overview')
 
@@ -235,8 +219,6 @@ const AudioAnalysis: React.FC = () => {
     setAudioBuffer(null)
     setMetadata(null)
     setWaveformData(null)
-    setLeftChannel(null)
-    setRightChannel(null)
     setStrings([])
     setMorseResult(null)
     setLsbData('')
@@ -648,128 +630,6 @@ const AudioAnalysis: React.FC = () => {
     }
   }
 
-  // AudioPlayer component handlers
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      pauseAudio()
-    } else {
-      playAudio()
-    }
-  }
-
-  const handleSeek = (time: number) => {
-    seekTo(time)
-  }
-
-  const handleReverse = async () => {
-    if (!audioBuffer) return
-    setIsAnalyzing(true)
-    const reversed = await reverseAudio(audioBuffer)
-    setAudioBuffer(reversed)
-    setIsReversed(!isReversed)
-    toast.success(isReversed ? 'Audio unreversed' : 'Audio reversed')
-    setIsAnalyzing(false)
-  }
-
-  // Batch analysis handler
-  const handleAnalyzeAll = async () => {
-    if (!audioBuffer) return
-    
-    setIsAnalyzing(true)
-    const tasks = [
-      { name: 'Morse Code', fn: analyzeMorse },
-      { name: 'LSB Steganography', fn: analyzeLSB },
-      { name: 'String Extraction', fn: analyzeStrings },
-      { name: 'Spectrogram', fn: analyzeSpectrogram },
-      { name: 'Frequency Analysis', fn: analyzeFrequency }
-    ]
-
-    setAnalysisProgress(tasks.map(t => ({ name: t.name, progress: 0 })))
-
-    for (let i = 0; i < tasks.length; i++) {
-      setAnalysisProgress(prev => 
-        prev.map((t, idx) => idx === i ? { ...t, progress: 50 } : t)
-      )
-      await tasks[i].fn()
-      setAnalysisProgress(prev =>
-        prev.map((t, idx) => idx === i ? { ...t, progress: 100 } : t)
-      )
-    }
-
-    setAnalysisProgress([])
-    setIsAnalyzing(false)
-    toast.success('All analyses complete!')
-  }
-
-  // Individual analysis handlers
-  const analyzeMorse = async () => {
-    if (!audioBuffer) return
-    const result = await detectMorseCode(audioBuffer, morseThreshold)
-    setMorseResult(result)
-  }
-
-  const analyzeLSB = async () => {
-    if (!file) return
-    const result = await detectLSBSteganography(file)
-    setLsbData(result)
-  }
-
-  const analyzeStrings = async () => {
-    if (!file) return
-    const result = await extractStringsFromAudio(file)
-    setStrings(result)
-  }
-
-  const analyzeSpectrogram = async () => {
-    if (!audioBuffer) return
-    const result = await generateSpectrogram(audioBuffer, fftSize, maxFrequency)
-    setSpectrogram(result)
-  }
-
-  const analyzeFrequency = async () => {
-    if (!audioBuffer) return
-    const result = analyzeFrequencyAnomalies(audioBuffer)
-    // Convert array to single result (use first anomaly or create aggregate)
-    if (result.length > 0) {
-      setFrequencyResult(result[0])
-    }
-  }
-
-  // Enhancement handlers
-  const handleEQChange = (index: number, gain: number) => {
-    const newBands = [...eqBands]
-    newBands[index] = { ...newBands[index], gain }
-    setEqBands(newBands)
-  }
-
-  const handleResetEQ = () => {
-    setEqBands(EQ_PRESETS['Flat'])
-    setSelectedPreset('Flat')
-  }
-
-  const handleExport = async () => {
-    if (!audioBuffer) return
-    setIsAnalyzing(true)
-    
-    let processedBuffer = audioBuffer
-    
-    // Apply EQ if not flat
-    if (eqBands.some(band => band.gain !== 0)) {
-      processedBuffer = await applyEqualizer(processedBuffer, eqBands)
-    }
-    
-    // Apply noise reduction if enabled
-    if (noiseReduction > 0) {
-      processedBuffer = await applyNoiseReduction(processedBuffer, noiseReduction)
-    }
-    
-    // Export as WAV
-    await exportAsWAV(processedBuffer, file?.name || 'enhanced')
-    
-    toast.success('Audio exported successfully!')
-    setIsAnalyzing(false)
-  }
-
   // A/B Comparison handlers
   const handleRegionChange = (region: AudioRegion | null, label: 'A' | 'B') => {
     if (label === 'A') {
@@ -872,99 +732,6 @@ const AudioAnalysis: React.FC = () => {
     const tempA = regionA
     setRegionA(regionB)
     setRegionB(tempA)
-  }
-
-  // Comprehensive "Auto-Decode All" analysis
-  const runComprehensiveAnalysis = async () => {
-    if (!audioBuffer || !file) return
-
-    setIsRunningComprehensiveAnalysis(true)
-    const results: DecoderResult[] = []
-
-    try {
-      // 1. Morse Code Detection
-      toast.loading('Analyzing morse code...')
-      const morseResult = detectMorseCode(audioBuffer, morseThreshold)
-      results.push({
-        type: 'morse',
-        detected: morseResult.detected,
-        confidence: morseResult.confidence,
-        data: morseResult,
-        description: 'Morse Code Detection'
-      })
-
-      // 2. DTMF Detection (Phone Tones)
-      toast.loading('Detecting DTMF tones...')
-      const dtmfResult = detectDTMF(audioBuffer)
-      results.push({
-        type: 'dtmf',
-        detected: dtmfResult.detected,
-        confidence: dtmfResult.confidence,
-        data: dtmfResult,
-        description: 'DTMF (Phone Tone) Detection'
-      })
-
-      // 3. Binary Audio Encoding
-      toast.loading('Detecting binary encoding...')
-      const binaryResult = detectBinaryAudio(audioBuffer)
-      results.push({
-        type: 'binary',
-        detected: binaryResult.detected,
-        confidence: binaryResult.confidence,
-        data: binaryResult,
-        description: `Binary Audio Encoding (${binaryResult.encoding})`
-      })
-
-      // 4. LSB Steganography
-      toast.loading('Analyzing LSB steganography...')
-      const lsbResult = await detectLSBSteganography(file)
-      results.push({
-        type: 'lsb',
-        detected: lsbResult.length > 0,
-        confidence: lsbResult.length > 0 ? 0.8 : 0,
-        data: { decodedText: lsbResult, binaryString: '' },
-        description: 'LSB Steganography Detection'
-      })
-
-      // 5. Spectral Anomalies
-      toast.loading('Detecting spectral anomalies...')
-      const anomalies = detectSpectralAnomalies(audioBuffer)
-      for (const anomaly of anomalies.filter(a => a.suspicious)) {
-        results.push({
-          type: 'anomaly',
-          detected: true,
-          confidence: anomaly.confidence,
-          data: anomaly,
-          description: `Spectral Anomaly: ${anomaly.type}`,
-          timestamp: anomaly.timestamp
-        })
-      }
-
-      // 6. Repeated Patterns
-      toast.loading('Finding repeated patterns...')
-      const patterns = detectRepeatedPatterns(audioBuffer)
-      for (const pattern of patterns) {
-        results.push({
-          type: 'pattern',
-          detected: true,
-          confidence: pattern.confidence,
-          data: pattern,
-          description: `Repeated Pattern (${pattern.repetitions}x)`,
-          timestamp: pattern.startTime
-        })
-      }
-
-      setAnalysisResults(results)
-      
-      const detectedCount = results.filter(r => r.detected).length
-      toast.success(`Analysis complete! ${detectedCount} detection${detectedCount !== 1 ? 's' : ''} found`)
-      
-    } catch (error) {
-      console.error('Comprehensive analysis error:', error)
-      toast.error('Analysis failed: ' + (error as Error).message)
-    } finally {
-      setIsRunningComprehensiveAnalysis(false)
-    }
   }
 
   const handleExportResults = () => {

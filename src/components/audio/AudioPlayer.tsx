@@ -1,7 +1,6 @@
-import React, { useRef, useEffect } from 'react'
-import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react'
+import React from 'react'
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 import { Card } from '../ui/card'
 
 interface AudioPlayerProps {
