@@ -21,7 +21,8 @@ import {
   File,
   EyeOff,
   Zap,
-  Copy
+  Copy,
+  Target
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -55,7 +56,17 @@ const FolderScanner: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 })
-  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'preview'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'preview' | 'insights'>('overview')
+
+  // CTF Mode state
+  const [ctfMode, setCtfMode] = useState(false)
+  const [flagPattern, setFlagPattern] = useState('flag{')
+  const [flagPatternEnd, setFlagPatternEnd] = useState('}')
+  const [checkEncodedFlags, setCheckEncodedFlags] = useState(true)
+  const [flagResults, setFlagResults] = useState<Array<{ file: FileEntry, flags: string[], encoded?: boolean }>>([])
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('')
+  const [globalSearchResults, setGlobalSearchResults] = useState<Array<{ file: FileEntry, matches: string[] }>>([])
+  const [isGlobalSearching, setIsGlobalSearching] = useState(false)
 
   // Filter state
   const [filters, setFilters] = useState<FilterOptions>({
@@ -286,6 +297,104 @@ const FolderScanner: React.FC = () => {
     setSearchInput('')
   }
 
+  // CTF Mode: Search for flags across all files
+  const searchForFlags = async () => {
+    if (!scanResult) return
+
+    const filesToSearch = analyzedFiles.length > 0 ? analyzedFiles : scanResult.files
+    const results: Array<{ file: FileEntry, flags: string[], encoded?: boolean }> = []
+
+    // Build regex pattern from user input
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const flagRegex = new RegExp(
+      `${escapeRegex(flagPattern)}[^${escapeRegex(flagPatternEnd)}]+${escapeRegex(flagPatternEnd)}`,
+      'gi'
+    )
+
+    for (const file of filesToSearch) {
+      const flags: string[] = []
+      
+      // Search in extracted strings
+      if (file.analysisResult?.printableStrings) {
+        for (const str of file.analysisResult.printableStrings) {
+          const matches = str.match(flagRegex)
+          if (matches) flags.push(...matches)
+        }
+      }
+
+      // Search in UTF-16 decoded strings
+      if (file.analysisResult?.utf16DecodedStrings) {
+        for (const str of file.analysisResult.utf16DecodedStrings) {
+          const matches = str.match(flagRegex)
+          if (matches) flags.push(...matches)
+        }
+      }
+
+      // Check for encoded flags (base64, hex, rot13)
+      if (checkEncodedFlags && file.analysisResult?.interestingPatterns.base64) {
+        for (const b64 of file.analysisResult.interestingPatterns.base64) {
+          try {
+            const decoded = atob(b64)
+            const matches = decoded.match(flagRegex)
+            if (matches) {
+              flags.push(...matches.map(m => `${m} (base64: ${b64})`))
+            }
+          } catch {}
+        }
+      }
+
+      if (flags.length > 0) {
+        results.push({ file, flags: [...new Set(flags)] })
+      }
+    }
+
+    setFlagResults(results)
+  }
+
+  // Global content search across all files
+  const handleGlobalSearch = async () => {
+    if (!globalSearchTerm.trim() || !scanResult) return
+
+    setIsGlobalSearching(true)
+    const filesToSearch = analyzedFiles.length > 0 ? analyzedFiles : scanResult.files
+    const results: Array<{ file: FileEntry, matches: string[] }> = []
+    const searchLower = globalSearchTerm.toLowerCase()
+
+    for (const file of filesToSearch) {
+      const matches: string[] = []
+
+      // Search in filename
+      if (file.name.toLowerCase().includes(searchLower)) {
+        matches.push(`Filename: ${file.name}`)
+      }
+
+      // Search in strings
+      if (file.analysisResult?.printableStrings) {
+        for (const str of file.analysisResult.printableStrings) {
+          if (str.toLowerCase().includes(searchLower)) {
+            matches.push(str)
+          }
+        }
+      }
+
+      // Search in UTF-16 strings
+      if (file.analysisResult?.utf16DecodedStrings) {
+        for (const str of file.analysisResult.utf16DecodedStrings) {
+          if (str.toLowerCase().includes(searchLower)) {
+            matches.push(str)
+          }
+        }
+      }
+
+      if (matches.length > 0) {
+        results.push({ file, matches: matches.slice(0, 10) }) // Limit to 10 matches per file
+      }
+    }
+
+    setGlobalSearchResults(results)
+    setIsGlobalSearching(false)
+  }
+
   const handleByteExtraction = async () => {
     if (!scanResult) {
       setExtractionError('No folder scanned. Please scan a folder first.')
@@ -360,13 +469,193 @@ const FolderScanner: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <FolderOpen className="w-8 h-8 text-accent" />
-            Folder
+            Folder Scanner
           </h1>
           <p className="text-muted-foreground mt-1">
             Bulk scan folders and filter files by content, including hidden files
           </p>
         </div>
+        
+        {/* CTF Mode Toggle */}
+        {scanResult && (
+          <Button
+            onClick={() => setCtfMode(!ctfMode)}
+            variant={ctfMode ? 'default' : 'outline'}
+            className={ctfMode ? 'bg-accent hover:bg-accent/80' : ''}
+          >
+            <Target className="w-4 h-4 mr-2" />
+            CTF Mode {ctfMode ? 'ON' : 'OFF'}
+          </Button>
+        )}
       </div>
+
+      {/* CTF Mode Panel */}
+      {ctfMode && scanResult && (
+        <Card className="p-4 bg-accent/5 border-accent/30">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Target className="w-5 h-5 text-accent" />
+                CTF Tools
+              </h3>
+            </div>
+
+            {/* Flag Search */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Flag Pattern Search</h4>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="flag{"
+                    value={flagPattern}
+                    onChange={(e) => setFlagPattern(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="}"
+                    value={flagPatternEnd}
+                    onChange={(e) => setFlagPatternEnd(e.target.value)}
+                    className="w-20"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={checkEncodedFlags}
+                    onChange={(e) => setCheckEncodedFlags(e.target.checked)}
+                    id="check-encoded"
+                  />
+                  <label htmlFor="check-encoded">Check encoded (base64)</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setFlagPattern('flag{'); setFlagPatternEnd('}') }}>flag{`{}`}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setFlagPattern('HTB{'); setFlagPatternEnd('}') }}>HTB{`{}`}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setFlagPattern('picoCTF{'); setFlagPatternEnd('}') }}>picoCTF{`{}`}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setFlagPattern('CTF{'); setFlagPatternEnd('}') }}>CTF{`{}`}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setFlagPattern('FLAG:'); setFlagPatternEnd(' ') }}>FLAG:</Button>
+                </div>
+                <Button onClick={searchForFlags} className="w-full">
+                  <Search className="w-4 h-4 mr-2" />
+                  Search for Flags
+                </Button>
+              </div>
+
+              {/* Global Search */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Global Content Search</h4>
+                <Input
+                  placeholder="Search in all file contents..."
+                  value={globalSearchTerm}
+                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGlobalSearch()}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Search through content of all files at once
+                </p>
+                <Button onClick={handleGlobalSearch} disabled={isGlobalSearching} className="w-full">
+                  {isGlobalSearching ? (
+                    <>
+                      <Activity className="w-4 h-4 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Search All Files
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Flag Results */}
+            {flagResults.length > 0 && (
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-medium mb-2">🎯 Flags Found ({flagResults.length} files)</h4>
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {flagResults.map((result, idx) => (
+                    <div key={idx} className="bg-green-500/10 border border-green-500/30 rounded p-3">
+                      <p className="text-sm font-mono font-bold text-green-400">{result.file.name}</p>
+                      {result.flags.map((flag, i) => (
+                        <div key={i} className="text-sm font-mono mt-1 text-accent">{flag}</div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => {
+                    const allFlags = flagResults.flatMap(r => r.flags).join('\n')
+                    navigator.clipboard.writeText(allFlags)
+                    alert('All flags copied to clipboard!')
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copy All Flags
+                </Button>
+              </div>
+            )}
+
+            {/* Global Search Results */}
+            {globalSearchResults.length > 0 && (
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-medium mb-2">
+                  🔍 Search Results ({globalSearchResults.length} files with matches)
+                </h4>
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {globalSearchResults.map((result, idx) => (
+                    <div key={idx} className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
+                      <p className="text-sm font-mono font-bold text-blue-400">{result.file.name}</p>
+                      {result.matches.slice(0, 3).map((match, i) => (
+                        <div key={i} className="text-xs font-mono mt-1 text-muted-foreground truncate">
+                          {match}
+                        </div>
+                      ))}
+                      {result.matches.length > 3 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          +{result.matches.length - 3} more matches
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick CTF Filters */}
+            <div className="border-t border-border pt-4">
+              <h4 className="text-sm font-medium mb-2">Quick Filters</h4>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setFilters({ ...filters, minEntropy: 7.5 })}
+                >
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Suspicious Entropy (&gt;7.5)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setFilters({ ...filters, minSize: 1, maxSize: 1024 })}
+                >
+                  Small Files (&lt;1KB)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => resetFilters()}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Upload Section */}
       {!scanResult ? (
@@ -625,8 +914,47 @@ const FolderScanner: React.FC = () => {
                   <div className="space-y-3 pl-6">
                     {/* Preset Examples */}
                     <div className="bg-muted/20 border border-border rounded p-3">
-                      <p className="text-xs font-medium mb-2 text-muted-foreground">Quick Presets:</p>
+                      <p className="text-xs font-medium mb-2 text-muted-foreground">🎮 CTF Presets:</p>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: 'flag*.txt',
+                            bytePositions: '0',
+                            sortBy: 'natural'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          🎯 Sequential Flag Parts (first byte)
+                        </Button>
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: 'part*.txt',
+                            bytePositions: '0-10',
+                            sortBy: 'natural'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          📝 Multi-byte Extraction (0-10)
+                        </Button>
+                        <Button
+                          onClick={() => setByteExtractionConfig({
+                            ...byteExtractionConfig,
+                            filenamePattern: '*.png',
+                            bytePositions: '0-3',
+                            sortBy: 'name'
+                          })}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          🖼️ Image Magic Bytes
+                        </Button>
                         <Button
                           onClick={() => setByteExtractionConfig({
                             ...byteExtractionConfig,
@@ -638,33 +966,20 @@ const FolderScanner: React.FC = () => {
                           size="sm"
                           className="text-xs"
                         >
-                          NTFS Recycle Bin ($I files, pos 8)
-                        </Button>
-                        <Button
-                          onClick={() => setByteExtractionConfig({
-                            ...byteExtractionConfig,
-                            filenamePattern: 'flag*.txt',
-                            bytePositions: '0',
-                            sortBy: 'name'
-                          })}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          Sequential Flags (first byte)
+                          🗑️ NTFS Recycle Bin ($I files)
                         </Button>
                         <Button
                           onClick={() => setByteExtractionConfig({
                             ...byteExtractionConfig,
                             filenamePattern: '*.bin',
-                            bytePositions: '0-3',
-                            sortBy: 'name'
+                            bytePositions: '0',
+                            sortBy: 'modified'
                           })}
                           variant="outline"
                           size="sm"
                           className="text-xs"
                         >
-                          Magic Bytes (0-3)
+                          ⏰ Time-based Sorting
                         </Button>
                       </div>
                     </div>
@@ -977,6 +1292,10 @@ const FolderScanner: React.FC = () => {
                 <FileText className="w-4 h-4 mr-2" />
                 Files ({filteredFiles.length})
               </TabsTrigger>
+              <TabsTrigger value="insights">
+                <Layers className="w-4 h-4 mr-2" />
+                Insights
+              </TabsTrigger>
               {selectedFile && (
                 <TabsTrigger value="preview">
                   <Eye className="w-4 h-4 mr-2" />
@@ -1120,7 +1439,7 @@ const FolderScanner: React.FC = () => {
                           <td className="p-2">
                             <div className="flex items-center gap-2">
                               {file.isHidden && <EyeOff className="w-3 h-3 text-yellow-400" />}
-                              {file.analysisResult?.hasUtf16EncodingIssue && <Zap className="w-3 h-3 text-orange-400" title="UTF-16 encoding issue detected" />}
+                              {file.analysisResult?.hasUtf16EncodingIssue && <Zap className="w-3 h-3 text-orange-400" />}
                               <span className="font-mono text-xs">{file.name}</span>
                             </div>
                           </td>
@@ -1198,6 +1517,190 @@ const FolderScanner: React.FC = () => {
                   )}
                 </div>
               </Card>
+            </TabsContent>
+
+            {/* Insights Tab */}
+            <TabsContent value="insights">
+              <div className="space-y-4">
+                {/* File Type Distribution */}
+                <Card className="p-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center">
+                    <Layers className="w-5 h-5 mr-2 text-accent" />
+                    File Type Distribution
+                  </h3>
+                  <div className="space-y-2">
+                    {Object.entries(scanResult.fileTypes)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([ext, count]) => {
+                        const percentage = (count / scanResult.totalFiles) * 100
+                        return (
+                          <div key={ext} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-mono">.{ext || 'no ext'}</span>
+                              <span className="text-muted-foreground">
+                                {count} files ({percentage.toFixed(1)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className="bg-accent h-2 rounded-full transition-all"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </Card>
+
+                {/* Anomaly Detection */}
+                <Card className="p-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-orange-400" />
+                    Anomalies & Outliers
+                  </h3>
+                  <div className="space-y-3">
+                    {/* High Entropy Files */}
+                    {(() => {
+                      const highEntropyFiles = (analyzedFiles.length > 0 ? analyzedFiles : scanResult.files)
+                        .filter(f => f.analysisResult && f.analysisResult.entropy > 7.5)
+                      return highEntropyFiles.length > 0 ? (
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded p-3">
+                          <h4 className="text-sm font-medium mb-2 text-orange-400">
+                            🔥 High Entropy Files ({highEntropyFiles.length}) - Possible Encryption/Compression
+                          </h4>
+                          <div className="space-y-1">
+                            {highEntropyFiles.slice(0, 5).map((file, i) => (
+                              <div key={i} className="text-xs font-mono flex justify-between">
+                                <span>{file.name}</span>
+                                <span className="text-orange-400">{file.analysisResult!.entropy.toFixed(2)}</span>
+                              </div>
+                            ))}
+                            {highEntropyFiles.length > 5 && (
+                              <p className="text-xs text-muted-foreground">
+                                +{highEntropyFiles.length - 5} more
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {/* Empty Files */}
+                    {scanResult.emptyFileCount > 0 && (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
+                        <h4 className="text-sm font-medium mb-2 text-red-400">
+                          📭 Empty Files ({scanResult.emptyFileCount})
+                        </h4>
+                        <div className="space-y-1">
+                          {scanResult.files
+                            .filter(f => f.size === 0)
+                            .slice(0, 5)
+                            .map((file, i) => (
+                              <div key={i} className="text-xs font-mono">{file.name}</div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hidden Files */}
+                    {scanResult.hiddenFileCount > 0 && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+                        <h4 className="text-sm font-medium mb-2 text-yellow-400">
+                          👁️ Hidden Files ({scanResult.hiddenFileCount})
+                        </h4>
+                        <div className="space-y-1">
+                          {scanResult.files
+                            .filter(f => f.isHidden)
+                            .slice(0, 5)
+                            .map((file, i) => (
+                              <div key={i} className="text-xs font-mono">{file.name}</div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Files with URLs */}
+                    {(() => {
+                      const filesWithUrls = (analyzedFiles.length > 0 ? analyzedFiles : scanResult.files)
+                        .filter(f => f.analysisResult?.interestingPatterns.urls && f.analysisResult.interestingPatterns.urls.length > 0)
+                      return filesWithUrls.length > 0 ? (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
+                          <h4 className="text-sm font-medium mb-2 text-blue-400">
+                            🌐 Files with URLs ({filesWithUrls.length})
+                          </h4>
+                          <div className="space-y-1">
+                            {filesWithUrls.slice(0, 3).map((file, i) => (
+                              <div key={i} className="text-xs">
+                                <span className="font-mono">{file.name}</span>
+                                <span className="text-muted-foreground ml-2">
+                                  ({file.analysisResult!.interestingPatterns.urls.length} URLs)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {/* Files with Base64 */}
+                    {(() => {
+                      const filesWithBase64 = (analyzedFiles.length > 0 ? analyzedFiles : scanResult.files)
+                        .filter(f => f.analysisResult?.interestingPatterns.base64 && f.analysisResult.interestingPatterns.base64.length > 0)
+                      return filesWithBase64.length > 0 ? (
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded p-3">
+                          <h4 className="text-sm font-medium mb-2 text-purple-400">
+                            🔐 Files with Base64 ({filesWithBase64.length})
+                          </h4>
+                          <div className="space-y-1">
+                            {filesWithBase64.slice(0, 3).map((file, i) => (
+                              <div key={i} className="text-xs">
+                                <span className="font-mono">{file.name}</span>
+                                <span className="text-muted-foreground ml-2">
+                                  ({file.analysisResult!.interestingPatterns.base64.length} patterns)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
+                </Card>
+
+                {/* Size Distribution */}
+                <Card className="p-4">
+                  <h3 className="text-lg font-semibold mb-3">File Size Distribution</h3>
+                  <div className="space-y-2">
+                    {(() => {
+                      const sizeRanges = {
+                        'Empty (0 bytes)': scanResult.files.filter(f => f.size === 0).length,
+                        'Tiny (1-1KB)': scanResult.files.filter(f => f.size > 0 && f.size <= 1024).length,
+                        'Small (1KB-100KB)': scanResult.files.filter(f => f.size > 1024 && f.size <= 100 * 1024).length,
+                        'Medium (100KB-1MB)': scanResult.files.filter(f => f.size > 100 * 1024 && f.size <= 1024 * 1024).length,
+                        'Large (>1MB)': scanResult.files.filter(f => f.size > 1024 * 1024).length
+                      }
+                      return Object.entries(sizeRanges).map(([range, count]) => {
+                        const percentage = (count / scanResult.totalFiles) * 100
+                        return count > 0 ? (
+                          <div key={range} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>{range}</span>
+                              <span className="text-muted-foreground">{count} files ({percentage.toFixed(1)}%)</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className="bg-accent h-2 rounded-full transition-all"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : null
+                      })
+                    })()}
+                  </div>
+                </Card>
+              </div>
             </TabsContent>
 
             {/* Preview Tab */}
