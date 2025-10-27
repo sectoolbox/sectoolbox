@@ -4,9 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPcapQueue } from '../services/queue.js';
 import { saveUploadedFile } from '../services/storage.js';
 import { validateFileSize, validateFileType } from '../utils/validators.js';
+import { FILE_SIZE_LIMITS, ALLOWED_EXTENSIONS } from '../utils/constants.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 * 1024 } });
+const upload = multer({ 
+  storage: multer.memoryStorage(), 
+  limits: { fileSize: FILE_SIZE_LIMITS.PCAP } 
+});
 
 router.post('/analyze', upload.single('file'), async (req, res) => {
   try {
@@ -17,8 +21,8 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'PCAP file required' });
     }
 
-    validateFileSize(file.size);
-    validateFileType(file.originalname, ['pcap', 'pcapng', 'cap']);
+    validateFileSize(file.size, FILE_SIZE_LIMITS.PCAP);
+    validateFileType(file.originalname, ALLOWED_EXTENSIONS.PCAP);
 
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);

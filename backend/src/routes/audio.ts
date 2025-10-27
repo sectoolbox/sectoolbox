@@ -4,9 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { getAudioQueue } from '../services/queue.js';
 import { saveUploadedFile } from '../services/storage.js';
 import { validateFileSize, validateFileType } from '../utils/validators.js';
+import { FILE_SIZE_LIMITS, ALLOWED_EXTENSIONS } from '../utils/constants.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+const upload = multer({ 
+  storage: multer.memoryStorage(), 
+  limits: { fileSize: FILE_SIZE_LIMITS.AUDIO } 
+});
 
 router.post('/spectrogram', upload.single('file'), async (req, res) => {
   try {
@@ -16,8 +20,8 @@ router.post('/spectrogram', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Audio file required' });
     }
 
-    validateFileSize(file.size, 500 * 1024 * 1024);
-    validateFileType(file.originalname, ['wav', 'mp3', 'ogg', 'flac', 'aac']);
+    validateFileSize(file.size, FILE_SIZE_LIMITS.AUDIO);
+    validateFileType(file.originalname, ALLOWED_EXTENSIONS.AUDIO);
 
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);

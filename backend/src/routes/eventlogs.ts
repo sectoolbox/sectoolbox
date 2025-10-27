@@ -4,10 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { getEventLogQueue } from '../services/queue.js';
 import { saveUploadedFile } from '../services/storage.js';
 import { validateFileSize, validateFileType } from '../utils/validators.js';
+import { FILE_SIZE_LIMITS, ALLOWED_EXTENSIONS } from '../utils/constants.js';
 
 const router = express.Router();
-// Allow up to 1.5GB for event log files
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1.5 * 1024 * 1024 * 1024 } });
+const upload = multer({ 
+  storage: multer.memoryStorage(), 
+  limits: { fileSize: FILE_SIZE_LIMITS.EVTX } 
+});
 
 router.post('/analyze', upload.single('file'), async (req, res) => {
   try {
@@ -17,8 +20,8 @@ router.post('/analyze', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Event log file required' });
     }
 
-    validateFileSize(file.size, 1.5 * 1024 * 1024 * 1024); // 1.5GB max
-    validateFileType(file.originalname, ['evtx']);
+    validateFileSize(file.size, FILE_SIZE_LIMITS.EVTX);
+    validateFileType(file.originalname, ALLOWED_EXTENSIONS.EVTX);
 
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
