@@ -28,13 +28,13 @@ export async function initializeQueue() {
     throw error;
   }
 
-  // Create Bull queues
+  // Create Bull queues with aggressive cleanup for free Redis tier
   pcapQueue = new Bull('pcap-jobs', redisUrl, {
     defaultJobOptions: {
       attempts: 2,
       timeout: 600000, // 10 minutes
-      removeOnComplete: 50,
-      removeOnFail: 25
+      removeOnComplete: 5,  // Keep only last 5 successful jobs
+      removeOnFail: 5       // Keep only last 5 failed jobs
     }
   });
 
@@ -42,8 +42,8 @@ export async function initializeQueue() {
     defaultJobOptions: {
       attempts: 2,
       timeout: 300000, // 5 minutes
-      removeOnComplete: 50,
-      removeOnFail: 25
+      removeOnComplete: 5,  // Keep only last 5 successful jobs
+      removeOnFail: 5       // Keep only last 5 failed jobs
     }
   });
 
@@ -51,8 +51,8 @@ export async function initializeQueue() {
     defaultJobOptions: {
       attempts: 2,
       timeout: 600000, // 10 minutes for large files
-      removeOnComplete: 50,
-      removeOnFail: 25
+      removeOnComplete: 5,  // Keep only last 5 successful jobs
+      removeOnFail: 5       // Keep only last 5 failed jobs
     }
   });
 
@@ -79,16 +79,94 @@ export function getRedisClient() {
   return redisClient;
 }
 
-// Cache helpers
+// Cache helpers with proper prefixing for cleanup
 export async function cacheSet(key: string, value: any, ttl: number = 3600) {
-  await redisClient.setEx(key, ttl, JSON.stringify(value));
+  const prefixedKey = `cache:${key}`;
+  await redisClient.setEx(prefixedKey, ttl, JSON.stringify(value));
 }
 
 export async function cacheGet(key: string) {
-  const value = await redisClient.get(key);
+  const prefixedKey = `cache:${key}`;
+  const value = await redisClient.get(prefixedKey);
   return value ? JSON.parse(value) : null;
 }
 
 export async function cacheDel(key: string) {
-  await redisClient.del(key);
+  const prefixedKey = `cache:${key}`;
+  await redisClient.del(prefixedKey);
+}
+
+// Clean up stale jobs on startup
+export async function cleanupStaleJobs() {
+  try {
+    console.log('Cleaning up stale jobs from Redis...');
+    const queues = [pcapQueue, audioQueue, eventLogQueue];
+    let totalCleaned = 0;
+
+    for (const queue of queues) {
+      if (!queue) continue;
+
+      // Remove all completed and failed jobs older than 2 hours
+      const completed = await queue.getCompleted();
+      const failed = await queue.getFailed();
+      const now = Date.now();
+      const maxAge = 2 * 60 * 60 * 1000; // 2 hours
+
+      for (const job of [...completed, ...failed]) {
+        const age = now - job.timestamp;
+        if (age > maxAge) {
+          await job.remove();
+          totalCleaned++;
+        }
+      }
+
+      // Clean any stuck jobs
+      const active = await queue.getActive();
+      for (const job of active) {
+        const age = now - job.timestamp;
+        if (age > 30 * 60 * 1000) { // 30 minutes stuck = dead
+          await job.moveToFailed({ message: 'Job timeout - cleaned on startup' }, true);
+          totalCleaned++;
+        }
+      }
+    }
+
+    console.log(`✅ Cleaned ${totalCleaned} stale jobs from Redis`);
+  } catch (error) {
+    console.error('Failed to clean stale jobs:', error);
+  }
+}
+
+// Cleanup expired cache keys (active cleanup, not just TTL)
+export async function cleanupExpiredCache() {
+  try {
+    const keys = await redisClient.keys('cache:*');
+    let cleaned = 0;
+
+    for (const key of keys) {
+      const ttl = await redisClient.ttl(key);
+      if (ttl === -1 || ttl === -2) { // No TTL or expired
+        await redisClient.del(key);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log(`🧹 Cleaned ${cleaned} expired cache entries`);
+    }
+  } catch (error) {
+    console.error('Cache cleanup failed:', error);
+  }
+}
+
+// Get Redis memory usage stats
+export async function getRedisStats() {
+  try {
+    const info = await redisClient.info('memory');
+    const usedMemory = info.match(/used_memory_human:(.+)/)?.[1];
+    const maxMemory = info.match(/maxmemory_human:(.+)/)?.[1];
+    return { usedMemory, maxMemory };
+  } catch (error) {
+    return { usedMemory: 'unknown', maxMemory: 'unknown' };
+  }
 }

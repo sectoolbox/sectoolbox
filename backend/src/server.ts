@@ -16,7 +16,7 @@ import followRoutes from './routes/follow.js';
 import eventLogsRoutes from './routes/eventlogs.js';
 
 // Services
-import { initializeQueue } from './services/queue.js';
+import { initializeQueue, cleanupStaleJobs } from './services/queue.js';
 import { initializeWebSocket } from './services/websocket.js';
 import { startCleanupScheduler } from './utils/cleanup.js';
 
@@ -124,15 +124,17 @@ async function startServer() {
   try {
     // Initialize Redis and Bull queue
     await initializeQueue();
-    console.log('Queue initialized');
+    console.log('✅ Queue initialized');
+
+    // Clean stale jobs from previous runs
+    await cleanupStaleJobs();
 
     // Initialize WebSocket
     initializeWebSocket(io);
-    console.log('WebSocket initialized');
+    console.log('✅ WebSocket initialized');
 
-    // Start cleanup scheduler (delete files after 1 hour)
+    // Start cleanup scheduler (aggressive for free Redis tier)
     startCleanupScheduler();
-    console.log('Cleanup scheduler started');
 
     // Start server
     httpServer.listen(PORT, () => {

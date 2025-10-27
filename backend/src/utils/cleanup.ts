@@ -1,9 +1,9 @@
 import { listAllJobs, getJobCreationTime, deleteJobFiles } from '../services/storage.js';
-import { getPcapQueue, getAudioQueue, getEventLogQueue } from '../services/queue.js';
+import { getPcapQueue, getAudioQueue, getEventLogQueue, cleanupExpiredCache, getRedisStats } from '../services/queue.js';
 
-const CLEANUP_INTERVAL = 15 * 60 * 1000; // Run every 15 minutes
+const CLEANUP_INTERVAL = 60 * 60 * 1000; // Run every 1 hour (reduced from 15 min)
 const MAX_FILE_AGE = 60 * 60 * 1000; // 1 hour
-const MAX_QUEUE_JOB_AGE = 24 * 60 * 60 * 1000; // 24 hours for completed/failed queue jobs
+const MAX_QUEUE_JOB_AGE = 2 * 60 * 60 * 1000; // 2 hours (synced with file age)
 
 export function startCleanupScheduler() {
   // Run immediately on start
@@ -12,13 +12,20 @@ export function startCleanupScheduler() {
   // Schedule periodic cleanup
   setInterval(runCleanup, CLEANUP_INTERVAL);
 
-  console.log(`Cleanup scheduler started (interval: ${CLEANUP_INTERVAL / 1000}s, max age: ${MAX_FILE_AGE / 1000}s)`);
+  console.log(`✅ Cleanup scheduler started`);
+  console.log(`   - Runs every: ${CLEANUP_INTERVAL / 1000 / 60} minutes`);
+  console.log(`   - File max age: ${MAX_FILE_AGE / 1000 / 60} minutes`);
+  console.log(`   - Queue job max age: ${MAX_QUEUE_JOB_AGE / 1000 / 60} minutes`);
 }
 
 async function runCleanup() {
-  console.log('Running cleanup...');
+  console.log('🧹 Running cleanup...');
 
   try {
+    // Get Redis stats before cleanup
+    const statsBefore = await getRedisStats();
+    console.log(`   Redis memory: ${statsBefore.usedMemory}`);
+
     const { uploads, results } = await listAllJobs();
     const allJobs = new Set([...uploads, ...results]);
 
@@ -29,7 +36,6 @@ async function runCleanup() {
       const creationTime = await getJobCreationTime(jobId);
 
       if (!creationTime) {
-        console.log(`Could not get creation time for job: ${jobId}`);
         continue;
       }
 
@@ -38,18 +44,28 @@ async function runCleanup() {
       if (age > MAX_FILE_AGE) {
         await deleteJobFiles(jobId);
         deletedCount++;
-        console.log(`Deleted old job: ${jobId} (age: ${Math.round(age / 1000 / 60)}min)`);
       }
     }
 
     if (deletedCount > 0) {
-      // Cleanup completed: ${deletedCount} jobs deleted
+      console.log(`   ✅ Deleted ${deletedCount} old file jobs`);
     }
 
     // Clean old queue jobs
-    await cleanQueueJobs();
+    const queueCleaned = await cleanQueueJobs();
+    if (queueCleaned && queueCleaned > 0) {
+      console.log(`   ✅ Deleted ${queueCleaned} old queue jobs`);
+    }
+
+    // Clean expired cache entries
+    await cleanupExpiredCache();
+
+    // Show Redis stats after cleanup
+    const statsAfter = await getRedisStats();
+    console.log(`   Redis memory after: ${statsAfter.usedMemory}`);
+    console.log('✅ Cleanup complete');
   } catch (error) {
-    // Cleanup failed
+    console.error('❌ Cleanup failed:', error);
   }
 }
 
@@ -75,10 +91,9 @@ async function cleanQueueJobs() {
       }
     }
 
-    if (totalCleaned > 0) {
-      // Cleaned ${totalCleaned} old queue jobs
-    }
+    return totalCleaned;
   } catch (error) {
-    // Queue cleanup failed
+    console.error('Queue cleanup error:', error);
+    return 0;
   }
 }
