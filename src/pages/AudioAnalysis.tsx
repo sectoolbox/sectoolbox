@@ -35,7 +35,9 @@ import {
   EnhanceTab,
   WaveformVisualizer,
   ABComparisonPanel,
-  type AudioRegion
+  AnalysisResultsPanel,
+  type AudioRegion,
+  type DecoderResult
 } from '../components/audio'
 import {
   loadAudioFile,
@@ -61,6 +63,16 @@ import {
   type FrequencyResult,
   type EQBand
 } from '../lib/audioAnalysis'
+import {
+  detectDTMF,
+  detectBinaryAudio,
+  detectSpectralAnomalies,
+  detectRepeatedPatterns,
+  type DTMFResult,
+  type BinaryAudioResult,
+  type SpectralAnomaly,
+  type PatternMatch
+} from '../lib/audioDecoders'
 
 const AudioAnalysis: React.FC = () => {
   const location = useLocation()
@@ -123,6 +135,10 @@ const AudioAnalysis: React.FC = () => {
   const [selectionMode, setSelectionMode] = useState<'none' | 'A' | 'B'>('none')
   const [playbackSpeedA, setPlaybackSpeedA] = useState(1.0)
   const [playbackSpeedB, setPlaybackSpeedB] = useState(1.0)
+
+  // Comprehensive analysis results
+  const [analysisResults, setAnalysisResults] = useState<DecoderResult[]>([])
+  const [isRunningComprehensiveAnalysis, setIsRunningComprehensiveAnalysis] = useState(false)
 
   // Interactive waveform state - removed (now handled by WaveformVisualizer component)
   
@@ -785,6 +801,137 @@ const AudioAnalysis: React.FC = () => {
     setRegionB(tempA)
   }
 
+  // Comprehensive "Auto-Decode All" analysis
+  const runComprehensiveAnalysis = async () => {
+    if (!audioBuffer || !file) return
+
+    setIsRunningComprehensiveAnalysis(true)
+    const results: DecoderResult[] = []
+
+    try {
+      // 1. Morse Code Detection
+      toast.loading('Analyzing morse code...')
+      const morseResult = detectMorseCode(audioBuffer, morseThreshold)
+      results.push({
+        type: 'morse',
+        detected: morseResult.detected,
+        confidence: morseResult.confidence,
+        data: morseResult,
+        description: 'Morse Code Detection'
+      })
+
+      // 2. DTMF Detection (Phone Tones)
+      toast.loading('Detecting DTMF tones...')
+      const dtmfResult = detectDTMF(audioBuffer)
+      results.push({
+        type: 'dtmf',
+        detected: dtmfResult.detected,
+        confidence: dtmfResult.confidence,
+        data: dtmfResult,
+        description: 'DTMF (Phone Tone) Detection'
+      })
+
+      // 3. Binary Audio Encoding
+      toast.loading('Detecting binary encoding...')
+      const binaryResult = detectBinaryAudio(audioBuffer)
+      results.push({
+        type: 'binary',
+        detected: binaryResult.detected,
+        confidence: binaryResult.confidence,
+        data: binaryResult,
+        description: `Binary Audio Encoding (${binaryResult.encoding})`
+      })
+
+      // 4. LSB Steganography
+      toast.loading('Analyzing LSB steganography...')
+      const lsbResult = await detectLSBSteganography(file)
+      results.push({
+        type: 'lsb',
+        detected: lsbResult.length > 0,
+        confidence: lsbResult.length > 0 ? 0.8 : 0,
+        data: { decodedText: lsbResult, binaryString: '' },
+        description: 'LSB Steganography Detection'
+      })
+
+      // 5. Spectral Anomalies
+      toast.loading('Detecting spectral anomalies...')
+      const anomalies = detectSpectralAnomalies(audioBuffer)
+      for (const anomaly of anomalies.filter(a => a.suspicious)) {
+        results.push({
+          type: 'anomaly',
+          detected: true,
+          confidence: anomaly.confidence,
+          data: anomaly,
+          description: `Spectral Anomaly: ${anomaly.type}`,
+          timestamp: anomaly.timestamp
+        })
+      }
+
+      // 6. Repeated Patterns
+      toast.loading('Finding repeated patterns...')
+      const patterns = detectRepeatedPatterns(audioBuffer)
+      for (const pattern of patterns) {
+        results.push({
+          type: 'pattern',
+          detected: true,
+          confidence: pattern.confidence,
+          data: pattern,
+          description: `Repeated Pattern (${pattern.repetitions}x)`,
+          timestamp: pattern.startTime
+        })
+      }
+
+      // 7. String Extraction
+      toast.loading('Extracting strings...')
+      const extractedStrings = strings.length > 0 ? strings : await extractStringsFromAudio(file)
+      if (extractedStrings.length > 0) {
+        results.push({
+          type: 'string',
+          detected: true,
+          confidence: 0.7,
+          data: { strings: extractedStrings },
+          description: `Found ${extractedStrings.length} readable strings`
+        })
+      }
+
+      setAnalysisResults(results)
+      
+      const detectedCount = results.filter(r => r.detected).length
+      toast.success(`Analysis complete! ${detectedCount} detection${detectedCount !== 1 ? 's' : ''} found`)
+      
+    } catch (error) {
+      console.error('Comprehensive analysis error:', error)
+      toast.error('Analysis failed: ' + (error as Error).message)
+    } finally {
+      setIsRunningComprehensiveAnalysis(false)
+    }
+  }
+
+  const handleExportResults = () => {
+    const detectedResults = analysisResults.filter(r => r.detected)
+    const exportText = detectedResults.map(r => {
+      let text = `=== ${r.description} ===\n`
+      text += `Confidence: ${(r.confidence * 100).toFixed(0)}%\n`
+      
+      if (r.data.message) text += `Message: ${r.data.message}\n`
+      if (r.data.sequence) text += `Sequence: ${r.data.sequence}\n`
+      if (r.data.decodedText) text += `Decoded: ${r.data.decodedText}\n`
+      if (r.data.description) text += `Details: ${r.data.description}\n`
+      
+      return text
+    }).join('\n\n')
+
+    const blob = new Blob([exportText], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `analysis-results-${Date.now()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    toast.success('Results exported!')
+  }
+
   const generateSpectrogramWithBackend = async () => {
     if (!file) {
       toast.error('Please upload a file first')
@@ -1102,6 +1249,37 @@ const AudioAnalysis: React.FC = () => {
                       }}
                       isPlaying={isPlaying}
                     />
+                  </div>
+                )}
+
+                {/* Comprehensive Analysis Section */}
+                {audioBuffer && (
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold">CTF Auto-Decode Suite</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Run all decoders: Morse, DTMF, Binary, LSB, Anomalies, Patterns
+                        </p>
+                      </div>
+                      <Button
+                        onClick={runComprehensiveAnalysis}
+                        disabled={isRunningComprehensiveAnalysis || isAnalyzing}
+                        className="h-9"
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        {isRunningComprehensiveAnalysis ? 'Analyzing...' : 'Auto-Decode All'}
+                      </Button>
+                    </div>
+
+                    {/* Results Panel */}
+                    {analysisResults.length > 0 && (
+                      <AnalysisResultsPanel
+                        results={analysisResults}
+                        onJumpToTimestamp={seekTo}
+                        onExportResults={handleExportResults}
+                      />
+                    )}
                   </div>
                 )}
 
