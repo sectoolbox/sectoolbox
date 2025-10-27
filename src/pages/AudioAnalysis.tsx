@@ -11,17 +11,13 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  FileAudio,
   Search,
   Zap,
   Download,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  Hash,
-  Waves,
   BarChart3,
-  ExternalLink,
   Cloud
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -45,29 +41,21 @@ import {
   separateChannels,
   extractStringsFromAudio,
   detectMorseCode,
-  detectDTMF,
   detectLSBSteganography,
   generateSpectrogram,
   analyzeFrequencyAnomalies,
   reverseAudio,
-  detectSSTVPattern,
   formatDuration,
   formatFileSize,
   applyEqualizer,
   applyNoiseReduction,
   normalizeAudio,
   exportAsWAV,
-  detectFSK,
-  detectPSK,
   EQ_PRESETS,
   type AudioMetadata,
   type MorseResult,
-  type DTMFResult,
   type SpectrogramData,
   type FrequencyResult,
-  type SSTVResult,
-  type FSKResult,
-  type PSKResult,
   type EQBand
 } from '../lib/audioAnalysis'
 
@@ -1161,43 +1149,6 @@ const AudioAnalysis: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">DTMF Tones:</span>
-                        <div className="flex items-center gap-2">
-                          {dtmfResult?.detected ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-400" />
-                              <span className="text-xs text-green-400">{dtmfResult.sequence}</span>
-                            </>
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">SSTV Pattern:</span>
-                        {sstvResult?.detected ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">FSK Signal:</span>
-                        {fskResult?.detected ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">PSK Signal:</span>
-                        {pskResult?.detected ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">LSB Data:</span>
                         {lsbData ? (
                           <CheckCircle className="w-4 h-4 text-green-400" />
@@ -1389,191 +1340,6 @@ const AudioAnalysis: React.FC = () => {
                       </p>
                     )}
                   </div>
-                </Card>
-              </TabsContent>
-
-              {/* SSTV Tab */}
-              <TabsContent value="sstv">
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-4">SSTV / Spectral Image Detection</h3>
-                  {sstvResult ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Detection Status</div>
-                          <div className={`font-medium ${sstvResult.detected ? 'text-accent' : 'text-muted-foreground'}`}>
-                            {sstvResult.detected ? '✓ SSTV Pattern Detected' : '✗ No SSTV Pattern'}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Confidence</div>
-                          <div className="font-medium">{sstvResult.confidence}%</div>
-                        </div>
-                      </div>
-
-                      {sstvResult.possibleFormat && (
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Possible Format</div>
-                          <div className="font-mono text-sm bg-muted/20 p-2 rounded">{sstvResult.possibleFormat}</div>
-                        </div>
-                      )}
-
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-2">Analysis</div>
-                        <div className="bg-muted/20 p-3 rounded text-sm">{sstvResult.description}</div>
-                      </div>
-
-                      {sstvResult.detected && (
-                        <>
-                          <div className="bg-accent/10 border border-accent/30 p-4 rounded space-y-4">
-                            <div>
-                              <div className="font-semibold text-accent mb-3">🖼️ Decode SSTV Image:</div>
-                              <Button
-                                onClick={() => window.open('https://sstv-decoder.mathieurenaud.fr/', '_blank')}
-                                className="w-full"
-                              >
-                                <ExternalLink className="w-4 h-4 mr-2" />
-                                Open Web-Based SSTV Decoder
-                              </Button>
-                              <p className="text-xs text-muted-foreground mt-2">
-                                Upload your audio file to the online decoder to view the hidden image. Supports Robot36, Scottie, Martin, and more.
-                              </p>
-                            </div>
-
-                            <div className="border-t border-accent/20 pt-4">
-                              <div className="font-semibold text-accent mb-2">📻 Desktop Decoding Software:</div>
-                              <ul className="text-sm space-y-1 list-disc list-inside">
-                                <li><strong>QSSTV</strong> (Linux) - Full-featured SSTV decoder</li>
-                                <li><strong>RX-SSTV</strong> (Windows) - Popular Windows decoder</li>
-                                <li><strong>Robot36</strong> (Android) - Mobile SSTV decoder</li>
-                                <li><strong>Black Cat SSTV</strong> (Windows/Mac) - Multi-mode decoder</li>
-                              </ul>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">Analyzing...</div>
-                  )}
-                </Card>
-              </TabsContent>
-
-              {/* FSK Tab */}
-              <TabsContent value="fsk">
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-4">FSK (Frequency-Shift Keying) Detection</h3>
-                  {fskResult ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Detection Status</div>
-                          <div className={`font-medium ${fskResult.detected ? 'text-accent' : 'text-muted-foreground'}`}>
-                            {fskResult.detected ? '✓ FSK Detected' : '✗ No FSK Signal'}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Confidence</div>
-                          <div className="font-medium">{fskResult.confidence}%</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Baud Rate</div>
-                          <div className="font-mono">{fskResult.baudRate} baud</div>
-                        </div>
-                      </div>
-
-                      {fskResult.detected && (
-                        <>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-1">Mark Frequency</div>
-                              <div className="font-mono text-sm bg-muted/20 p-2 rounded">{fskResult.markFrequency} Hz</div>
-                            </div>
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-1">Space Frequency</div>
-                              <div className="font-mono text-sm bg-muted/20 p-2 rounded">{fskResult.spaceFrequency} Hz</div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-muted-foreground mb-2">Decoded Bits ({fskResult.decodedBits.length} bits)</div>
-                            <div className="bg-muted/20 p-3 rounded font-mono text-xs overflow-auto max-h-32 break-all">
-                              {fskResult.decodedBits}
-                            </div>
-                          </div>
-
-                          {fskResult.decodedText && (
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-2">Decoded Text (ASCII)</div>
-                              <div className="bg-accent/10 border border-accent/30 p-3 rounded font-mono text-sm">
-                                {fskResult.decodedText}
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">Analyzing...</div>
-                  )}
-                </Card>
-              </TabsContent>
-
-              {/* PSK Tab */}
-              <TabsContent value="psk">
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-4">PSK (Phase-Shift Keying) Detection</h3>
-                  {pskResult ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Detection Status</div>
-                          <div className={`font-medium ${pskResult.detected ? 'text-accent' : 'text-muted-foreground'}`}>
-                            {pskResult.detected ? '✓ PSK Detected' : '✗ No PSK Signal'}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Confidence</div>
-                          <div className="font-medium">{pskResult.confidence}%</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Carrier Frequency</div>
-                          <div className="font-mono">{pskResult.carrierFrequency} Hz</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Baud Rate</div>
-                          <div className="font-mono">{pskResult.baudRate} baud</div>
-                        </div>
-                      </div>
-
-                      {pskResult.detected && (
-                        <>
-                          <div>
-                            <div className="text-sm text-muted-foreground mb-1">PSK Type</div>
-                            <div className="font-mono text-sm bg-muted/20 p-2 rounded">{pskResult.pskType}</div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-muted-foreground mb-2">Decoded Bits ({pskResult.decodedBits.length} bits)</div>
-                            <div className="bg-muted/20 p-3 rounded font-mono text-xs overflow-auto max-h-32 break-all">
-                              {pskResult.decodedBits}
-                            </div>
-                          </div>
-
-                          {pskResult.decodedText && (
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-2">Decoded Text (ASCII)</div>
-                              <div className="bg-accent/10 border border-accent/30 p-3 rounded font-mono text-sm">
-                                {pskResult.decodedText}
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">Analyzing...</div>
-                  )}
                 </Card>
               </TabsContent>
             </Tabs>
