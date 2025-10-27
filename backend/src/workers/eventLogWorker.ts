@@ -101,6 +101,16 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     });
 
     proc.on('close', (code) => {
+      console.log(`Python process closed with code: ${code}`);
+      console.log(`Python stdout length: ${stdout.length}`);
+      console.log(`Python stderr length: ${stderr.length}`);
+      if (stderr) {
+        console.error(`Python stderr output: ${stderr}`);
+      }
+      if (stdout) {
+        console.log(`Python stdout (first 200 chars): ${stdout.substring(0, 200)}`);
+      }
+
       if (code !== 0) {
         reject(new Error(`Python parser failed with code ${code}: ${stderr}`));
         return;
