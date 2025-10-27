@@ -110,6 +110,14 @@ const FolderScanner: React.FC = () => {
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionError, setExtractionError] = useState<string | null>(null)
 
+  // Duplicate detection state
+  const [duplicateGroups, setDuplicateGroups] = useState<Map<string, FileEntry[]>>(new Map())
+  const [totalDuplicateSize, setTotalDuplicateSize] = useState(0)
+
+  // File carving state
+  const [carvedFiles, setCarvedFiles] = useState<Array<{ sourceFile: FileEntry, signatures: Array<{ type: string, offset: number, size?: number }> }>>([])
+  const [isCarving, setIsCarving] = useState(false)
+
   // Apply filters and sorting whenever they change
   useEffect(() => {
     if (!scanResult) return
@@ -122,6 +130,14 @@ const FolderScanner: React.FC = () => {
 
     setFilteredFiles(filtered)
   }, [filters, analyzedFiles, scanResult, sortField, sortDirection])
+
+  // Auto-run duplicate detection and file carving after analysis
+  useEffect(() => {
+    if (analyzedFiles.length > 0) {
+      detectDuplicates()
+      performFileCarving()
+    }
+  }, [analyzedFiles])
 
   const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -205,6 +221,82 @@ const FolderScanner: React.FC = () => {
     } else {
       content = exportToCSV(filesToExport)
       filename = `folder-scan-${Date.now()}.csv`
+      mimeType = 'text/csv'
+    }
+
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Export files to timeline format (chronological order)
+  const handleTimelineExport = (format: 'json' | 'csv') => {
+    const filesToExport = filteredFiles.length > 0 ? filteredFiles : scanResult?.files || []
+    
+    // Create timeline events
+    const events: Array<{
+      timestamp: number
+      date: string
+      event: string
+      filename: string
+      path: string
+      size: number
+      hash?: string
+    }> = []
+
+    for (const file of filesToExport) {
+      // Modified event
+      events.push({
+        timestamp: file.lastModified.getTime(),
+        date: file.lastModified.toISOString(),
+        event: 'Modified',
+        filename: file.name,
+        path: file.path,
+        size: file.size,
+        hash: file.analysisResult?.hash?.sha256
+      })
+
+      // Could add created/accessed if available in file metadata
+      // For now we only have lastModified reliably
+    }
+
+    // Sort by timestamp (oldest first)
+    events.sort((a, b) => a.timestamp - b.timestamp)
+
+    let content: string
+    let filename: string
+    let mimeType: string
+
+    if (format === 'json') {
+      content = JSON.stringify({ 
+        timeline: events,
+        generatedAt: new Date().toISOString(),
+        totalEvents: events.length,
+        fileCount: filesToExport.length
+      }, null, 2)
+      filename = `timeline-${Date.now()}.json`
+      mimeType = 'application/json'
+    } else {
+      // CSV format
+      const headers = ['Timestamp', 'Date', 'Event', 'Filename', 'Path', 'Size', 'Hash']
+      const rows = events.map(e => [
+        e.timestamp,
+        e.date,
+        e.event,
+        e.filename,
+        e.path,
+        e.size,
+        e.hash || ''
+      ])
+      content = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      filename = `timeline-${Date.now()}.csv`
       mimeType = 'text/csv'
     }
 
@@ -393,6 +485,105 @@ const FolderScanner: React.FC = () => {
 
     setGlobalSearchResults(results)
     setIsGlobalSearching(false)
+  }
+
+  // Detect duplicate files based on SHA-256 hashes
+  const detectDuplicates = () => {
+    if (!scanResult) return
+
+    const filesToCheck = analyzedFiles.length > 0 ? analyzedFiles : scanResult.files
+    const hashMap = new Map<string, FileEntry[]>()
+    let wastedSpace = 0
+
+    // Group files by hash
+    for (const file of filesToCheck) {
+      if (file.analysisResult?.hash?.sha256) {
+        const hash = file.analysisResult.hash.sha256
+        if (!hashMap.has(hash)) {
+          hashMap.set(hash, [])
+        }
+        hashMap.get(hash)!.push(file)
+      }
+    }
+
+    // Filter to only keep groups with duplicates (2+ files with same hash)
+    const duplicates = new Map<string, FileEntry[]>()
+    for (const [hash, files] of hashMap.entries()) {
+      if (files.length > 1) {
+        duplicates.set(hash, files)
+        // Calculate wasted space (all copies except one)
+        const fileSize = files[0].size
+        wastedSpace += fileSize * (files.length - 1)
+      }
+    }
+
+    setDuplicateGroups(duplicates)
+    setTotalDuplicateSize(wastedSpace)
+  }
+
+  // File carving: Detect file signatures within files
+  const performFileCarving = async () => {
+    if (!scanResult) return
+
+    setIsCarving(true)
+    const filesToCarve = analyzedFiles.length > 0 ? analyzedFiles : scanResult.files
+    const results: Array<{ sourceFile: FileEntry, signatures: Array<{ type: string, offset: number, size?: number }> }> = []
+
+    // Common file signatures (magic bytes)
+    const signatures = [
+      { type: 'JPEG', signature: [0xFF, 0xD8, 0xFF], extension: '.jpg' },
+      { type: 'PNG', signature: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], extension: '.png' },
+      { type: 'GIF', signature: [0x47, 0x49, 0x46, 0x38], extension: '.gif' },
+      { type: 'PDF', signature: [0x25, 0x50, 0x44, 0x46], extension: '.pdf' },
+      { type: 'ZIP', signature: [0x50, 0x4B, 0x03, 0x04], extension: '.zip' },
+      { type: 'RAR', signature: [0x52, 0x61, 0x72, 0x21], extension: '.rar' },
+      { type: 'EXE', signature: [0x4D, 0x5A], extension: '.exe' },
+      { type: 'ELF', signature: [0x7F, 0x45, 0x4C, 0x46], extension: '' },
+      { type: '7Z', signature: [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C], extension: '.7z' },
+      { type: 'TAR', signature: [0x75, 0x73, 0x74, 0x61, 0x72], extension: '.tar', offset: 257 }, // ustar at offset 257
+    ]
+
+    for (const file of filesToCarve) {
+      if (file.size === 0 || file.size > 10 * 1024 * 1024) continue // Skip empty or very large files (>10MB)
+
+      try {
+        const arrayBuffer = await file.file.arrayBuffer()
+        const bytes = new Uint8Array(arrayBuffer)
+        const foundSignatures: Array<{ type: string, offset: number, size?: number }> = []
+
+        // Search for each signature
+        for (const sig of signatures) {
+          const searchStart = sig.offset || 0
+          for (let i = searchStart; i < bytes.length - sig.signature.length; i++) {
+            let match = true
+            for (let j = 0; j < sig.signature.length; j++) {
+              if (bytes[i + j] !== sig.signature[j]) {
+                match = false
+                break
+              }
+            }
+            if (match) {
+              foundSignatures.push({ 
+                type: sig.type, 
+                offset: i,
+                size: undefined // Could be calculated for some formats
+              })
+              // Skip ahead to avoid finding the same signature multiple times in close proximity
+              i += sig.signature.length + 100
+            }
+          }
+        }
+
+        if (foundSignatures.length > 0) {
+          results.push({ sourceFile: file, signatures: foundSignatures })
+        }
+      } catch (error) {
+        console.error(`Error carving file ${file.name}:`, error)
+      }
+    }
+
+    setCarvedFiles(results)
+    setIsCarving(false)
   }
 
   const handleByteExtraction = async () => {
@@ -767,6 +958,14 @@ const FolderScanner: React.FC = () => {
             <Button onClick={() => handleExport('csv')} variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Export CSV
+            </Button>
+            <Button onClick={() => handleTimelineExport('json')} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Timeline JSON
+            </Button>
+            <Button onClick={() => handleTimelineExport('csv')} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Timeline CSV
             </Button>
           </div>
 
@@ -1667,6 +1866,83 @@ const FolderScanner: React.FC = () => {
                     })()}
                   </div>
                 </Card>
+
+                {/* Duplicate Files */}
+                {duplicateGroups.size > 0 && (
+                  <Card className="p-4">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center">
+                      <Copy className="w-5 h-5 mr-2 text-cyan-400" />
+                      Duplicate Files ({duplicateGroups.size} groups)
+                    </h3>
+                    <div className="mb-3 text-sm text-muted-foreground">
+                      💾 Wasted space: <span className="font-bold text-cyan-400">{formatFileSize(totalDuplicateSize)}</span>
+                    </div>
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                      {Array.from(duplicateGroups.entries()).slice(0, 10).map(([hash, files], idx) => (
+                        <div key={idx} className="bg-cyan-500/10 border border-cyan-500/30 rounded p-3">
+                          <h4 className="text-sm font-medium mb-2 text-cyan-400">
+                            Group {idx + 1}: {files.length} identical files ({formatFileSize(files[0].size)} each)
+                          </h4>
+                          <div className="space-y-1 ml-3">
+                            {files.map((file, i) => (
+                              <div key={i} className="text-xs font-mono flex items-center gap-2">
+                                <span className="text-muted-foreground">•</span>
+                                <span className="truncate">{file.path}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground font-mono">
+                            SHA-256: {hash.substring(0, 16)}...
+                          </div>
+                        </div>
+                      ))}
+                      {duplicateGroups.size > 10 && (
+                        <p className="text-sm text-muted-foreground text-center">
+                          +{duplicateGroups.size - 10} more duplicate groups
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Carved Files */}
+                {carvedFiles.length > 0 && (
+                  <Card className="p-4">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center">
+                      <Database className="w-5 h-5 mr-2 text-green-400" />
+                      File Carving Results
+                    </h3>
+                    <div className="mb-3 text-sm text-muted-foreground">
+                      Found embedded file signatures in {carvedFiles.length} files
+                      {isCarving && <span className="ml-2 text-accent">Scanning...</span>}
+                    </div>
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                      {carvedFiles.slice(0, 20).map((result, idx) => (
+                        <div key={idx} className="bg-green-500/10 border border-green-500/30 rounded p-3">
+                          <h4 className="text-sm font-medium mb-2 text-green-400">
+                            📄 {result.sourceFile.name}
+                          </h4>
+                          <div className="ml-3 space-y-1">
+                            {result.signatures.map((sig, i) => (
+                              <div key={i} className="text-xs font-mono flex items-center gap-2">
+                                <span className="text-green-400">🔍</span>
+                                <span className="font-bold">{sig.type}</span>
+                                <span className="text-muted-foreground">at offset</span>
+                                <span className="text-accent">{sig.offset}</span>
+                                <span className="text-muted-foreground">(0x{sig.offset.toString(16)})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {carvedFiles.length > 20 && (
+                        <p className="text-sm text-muted-foreground text-center">
+                          +{carvedFiles.length - 20} more files with embedded signatures
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                )}
 
                 {/* Size Distribution */}
                 <Card className="p-4">
