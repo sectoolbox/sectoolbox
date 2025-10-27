@@ -87,7 +87,8 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     console.log(`Script exists: ${fs.existsSync(scriptPath)}`);
     console.log(`File exists: ${fs.existsSync(filePath)}`);
 
-    const proc = spawn(pythonCmd, [scriptPath, filePath], {
+    // Use -u flag for unbuffered output to ensure we capture all output immediately
+    const proc = spawn(pythonCmd, ['-u', scriptPath, filePath], {
       cwd: path.dirname(scriptPath)
     });
 
