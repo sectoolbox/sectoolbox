@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   Network as NetworkIcon,
-  Globe,
   Server,
   Search,
   Copy,
@@ -13,7 +12,6 @@ import {
   Layers,
   MapPin,
   Shield,
-  ExternalLink,
   AlertCircle,
   Eye,
   Database,
@@ -195,10 +193,6 @@ export default function Network() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // IP Analysis
-  const [ipInput, setIpInput] = useState('')
-  const [ipInfo, setIpInfo] = useState<IPInfo | null>(null)
-
   // Subnet Calculator
   const [subnetInput, setSubnetInput] = useState('')
   const [subnetInfo, setSubnetInfo] = useState<SubnetInfo | null>(null)
@@ -206,10 +200,6 @@ export default function Network() {
   // DNS Lookup
   const [dnsInput, setDnsInput] = useState('')
   const [dnsRecords, setDnsRecords] = useState<DNSRecord[]>([])
-
-  // Geolocation
-  const [geoInput, setGeoInput] = useState('')
-  const [geoInfo, setGeoInfo] = useState<GeoInfo | null>(null)
 
   // Headers
   const [headerInput, setHeaderInput] = useState('')
@@ -326,6 +316,7 @@ export default function Network() {
   }, [certRecords, certShowUniqueOnly])
 
   // IP Address Analysis (Pure JavaScript - No API needed)
+  // @ts-expect-error - Feature planned but not currently used in UI
   const analyzeIP = useCallback((ip: string) => {
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
     const match = ip.match(ipv4Regex)
@@ -395,7 +386,7 @@ export default function Network() {
     }
 
     // Calculate subnet mask
-    const mask = []
+    const mask: number[] = []
     for (let i = 0; i < 4; i++) {
       const bits = Math.min(8, Math.max(0, prefix - i * 8))
       mask.push(256 - Math.pow(2, 8 - bits))
@@ -463,7 +454,7 @@ export default function Network() {
       }
 
       // Fetch all DNS record types in parallel
-      const promises = Object.entries(typeMap).map(async ([typeName, typeNum]) => {
+      const promises = Object.entries(typeMap).map(async ([_typeName, typeNum]) => {
         try {
           const response = await fetch(
             `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${typeNum}`,
@@ -503,6 +494,7 @@ export default function Network() {
   }, [])
 
   // IP Geolocation (Real API)
+  // @ts-expect-error - Feature planned but not currently used in UI
   const performGeolocation = useCallback(async (ip: string) => {
     setLoading(true)
     setError(null)
