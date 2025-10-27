@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { getEventLogQueue } from '../services/queue.js';
 import { saveResults } from '../services/storage.js';
 import { emitJobProgress, emitJobCompleted, emitJobFailed } from '../services/websocket.js';
@@ -65,9 +66,13 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     let stdout = '';
     let stderr = '';
 
-    // Use python from venv (Railway/Docker) or system python
-    // In Docker, PATH includes /opt/venv/bin, so 'python' works
-    const pythonCmd = process.env.VIRTUAL_ENV ? 'python' : (process.platform === 'win32' ? 'python' : 'python3');
+    // Determine Python command - use absolute path to venv in Docker/Railway
+    let pythonCmd = 'python3';
+    if (process.platform === 'win32') {
+      pythonCmd = 'python';
+    } else if (fs.existsSync('/opt/venv/bin/python')) {
+      pythonCmd = '/opt/venv/bin/python';
+    }
 
     const proc = spawn(pythonCmd, [scriptPath, filePath], {
       cwd: path.dirname(scriptPath)
