@@ -74,6 +74,12 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
       pythonCmd = '/opt/venv/bin/python';
     }
 
+    console.log(`Using Python command: ${pythonCmd}`);
+    console.log(`Script path: ${scriptPath}`);
+    console.log(`File path: ${filePath}`);
+    console.log(`Script exists: ${fs.existsSync(scriptPath)}`);
+    console.log(`File exists: ${fs.existsSync(filePath)}`);
+
     const proc = spawn(pythonCmd, [scriptPath, filePath], {
       cwd: path.dirname(scriptPath)
     });
