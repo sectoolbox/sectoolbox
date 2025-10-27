@@ -225,30 +225,16 @@ const AudioAnalysis: React.FC = () => {
 
   const triggerBackendVisualization = async (selectedFile: File) => {
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+      const response = await apiClient.generateSpectrogram(selectedFile)
 
-      const response = await fetch('/api/audio/spectrogram', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to start backend visualization')
+      if (response.jobId) {
+        console.log('Backend visualization job started:', response.jobId)
+        // Start the job monitoring
+        await startJob(response.jobId)
+      } else {
+        throw new Error(response.error || 'Failed to start backend visualization')
       }
-
-      const data = await response.json()
-      const { jobId } = data
-
-      // Monitor the job via WebSocket (if connected) or polling
-      // The results will come through the job status updates
-      console.log('Backend visualization job started:', jobId)
-      
-      // Start the job monitoring
-      if (jobId) {
-        await startJob(jobId)
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Backend visualization error:', error)
       // Non-blocking - continue with client-side analysis
     }
