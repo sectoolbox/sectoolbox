@@ -117,7 +117,7 @@ const AudioAnalysis: React.FC = () => {
   const [fftSize, setFftSize] = useState(2048)
   const [maxFrequency, setMaxFrequency] = useState(20000)
   const [morseThreshold, setMorseThreshold] = useState(0.1)
-  const [activeTab, setActiveTab] = useState<'overview' | 'morse' | 'dtmf' | 'spectrum' | 'strings' | 'sstv' | 'fsk' | 'psk'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'morse' | 'spectrum' | 'strings'>('overview')
 
   // Audio enhancement state
   const [eqBands, setEqBands] = useState<EQBand[]>(EQ_PRESETS['Flat'])
@@ -1163,7 +1163,7 @@ const AudioAnalysis: React.FC = () => {
           {/* Tabs */}
           {audioBuffer && (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-              <TabsList className="grid grid-cols-4 md:grid-cols-8 w-full">
+              <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="overview">
                   <Eye className="w-4 h-4 mr-1" />
                   <span className="hidden md:inline">Overview</span>
@@ -1171,22 +1171,6 @@ const AudioAnalysis: React.FC = () => {
                 <TabsTrigger value="morse">
                   <Radio className="w-4 h-4 mr-1" />
                   <span className="hidden md:inline">Morse</span>
-                </TabsTrigger>
-                <TabsTrigger value="dtmf">
-                  <Hash className="w-4 h-4 mr-1" />
-                  <span className="hidden md:inline">DTMF</span>
-                </TabsTrigger>
-                <TabsTrigger value="sstv">
-                  <FileAudio className="w-4 h-4 mr-1" />
-                  <span className="hidden md:inline">SSTV</span>
-                </TabsTrigger>
-                <TabsTrigger value="fsk">
-                  <Waves className="w-4 h-4 mr-1" />
-                  <span className="hidden md:inline">FSK</span>
-                </TabsTrigger>
-                <TabsTrigger value="psk">
-                  <Activity className="w-4 h-4 mr-1" />
-                  <span className="hidden md:inline">PSK</span>
                 </TabsTrigger>
                 <TabsTrigger value="spectrum">
                   <BarChart3 className="w-4 h-4 mr-1" />
@@ -1349,44 +1333,6 @@ const AudioAnalysis: React.FC = () => {
                       <Radio className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>No morse code detected</p>
                       <p className="text-xs mt-1">Try adjusting the threshold</p>
-                    </div>
-                  )}
-                </Card>
-              </TabsContent>
-
-              {/* DTMF Tab */}
-              <TabsContent value="dtmf">
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-3">DTMF Tone Detection</h3>
-                  {dtmfResult?.detected ? (
-                    <div>
-                      <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="w-5 h-5 text-blue-400" />
-                          <span className="font-semibold text-blue-400">DTMF Tones Detected!</span>
-                        </div>
-                        <div className="text-3xl font-mono mt-2 tracking-wider">
-                          {dtmfResult.sequence}
-                        </div>
-                      </div>
-
-                      <h4 className="font-semibold mb-2 text-sm">Detected Tones:</h4>
-                      <div className="space-y-2 max-h-64 overflow-auto">
-                        {dtmfResult.tones.map((tone, idx) => (
-                          <div key={idx} className="bg-muted/20 p-2 rounded flex items-center justify-between text-sm">
-                            <span className="text-2xl font-mono text-accent">{tone.digit}</span>
-                            <div className="text-xs text-muted-foreground">
-                              <div>Time: {formatDuration(tone.timestamp)}</div>
-                              <div>Duration: {tone.duration.toFixed(2)}s</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Hash className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No DTMF tones detected</p>
                     </div>
                   )}
                 </Card>
