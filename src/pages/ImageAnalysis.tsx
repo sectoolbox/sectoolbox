@@ -1158,7 +1158,7 @@ export default function ImageAnalysis() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="flex-none px-6 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
@@ -1238,10 +1238,10 @@ export default function ImageAnalysis() {
         )}
       </div>
 
-      {/* Content Area with Scroll */}
+      {/* Content Area */}
       {imageUrl && metadata && (
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+        <div className="px-6 pb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center"><Eye className="w-5 h-5 text-accent mr-2"/> Image Preview</h3>
