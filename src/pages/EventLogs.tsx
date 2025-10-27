@@ -13,6 +13,9 @@ import { TimelineTab } from '../components/eventlogs/TimelineTab';
 import { MitreTab } from '../components/eventlogs/MitreTab';
 import { ThreatIntelTab } from '../components/eventlogs/ThreatIntelTab';
 import { OrganizedTab } from '../components/eventlogs/OrganizedTab';
+import { CriticalAlertsBar } from '../components/eventlogs/CriticalAlertsBar';
+import { QuickStatsCards } from '../components/eventlogs/QuickStatsCards';
+import { QuickJumpButtons } from '../components/eventlogs/QuickJumpButtons';
 
 type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export' | 'mitre' | 'threatintel' | 'organized';
 
@@ -68,6 +71,14 @@ export const EventLogs: React.FC = () => {
     setParsedData(null);
     setIsAnalyzing(false);
     setActiveTab('overview');
+  };
+
+  const handleQuickJump = (targetType: 'threat' | 'critical' | 'suspicious') => {
+    setActiveTab('events');
+    // Scroll to top of events tab to see filtered results
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   // Watch for job status updates
@@ -219,8 +230,24 @@ export const EventLogs: React.FC = () => {
               </div>
             </Card>
 
+            {/* Critical Alerts Banner */}
+            {parsedData.events && parsedData.events.length > 0 && (
+              <CriticalAlertsBar 
+                events={parsedData.events}
+                onJumpToEvent={(_eventId) => {
+                  setActiveTab('events');
+                  // Scroll to event with matching ID - implement in EventsTab
+                }}
+              />
+            )}
+
+            {/* Quick Stats Cards */}
+            {parsedData.events && parsedData.events.length > 0 && (
+              <QuickStatsCards events={parsedData.events} />
+            )}
+
             {/* Tabs */}
-            <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit flex-wrap">
+            <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit flex-wrap sticky top-0 z-10 backdrop-blur-sm">
               <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
                 Overview
               </TabButton>
@@ -288,6 +315,14 @@ export const EventLogs: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Quick Jump Buttons */}
+          {parsedData.events && parsedData.events.length > 0 && (
+            <QuickJumpButtons 
+              events={parsedData.events}
+              onJumpTo={handleQuickJump}
+            />
+          )}
         </div>
       )}
     </div>

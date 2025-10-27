@@ -6,6 +6,8 @@ import { Badge } from '../ui/badge';
 import { toast } from 'react-hot-toast';
 import { getTechniquesForEvent, getTacticColor } from '@/lib/mitreAttack';
 import { tryAllDecodings } from '@/lib/decoders';
+import { AnomalyDetection } from './AnomalyDetection';
+import { EventCorrelationView } from './EventCorrelationView';
 
 interface OverviewTabProps {
   analysis: {
@@ -865,6 +867,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
             </Card>
           )}
         </>
+      )}
+
+      {/* Anomaly Detection */}
+      {events && events.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold mb-3">Anomaly Detection</h2>
+          <AnomalyDetection events={events} />
+        </div>
+      )}
+
+      {/* Event Correlation */}
+      {events && events.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold mb-3">Event Correlation</h2>
+          <EventCorrelationView events={events} />
+        </div>
       )}
     </div>
   );

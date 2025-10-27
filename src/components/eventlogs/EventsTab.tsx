@@ -71,6 +71,21 @@ export const EventsTab: React.FC<EventsTabProps> = ({ events }) => {
     }
   };
 
+  const getRowBgColor = (levelName: string) => {
+    switch (levelName) {
+      case 'Critical':
+        return 'bg-red-950/30 border-red-900/50';
+      case 'Error':
+        return 'bg-red-950/20 border-red-900/30';
+      case 'Warning':
+        return 'bg-yellow-950/20 border-yellow-900/30';
+      case 'Information':
+        return 'bg-blue-950/10 border-blue-900/20';
+      default:
+        return 'bg-card border-border';
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -127,7 +142,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ events }) => {
           const isExpanded = expandedEvents.has(event.recordId);
           
           return (
-            <Card key={event.recordId} className="overflow-hidden">
+            <Card key={event.recordId} className={`overflow-hidden border-2 ${getRowBgColor(event.levelName)}`}>
               <div
                 className="p-4 cursor-pointer hover:bg-muted/5 transition-colors"
                 onClick={() => toggleEvent(event.recordId)}
