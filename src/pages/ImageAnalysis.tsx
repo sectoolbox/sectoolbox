@@ -1238,8 +1238,10 @@ export default function ImageAnalysis() {
         )}
       </div>
 
+      {/* Content Area with Scroll */}
       {imageUrl && metadata && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+        <div className="flex-1 overflow-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center"><Eye className="w-5 h-5 text-accent mr-2"/> Image Preview</h3>
@@ -2889,6 +2891,7 @@ export default function ImageAnalysis() {
             )}
 
           </div>
+        </div>
         </div>
       )}
     </div>
