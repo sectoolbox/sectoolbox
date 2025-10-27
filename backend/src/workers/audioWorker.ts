@@ -18,11 +18,16 @@ queue.process(async (job) => {
 
   try {
     if (task === 'spectrogram') {
-      const spectrogramData = await generateSpectrogram(filePath, jobId);
+      // Generate both waveform and spectrogram automatically
+      const [waveformData, spectrogramData] = await Promise.all([
+        generateWaveform(filePath, jobId),
+        generateSpectrogram(filePath, jobId)
+      ]);
 
       const results = {
         filename,
         task,
+        waveform: waveformData,
         spectrogram: spectrogramData,
         timestamp: new Date().toISOString()
       };
@@ -41,13 +46,74 @@ queue.process(async (job) => {
   }
 });
 
+async function generateWaveform(audioPath: string, jobId: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // Use FFmpeg to generate waveform visualization
+    const outputPath = join(dirname(audioPath), `${jobId}_waveform.png`);
+
+    emitJobProgress(jobId, {
+      progress: 20,
+      message: 'Generating waveform with FFmpeg...',
+      status: 'processing'
+    });
+
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', audioPath,
+      '-filter_complex', 'showwavespic=s=1200x200:colors=#00ff88',
+      '-frames:v', '1',
+      '-y',
+      outputPath
+    ]);
+
+    let stderr = '';
+
+    ffmpeg.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    ffmpeg.on('close', async (code) => {
+      if (code === 0) {
+        emitJobProgress(jobId, {
+          progress: 50,
+          message: 'Processing waveform data...',
+          status: 'processing'
+        });
+
+        try {
+          // Read the generated image
+          const imageBuffer = await fs.readFile(outputPath);
+          const base64Image = imageBuffer.toString('base64');
+
+          // Clean up the generated file
+          await fs.unlink(outputPath).catch(() => {});
+
+          resolve({
+            width: 1200,
+            height: 200,
+            image: `data:image/png;base64,${base64Image}`,
+            format: 'png'
+          });
+        } catch (err: any) {
+          reject(new Error(`Failed to read waveform: ${err.message}`));
+        }
+      } else {
+        reject(new Error(`FFmpeg waveform failed: ${stderr}`));
+      }
+    });
+
+    ffmpeg.on('error', (error) => {
+      reject(new Error(`Failed to start FFmpeg for waveform: ${error.message}`));
+    });
+  });
+}
+
 async function generateSpectrogram(audioPath: string, jobId: string): Promise<any> {
   return new Promise((resolve, reject) => {
     // Use FFmpeg to generate spectrogram
     const outputPath = join(dirname(audioPath), `${jobId}_spectrogram.png`);
 
     emitJobProgress(jobId, {
-      progress: 30,
+      progress: 60,
       message: 'Generating spectrogram with FFmpeg...',
       status: 'processing'
     });

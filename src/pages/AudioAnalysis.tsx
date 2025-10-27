@@ -91,6 +91,10 @@ const AudioAnalysis: React.FC = () => {
   const [lsbData, setLsbData] = useState<string>('')
   const [spectrogram, setSpectrogram] = useState<SpectrogramData | null>(null)
   const [frequencyResult, setFrequencyResult] = useState<FrequencyResult | null>(null)
+  
+  // Backend-generated visualizations
+  const [backendWaveform, setBackendWaveform] = useState<string | null>(null)
+  const [backendSpectrogram, setBackendSpectrogram] = useState<string | null>(null)
 
   // Analysis progress tracking
   const [analysisProgress, setAnalysisProgress] = useState<Array<{ name: string; progress: number }>>([])
@@ -117,6 +121,26 @@ const AudioAnalysis: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Handle backend job completion
+  useEffect(() => {
+    if (jobStatus?.status === 'completed' && jobStatus?.results) {
+      const results = jobStatus.results
+      
+      // Extract backend-generated visualizations
+      if (results.waveform?.image) {
+        setBackendWaveform(results.waveform.image)
+      }
+      if (results.spectrogram?.image) {
+        setBackendSpectrogram(results.spectrogram.image)
+      }
+      
+      console.log('Backend visualizations received:', {
+        waveform: !!results.waveform,
+        spectrogram: !!results.spectrogram
+      })
+    }
+  }, [jobStatus])
 
   // Auto-load from dashboard
   useEffect(() => {
@@ -149,23 +173,32 @@ const AudioAnalysis: React.FC = () => {
     return () => clearTimeout(timer)
   }, [stringFilter])
 
-  // Draw waveform whenever waveformData changes
+  // Draw waveform whenever waveformData or backendWaveform changes
   useEffect(() => {
-    if (waveformData && canvasRef.current) {
+    if ((waveformData || backendWaveform) && canvasRef.current) {
       // Small delay to ensure canvas is fully rendered in DOM
       const timer = setTimeout(() => {
-        drawWaveform(waveformData)
+        if (waveformData) {
+          drawWaveform(waveformData)
+        } else if (backendWaveform) {
+          // Just draw overlay for backend waveform
+          drawWaveform(new Float32Array())
+        }
       }, 50)
       return () => clearTimeout(timer)
     }
-  }, [waveformData])
+  }, [waveformData, backendWaveform])
 
   // Redraw waveform when playback position changes (works for both playing and paused states)
   useEffect(() => {
-    if (waveformData) {
-      drawWaveform(waveformData)
+    if (waveformData || backendWaveform) {
+      if (waveformData) {
+        drawWaveform(waveformData)
+      } else if (backendWaveform) {
+        drawWaveform(new Float32Array())
+      }
     }
-  }, [currentTime, waveformData])
+  }, [currentTime, waveformData, backendWaveform])
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
@@ -185,7 +218,40 @@ const AudioAnalysis: React.FC = () => {
     setLsbData('')
     setSpectrogram(null)
     setFrequencyResult(null)
+    setBackendWaveform(null)
+    setBackendSpectrogram(null)
     stopAudio()
+  }
+
+  const triggerBackendVisualization = async (selectedFile: File) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+
+      const response = await fetch('/api/audio/spectrogram', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to start backend visualization')
+      }
+
+      const data = await response.json()
+      const { jobId } = data
+
+      // Monitor the job via WebSocket (if connected) or polling
+      // The results will come through the job status updates
+      console.log('Backend visualization job started:', jobId)
+      
+      // Start the job monitoring
+      if (jobId) {
+        await startJob(jobId)
+      }
+    } catch (error) {
+      console.error('Backend visualization error:', error)
+      // Non-blocking - continue with client-side analysis
+    }
   }
 
   const handleAnalyze = async (selectedFile: File = file!) => {
@@ -201,26 +267,8 @@ const AudioAnalysis: React.FC = () => {
       const meta = extractMetadata(buffer, selectedFile)
       setMetadata(meta)
 
-      // Get waveform
-      const waveform = getWaveformData(buffer)
-      setWaveformData(waveform)
-
-      // Draw waveform with proper timing to ensure canvas is rendered
-      await new Promise(resolve => setTimeout(resolve, 50))
-      if (canvasRef.current) {
-        drawWaveform(waveform)
-        // Force another draw after short delay to ensure visibility
-        await new Promise(resolve => setTimeout(resolve, 100))
-        drawWaveform(waveform)
-      }
-
-      // Separate channels
-      const channels = separateChannels(buffer)
-      setLeftChannel(channels.left)
-      setRightChannel(channels.right)
-
-      // Allow UI to update
-      await new Promise(resolve => setTimeout(resolve, 10))
+      // Trigger backend waveform and spectrogram generation automatically
+      triggerBackendVisualization(selectedFile)
 
       // Extract strings
       const extractedStrings = await extractStringsFromAudio(selectedFile)
@@ -249,16 +297,7 @@ const AudioAnalysis: React.FC = () => {
         setFrequencyResult(anomalies[0])
       }
 
-      // Allow UI to update
-      await new Promise(resolve => setTimeout(resolve, 10))
-
-      // Generate spectrogram (async, CPU intensive but optimized)
-      const spectro = await generateSpectrogram(buffer, fftSize, maxFrequency)
-      setSpectrogram(spectro)
-
-      // Allow UI to update before drawing
-      await new Promise(resolve => setTimeout(resolve, 10))
-      drawSpectrogram(spectro)
+      // Note: Waveform and spectrogram are now generated by backend automatically
     } catch (error) {
       console.error('Analysis error:', error)
       alert('Failed to analyze audio: ' + (error as Error).message)
@@ -276,6 +315,33 @@ const AudioAnalysis: React.FC = () => {
 
     const width = canvas.width
     const height = canvas.height
+
+    // If we have backend waveform, just draw the overlay (playhead, hover, etc.)
+    if (backendWaveform) {
+      // Clear canvas for overlay
+      ctx.clearRect(0, 0, width, height)
+
+      // Draw playback position indicator (playhead)
+      if (audioBuffer && currentTime > 0) {
+        const progress = currentTime / audioBuffer.duration
+        const playheadX = progress * width
+
+        // Draw playhead line
+        ctx.strokeStyle = '#ff0088'
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(playheadX, 0)
+        ctx.lineTo(playheadX, height)
+        ctx.stroke()
+
+        // Draw played region overlay
+        ctx.fillStyle = 'rgba(0, 255, 136, 0.1)'
+        ctx.fillRect(0, 0, playheadX, height)
+      }
+      return
+    }
+
+    // Fallback: Draw full waveform if no backend image yet
     const halfHeight = height / 2
 
     ctx.fillStyle = '#1e1e2e'
@@ -903,48 +969,95 @@ const AudioAnalysis: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Waveform */}
+                {/* Waveform - Hybrid: Backend image + Canvas overlay */}
                 <div className="relative">
-                  <canvas
-                    ref={canvasRef}
-                    width={800}
-                    height={150}
-                    className="w-full border border-border rounded cursor-pointer"
-                    onClick={(e) => {
-                      if (!audioBuffer) return
-                      const canvas = canvasRef.current
-                      if (!canvas) return
+                  {backendWaveform ? (
+                    // Backend-generated waveform with interactive overlay
+                    <div className="relative w-full">
+                      <img 
+                        src={backendWaveform} 
+                        alt="Audio Waveform" 
+                        className="w-full border border-border rounded"
+                        style={{ display: 'block', width: '100%', height: 'auto' }}
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        width={1200}
+                        height={200}
+                        className="absolute top-0 left-0 w-full h-full cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
+                        onClick={(e) => {
+                          if (!audioBuffer) return
+                          const canvas = canvasRef.current
+                          if (!canvas) return
 
-                      const rect = canvas.getBoundingClientRect()
-                      const x = e.clientX - rect.left
-                      const clickProgress = x / rect.width
-                      const seekTime = clickProgress * audioBuffer.duration
+                          const rect = canvas.getBoundingClientRect()
+                          const x = e.clientX - rect.left
+                          const clickProgress = x / rect.width
+                          const seekTime = clickProgress * audioBuffer.duration
 
-                      // Use dedicated seekTo function
-                      seekTo(seekTime)
-                    }}
-                    onMouseMove={(e) => {
-                      if (!audioBuffer || !waveformData) return
-                      const canvas = canvasRef.current
-                      if (!canvas) return
+                          seekTo(seekTime)
+                        }}
+                        onMouseMove={(e) => {
+                          if (!audioBuffer) return
+                          const canvas = canvasRef.current
+                          if (!canvas) return
 
-                      const rect = canvas.getBoundingClientRect()
-                      const x = e.clientX - rect.left
-                      const progress = x / rect.width
-                      const time = progress * audioBuffer.duration
+                          const rect = canvas.getBoundingClientRect()
+                          const x = e.clientX - rect.left
+                          const progress = x / rect.width
+                          const time = progress * audioBuffer.duration
 
-                      // Get amplitude at this position
-                      const dataIndex = Math.floor(progress * waveformData.length)
-                      const amplitude = waveformData[dataIndex] || 0
+                          setHoverTime(time)
+                          setHoverAmplitude(progress) // Use progress as approximate amplitude
+                        }}
+                        onMouseLeave={() => {
+                          setHoverTime(null)
+                          setHoverAmplitude(null)
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    // Fallback: Loading state
+                    <canvas
+                      ref={canvasRef}
+                      width={800}
+                      height={150}
+                      className="w-full border border-border rounded cursor-pointer"
+                      onClick={(e) => {
+                        if (!audioBuffer) return
+                        const canvas = canvasRef.current
+                        if (!canvas) return
 
-                      setHoverTime(time)
-                      setHoverAmplitude(amplitude)
-                    }}
-                    onMouseLeave={() => {
-                      setHoverTime(null)
-                      setHoverAmplitude(null)
-                    }}
-                  />
+                        const rect = canvas.getBoundingClientRect()
+                        const x = e.clientX - rect.left
+                        const clickProgress = x / rect.width
+                        const seekTime = clickProgress * audioBuffer.duration
+
+                        seekTo(seekTime)
+                      }}
+                      onMouseMove={(e) => {
+                        if (!audioBuffer || !waveformData) return
+                        const canvas = canvasRef.current
+                        if (!canvas) return
+
+                        const rect = canvas.getBoundingClientRect()
+                        const x = e.clientX - rect.left
+                        const progress = x / rect.width
+                        const time = progress * audioBuffer.duration
+
+                        const dataIndex = Math.floor(progress * waveformData.length)
+                        const amplitude = waveformData[dataIndex] || 0
+
+                        setHoverTime(time)
+                        setHoverAmplitude(amplitude)
+                      }}
+                      onMouseLeave={() => {
+                        setHoverTime(null)
+                        setHoverAmplitude(null)
+                      }}
+                    />
+                  )}
 
                   {/* Hover tooltip */}
                   {hoverTime !== null && hoverAmplitude !== null && (
@@ -1236,80 +1349,52 @@ const AudioAnalysis: React.FC = () => {
                 <Card className="p-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Spectrogram Analysis</h3>
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm flex items-center gap-2">
-                        FFT Size:
-                        <select
-                          value={fftSize}
-                          onChange={(e) => setFftSize(parseInt(e.target.value))}
-                          className="px-2 py-1 bg-background border border-border rounded text-sm"
-                          disabled={useBackendFFT}
-                        >
-                          <option value="512">512</option>
-                          <option value="1024">1024</option>
-                          <option value="2048">2048</option>
-                          <option value="4096">4096</option>
-                        </select>
-                      </label>
-                      <label className="text-sm flex items-center gap-2">
-                        Max Freq:
-                        <input
-                          type="number"
-                          value={maxFrequency}
-                          onChange={(e) => setMaxFrequency(parseInt(e.target.value))}
-                          className="px-2 py-1 bg-background border border-border rounded w-24 text-sm"
-                          disabled={useBackendFFT}
-                        />
-                        Hz
-                      </label>
-
-                      {/* Backend FFT Toggle */}
-                      <div className="flex items-center gap-2 px-2 py-1 border border-border rounded bg-background/50">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={useBackendFFT}
-                            onChange={(e) => setUseBackendFFT(e.target.checked)}
-                            className="w-3 h-3 rounded border-border text-accent focus:ring-accent"
-                          />
-                          <Cloud className="h-3 w-3 text-accent" />
-                          <span className="font-medium">Backend FFT</span>
-                        </label>
-                      </div>
-
-                      <Button size="sm" onClick={handleReanalyze} disabled={isAnalyzing}>
-                        {isAnalyzing ? <Activity className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          if (spectrogramCanvasRef.current) {
-                            const canvas = spectrogramCanvasRef.current
+                    <div className="flex items-center gap-2">
+                      {backendSpectrogram && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
                             const link = document.createElement('a')
                             link.download = `${file?.name.replace(/\.[^.]+$/, '')}_spectrogram.png`
-                            link.href = canvas.toDataURL()
+                            link.href = backendSpectrogram
                             link.click()
-                          }
-                        }}
-                        disabled={!spectrogram}
-                      >
-                        <Download className="w-3 h-3 mr-1" />
-                        PNG
-                      </Button>
+                          }}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          PNG
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-muted/20 p-2 rounded overflow-auto">
-                    <canvas
-                      ref={spectrogramCanvasRef}
-                      className="w-full border border-border"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
+                    {backendSpectrogram ? (
+                      <img 
+                        src={backendSpectrogram} 
+                        alt="Audio Spectrogram" 
+                        className="w-full border border-border rounded"
+                        style={{ display: 'block', width: '100%', height: 'auto' }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-64 text-muted-foreground">
+                        {isAnalyzing || jobStatus?.status === 'processing' ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Activity className="w-8 h-8 animate-spin text-accent" />
+                            <p>Generating spectrogram with FFmpeg...</p>
+                            {jobStatus?.progress && (
+                              <p className="text-xs">{jobStatus.progress.message}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p>Upload and analyze an audio file to see the spectrogram</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <p className="text-xs text-muted-foreground mt-2">
-                    Look for hidden images or patterns in the spectrogram. Adjust FFT size and frequency range for better visibility.
+                    🎨 High-quality spectrogram generated automatically using FFmpeg. Look for hidden images or patterns in the frequency spectrum.
                   </p>
                 </Card>
               </TabsContent>
