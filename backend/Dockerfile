@@ -40,11 +40,7 @@ COPY . .
 
 # Copy Python scripts to a location accessible after build
 RUN mkdir -p /app/python-scripts && \
-    cp -r src/scripts/pythonScripts/* /app/python-scripts/ && \
-    ls -la /app/python-scripts/ && \
-    echo "Testing Python script syntax..." && \
-    /opt/venv/bin/python3 -m py_compile /app/python-scripts/evtx-parser.py && \
-    echo "Python script syntax is valid"
+    cp -r src/scripts/pythonScripts/* /app/python-scripts/
 
 # Build TypeScript
 RUN npm run build

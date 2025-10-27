@@ -71,24 +71,9 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     let stdout = '';
     let stderr = '';
 
-    // Determine Python command
-    // In Docker with venv, use absolute path to ensure we use the right Python
-    // In Windows dev, use 'python'
-    let pythonCmd = 'python3';
-    if (process.platform === 'win32') {
-      pythonCmd = 'python';
-    } else if (fs.existsSync('/opt/venv/bin/python3')) {
-      pythonCmd = '/opt/venv/bin/python3';
-    }
+    const pythonCmd = process.platform === 'win32' ? 'python' : '/opt/venv/bin/python3';
 
-    console.log(`Using Python command: ${pythonCmd}`);
-    console.log(`Script path: ${scriptPath}`);
-    console.log(`File path: ${filePath}`);
-    console.log(`Script exists: ${fs.existsSync(scriptPath)}`);
-    console.log(`File exists: ${fs.existsSync(filePath)}`);
-
-    // Use -u flag for unbuffered output to ensure we capture all output immediately
-    const proc = spawn(pythonCmd, ['-u', scriptPath, filePath], {
+    const proc = spawn(pythonCmd, [scriptPath, filePath], {
       cwd: path.dirname(scriptPath)
     });
 
@@ -102,16 +87,6 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     });
 
     proc.on('close', (code) => {
-      console.log(`Python process closed with code: ${code}`);
-      console.log(`Python stdout length: ${stdout.length}`);
-      console.log(`Python stderr length: ${stderr.length}`);
-      if (stderr) {
-        console.error(`Python stderr output: ${stderr}`);
-      }
-      if (stdout) {
-        console.log(`Python stdout (first 200 chars): ${stdout.substring(0, 200)}`);
-      }
-
       if (code !== 0) {
         reject(new Error(`Python parser failed with code ${code}: ${stderr}`));
         return;
