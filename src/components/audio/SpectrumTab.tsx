@@ -48,15 +48,15 @@ export function SpectrumTab({
           <div className="space-y-4">
             <div className="relative border border-border rounded overflow-hidden">
               <img
-                src={spectrogramData.imageUrl}
+                src={(spectrogramData as any).imageUrl}
                 alt="Spectrogram"
                 className="w-full"
                 style={{ imageRendering: "crisp-edges" }}
               />
             </div>
             <div className="text-xs text-muted-foreground">
-              <p>Frequency range: 0 Hz - {(spectrogramData.sampleRate / 2).toLocaleString()} Hz</p>
-              <p>Time resolution: {(spectrogramData.duration / spectrogramData.width).toFixed(3)}s per pixel</p>
+              <p>Frequency range: 0 Hz - {((spectrogramData as any).sampleRate / 2).toLocaleString()} Hz</p>
+              <p>Time resolution: {((spectrogramData as any).duration / spectrogramData.width).toFixed(3)}s per pixel</p>
             </div>
           </div>
         ) : (
@@ -81,7 +81,7 @@ export function SpectrumTab({
             <div>
               <p className="text-xs text-muted-foreground mb-2">Dominant Frequencies:</p>
               <div className="space-y-1">
-                {frequencyResult.peaks.slice(0, 10).map((peak, i) => (
+                {((frequencyResult as any).peaks || []).slice(0, 10).map((peak: any, i: number) => (
                   <div
                     key={i}
                     className="flex items-center gap-2 text-sm font-mono p-2 bg-gray-900 rounded"
@@ -90,7 +90,7 @@ export function SpectrumTab({
                     <div className="flex-1 bg-gray-800 h-2 rounded overflow-hidden">
                       <div
                         className="bg-purple-500 h-full"
-                        style={{ width: `${(peak.magnitude / frequencyResult.peaks[0].magnitude) * 100}%` }}
+                        style={{ width: `${(peak.magnitude / (frequencyResult as any).peaks[0].magnitude) * 100}%` }}
                       />
                     </div>
                     <span className="text-xs text-muted-foreground">
@@ -101,7 +101,7 @@ export function SpectrumTab({
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
-              <p>Total peaks analyzed: {frequencyResult.peaks.length}</p>
+              <p>Total peaks analyzed: {((frequencyResult as any).peaks || []).length}</p>
             </div>
           </div>
         ) : (
@@ -131,16 +131,16 @@ export function SpectrumTab({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Mode:</p>
-                  <p className="font-semibold">{sstvResult.mode}</p>
+                  <p className="font-semibold">{(sstvResult as any).mode}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Confidence:</p>
                   <p className="font-semibold">{(sstvResult.confidence * 100).toFixed(1)}%</p>
                 </div>
               </div>
-              {sstvResult.imageData && (
+              {(sstvResult as any).imageData && (
                 <div className="border border-border rounded overflow-hidden">
-                  <img src={sstvResult.imageData} alt="Decoded SSTV" className="w-full" />
+                  <img src={(sstvResult as any).imageData} alt="Decoded SSTV" className="w-full" />
                 </div>
               )}
             </div>
@@ -176,7 +176,7 @@ export function SpectrumTab({
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Decoded Data:</p>
                 <div className="p-3 bg-gray-900 rounded border border-border">
-                  <code className="font-mono text-sm break-all">{fskResult.data}</code>
+                  <code className="font-mono text-sm break-all">{(fskResult as any).data}</code>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm">
@@ -186,7 +186,7 @@ export function SpectrumTab({
                 </div>
                 <div>
                   <p className="text-muted-foreground">Shift:</p>
-                  <p className="font-semibold">{fskResult.shift} Hz</p>
+                  <p className="font-semibold">{(fskResult as any).shift} Hz</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Confidence:</p>
@@ -226,13 +226,13 @@ export function SpectrumTab({
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Decoded Data:</p>
                 <div className="p-3 bg-gray-900 rounded border border-border">
-                  <code className="font-mono text-sm break-all">{pskResult.data}</code>
+                  <code className="font-mono text-sm break-all">{(pskResult as any).data}</code>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Mode:</p>
-                  <p className="font-semibold">{pskResult.mode}</p>
+                  <p className="font-semibold">{(pskResult as any).mode}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Baud Rate:</p>
