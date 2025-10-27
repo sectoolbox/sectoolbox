@@ -670,7 +670,7 @@ export async function generateSpectrogram(
 }
 
 // Analyze frequency anomalies (suspicious frequencies)
-export function analyzeFrequencyAnomalies(audioBuffer: AudioBuffer): FrequencyResult[] {
+export async function analyzeFrequencyAnomalies(audioBuffer: AudioBuffer): Promise<FrequencyResult[]> {
   const channelData = audioBuffer.getChannelData(0)
   const sampleRate = audioBuffer.sampleRate
   const windowSize = 4096
@@ -678,7 +678,7 @@ export function analyzeFrequencyAnomalies(audioBuffer: AudioBuffer): FrequencyRe
 
   for (let i = 0; i < channelData.length - windowSize; i += windowSize) {
     const window = channelData.slice(i, i + windowSize)
-    const fft = performFFT(window)
+    const fft = await performFFT(window)
 
     // Find peaks
     for (let j = 1; j < fft.length - 1; j++) {
