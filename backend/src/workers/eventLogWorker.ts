@@ -72,10 +72,13 @@ async function runPythonParser(scriptPath: string, filePath: string, jobId: stri
     let stderr = '';
 
     // Determine Python command
-    // In Docker, use python3 (system-wide with packages installed in venv but accessible)
+    // In Docker with venv, use absolute path to ensure we use the right Python
+    // In Windows dev, use 'python'
     let pythonCmd = 'python3';
     if (process.platform === 'win32') {
       pythonCmd = 'python';
+    } else if (fs.existsSync('/opt/venv/bin/python3')) {
+      pythonCmd = '/opt/venv/bin/python3';
     }
 
     console.log(`Using Python command: ${pythonCmd}`);

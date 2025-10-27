@@ -30,9 +30,10 @@ COPY requirements.txt ./
 # Install Node.js dependencies
 RUN npm install
 
-# Install Python dependencies system-wide
-RUN pip3 install --upgrade pip && \
-    pip3 install --no-cache-dir -r requirements.txt
+# Create Python virtual environment and install dependencies
+RUN python3 -m venv /opt/venv
+RUN /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
@@ -49,6 +50,9 @@ RUN mkdir -p storage/uploads storage/results
 
 # Expose port
 EXPOSE 8080
+
+# Set environment variables for runtime
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Start server
 CMD ["npm", "start"]
