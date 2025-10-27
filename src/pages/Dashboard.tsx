@@ -4,13 +4,10 @@ import {
   Network,
   Image,
   Lock,
-  Globe,
   Search,
   ArrowRight,
-  Activity,
   Upload,
   FileImage,
-  FileText,
   ChevronDown,
   Clock,
   FolderOpen,
@@ -31,7 +28,6 @@ const Dashboard: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const navigate = useNavigate()
 
   // Removed unused changelog loading
@@ -77,7 +73,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  const handleDrop = (e: React.DragEvent, type: string) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const file = e.dataTransfer.files?.[0]
     if (file) {
@@ -261,7 +257,7 @@ const Dashboard: React.FC = () => {
             {showDropdown && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-auto">
                 {toolResults.length > 0 ? (
-                  toolResults.map((tool, index) => {
+                  toolResults.map((tool) => {
                     return (
                       <div
                         key={tool.id}

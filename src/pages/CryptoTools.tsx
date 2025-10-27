@@ -1,20 +1,16 @@
 import React, { useState } from 'react'
 import {
   Key,
-  Hash,
   Copy,
   Download,
   RefreshCw,
   Zap,
   Shield,
-  Lock,
-  Unlock,
   Binary,
   FileText,
   BarChart3,
   BookOpen,
   Radio,
-  Braces,
   Globe
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -28,8 +24,8 @@ interface CryptoResult {
 
 interface Tool {
   name: string
-  encode?: (text: string, key?: string) => string
-  decode?: (text: string, key?: string) => string | null
+  encode?: (text: string, key?: string) => string | Promise<string>
+  decode?: (text: string, key?: string) => string | null | Promise<string | null>
   description?: string
   example?: string
   needsKey?: boolean
@@ -45,7 +41,6 @@ const CryptoTools: React.FC = () => {
   const [recursiveMode, setRecursiveMode] = useState(false)
   const [iterationCount, setIterationCount] = useState(0)
   const [magicSteps, setMagicSteps] = useState<string[]>([])
-  const [magicResult, setMagicResult] = useState('')
 
   // ==================== HASHING ALGORITHMS ====================
   const hashingTools: Tool[] = [
