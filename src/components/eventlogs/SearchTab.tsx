@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Clock, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, Filter, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
 
 interface SearchTabProps {
   events: any[];
@@ -27,36 +26,55 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
     });
   };
 
-  // Helper to check if event data contains the search term
-  const eventDataMatches = (event: any, query: string, isRegex: boolean): boolean => {
-    if (!event.data || !query) return false;
+  // Helper to find and extract matching content from event data
+  const findMatchInEventData = (event: any, query: string, isRegex: boolean): { matched: boolean; matchedText?: string; field?: string } => {
+    if (!event.data || !query) return { matched: false };
     
-    if (isRegex) {
-      try {
+    try {
+      if (isRegex) {
         const regex = new RegExp(query, 'i');
-        return regex.test(JSON.stringify(event.data));
-      } catch {
-        return false;
+        for (const [key, value] of Object.entries(event.data)) {
+          const valueStr = String(value);
+          if (regex.test(valueStr)) {
+            // Extract context around match (50 chars before and after)
+            const match = valueStr.match(regex);
+            if (match) {
+              const matchIndex = match.index || 0;
+              const start = Math.max(0, matchIndex - 50);
+              const end = Math.min(valueStr.length, matchIndex + match[0].length + 50);
+              const context = valueStr.substring(start, end);
+              return { 
+                matched: true, 
+                matchedText: context,
+                field: key
+              };
+            }
+          }
+        }
+      } else {
+        const lowerQuery = query.toLowerCase();
+        for (const [key, value] of Object.entries(event.data)) {
+          const valueStr = String(value);
+          const lowerValue = valueStr.toLowerCase();
+          if (lowerValue.includes(lowerQuery)) {
+            // Extract context around match (50 chars before and after)
+            const matchIndex = lowerValue.indexOf(lowerQuery);
+            const start = Math.max(0, matchIndex - 50);
+            const end = Math.min(valueStr.length, matchIndex + lowerQuery.length + 50);
+            const context = valueStr.substring(start, end);
+            return { 
+              matched: true, 
+              matchedText: context,
+              field: key
+            };
+          }
+        }
       }
-    } else {
-      return JSON.stringify(event.data).toLowerCase().includes(query.toLowerCase());
+    } catch (e) {
+      return { matched: false };
     }
-  };
-
-  // Quick presets
-  const presets = [
-    { name: 'Failed Logins', query: '4625|4771', field: 'eventId', label: 'Security Events' },
-    { name: 'PowerShell Execution', query: '4103|4104', field: 'eventId', label: 'PowerShell' },
-    { name: 'Account Lockouts', query: '4740', field: 'eventId', label: 'Security' },
-    { name: 'Privilege Escalation', query: '4672|4673', field: 'eventId', label: 'Security' },
-    { name: 'Service Failures', query: '7000|7001|7023', field: 'eventId', label: 'System' },
-    { name: 'Application Errors', query: '1000|1001', field: 'eventId', label: 'Application' },
-  ];
-
-  const applyPreset = (preset: typeof presets[0]) => {
-    setSearchQuery(preset.query);
-    setSearchField('eventId');
-    setUseRegex(true);
+    
+    return { matched: false };
   };
 
   const filteredResults = useMemo(() => {
@@ -127,28 +145,6 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
 
   return (
     <div className="space-y-4">
-      {/* Quick Presets */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold mb-3">Quick Search Presets</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {presets.map((preset, idx) => (
-            <Button
-              key={idx}
-              variant="outline"
-              size="sm"
-              onClick={() => applyPreset(preset)}
-              className="justify-start"
-            >
-              <AlertCircle className="w-3 h-3 mr-2" />
-              <div className="text-left">
-                <div className="text-xs font-medium">{preset.name}</div>
-                <div className="text-xs text-muted-foreground">{preset.label}</div>
-              </div>
-            </Button>
-          ))}
-        </div>
-      </Card>
-
       {/* Search Filters */}
       <Card className="p-4">
         <div className="space-y-4">
@@ -254,7 +250,7 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
           ) : (
             filteredResults.slice(0, 100).map((event) => {
               const isExpanded = expandedEvents.has(event.recordId);
-              const dataMatched = searchQuery && eventDataMatches(event, searchQuery, useRegex);
+              const matchResult = searchQuery && searchField === 'data' ? findMatchInEventData(event, searchQuery, useRegex) : { matched: false };
               
               return (
                 <div key={event.recordId} className="border border-border rounded overflow-hidden">
@@ -282,11 +278,6 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                             }`}>
                               {event.levelName}
                             </span>
-                            {dataMatched && (
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400">
-                                Match in Event Data
-                              </span>
-                            )}
                           </div>
                           <div className="text-sm text-muted-foreground mb-1">
                             {event.provider} • {event.computer}
@@ -294,6 +285,16 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                           <div className="text-xs text-muted-foreground">
                             {new Date(event.timestamp).toLocaleString()}
                           </div>
+                          {matchResult.matched && matchResult.matchedText && (
+                            <div className="mt-2 p-2 bg-green-500/10 border border-green-500/30 rounded">
+                              <div className="text-xs font-semibold text-green-400 mb-1">
+                                Match found in: {matchResult.field}
+                              </div>
+                              <div className="text-xs font-mono text-muted-foreground break-all">
+                                ...{matchResult.matchedText}...
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
