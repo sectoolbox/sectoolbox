@@ -250,7 +250,7 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
           ) : (
             filteredResults.slice(0, 100).map((event) => {
               const isExpanded = expandedEvents.has(event.recordId);
-              const matchResult = searchQuery && searchField === 'data' ? findMatchInEventData(event, searchQuery, useRegex) : { matched: false };
+              const matchResult = searchQuery ? findMatchInEventData(event, searchQuery, useRegex) : { matched: false };
               
               return (
                 <div key={event.recordId} className="border border-border rounded overflow-hidden">
