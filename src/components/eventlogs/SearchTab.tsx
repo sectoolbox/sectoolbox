@@ -36,19 +36,11 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
         for (const [key, value] of Object.entries(event.data)) {
           const valueStr = String(value);
           if (regex.test(valueStr)) {
-            // Extract context around match (50 chars before and after)
-            const match = valueStr.match(regex);
-            if (match) {
-              const matchIndex = match.index || 0;
-              const start = Math.max(0, matchIndex - 50);
-              const end = Math.min(valueStr.length, matchIndex + match[0].length + 50);
-              const context = valueStr.substring(start, end);
-              return { 
-                matched: true, 
-                matchedText: context,
-                field: key
-              };
-            }
+            return { 
+              matched: true, 
+              matchedText: valueStr,
+              field: key
+            };
           }
         }
       } else {
@@ -57,14 +49,9 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
           const valueStr = String(value);
           const lowerValue = valueStr.toLowerCase();
           if (lowerValue.includes(lowerQuery)) {
-            // Extract context around match (50 chars before and after)
-            const matchIndex = lowerValue.indexOf(lowerQuery);
-            const start = Math.max(0, matchIndex - 50);
-            const end = Math.min(valueStr.length, matchIndex + lowerQuery.length + 50);
-            const context = valueStr.substring(start, end);
             return { 
               matched: true, 
-              matchedText: context,
+              matchedText: valueStr,
               field: key
             };
           }
