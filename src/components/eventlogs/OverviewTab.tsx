@@ -475,12 +475,66 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
                 </div>
                 {expandedIOCs.has('processes') && (
                   <div className="border-t border-border p-3 bg-muted/5">
-                    <div className="space-y-1">
-                      {iocs.processes.map((process, idx) => (
-                        <div key={idx} className="text-xs font-mono bg-card px-2 py-1 rounded border border-border hover:bg-muted/50 transition-colors break-all">
-                          {process}
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Process executions with command lines</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const processData = iocs.processes!.map(processName => {
+                            // Find the event with this process to get CommandLine
+                            const event = events?.find(e => 
+                              e.event_id === 4688 && 
+                              (e.data?.NewProcessName === processName || 
+                               e.data?.ProcessName === processName ||
+                               e.data?.Image === processName)
+                            );
+                            const cmdLine = event?.data?.CommandLine || '';
+                            return cmdLine ? `${processName}\n  Command: ${cmdLine}` : processName;
+                          }).join('\n\n');
+                          navigator.clipboard.writeText(processData);
+                          toast.success(`Copied ${iocs.processes!.length} processes to clipboard`);
+                        }}
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Copy All
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {iocs.processes.map((processName, idx) => {
+                        // Find the event with this process to get CommandLine
+                        const event = events?.find(e => 
+                          e.event_id === 4688 && 
+                          (e.data?.NewProcessName === processName || 
+                           e.data?.ProcessName === processName ||
+                           e.data?.Image === processName)
+                        );
+                        const commandLine = event?.data?.CommandLine || '';
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className="text-xs bg-card px-3 py-2 rounded border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const copyText = commandLine ? `${processName}\nCommand: ${commandLine}` : processName;
+                              navigator.clipboard.writeText(copyText);
+                              toast.success('Process copied');
+                            }}
+                          >
+                            <div className="font-mono font-semibold text-yellow-400 mb-1 break-all">
+                              {processName}
+                            </div>
+                            {commandLine && (
+                              <div className="font-mono text-muted-foreground break-all pl-2 border-l-2 border-yellow-500/30">
+                                <span className="text-yellow-500/70">Command:</span> {commandLine}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
