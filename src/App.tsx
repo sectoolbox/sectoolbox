@@ -14,6 +14,8 @@ const Network = lazy(() => import('./pages/Network'))
 const ThreatIntel = lazy(() => import('./pages/ThreatIntel'))
 const PythonForensics = lazy(() => import('./pages/PythonForensics'))
 const EventLogs = lazy(() => import('./pages/EventLogs'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const Terms = lazy(() => import('./pages/Terms'))
 
 function App() {
   return (
@@ -34,6 +36,8 @@ function App() {
               <Route path="/threat-intel" element={<ThreatIntel />} />
               <Route path="/python" element={<PythonForensics />} />
               <Route path="/eventlogs" element={<EventLogs />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
             </Routes>
           </Suspense>
         </Layout>

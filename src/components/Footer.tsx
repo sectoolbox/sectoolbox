@@ -46,8 +46,8 @@ const Footer: React.FC = () => {
   ]
 
   return (
-    <footer className="bg-slate-900 border-t border-slate-700 py-4 mt-auto" role="contentinfo">
-      <div className="px-2">
+    <footer className="flex-none border-t border-border bg-card">
+      <div className="px-8 py-6">
         <div className="flex flex-wrap justify-between items-start mb-3">
           {/* GitHub Links Section - Far Left */}
           <div className="flex flex-col items-center flex-1 min-w-0">
@@ -177,8 +177,25 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="text-center text-xs text-slate-400">
-          © 2025 {projectName}. All rights reserved.
+        <div className="text-center text-xs text-slate-400 space-y-2">
+          <div className="flex items-center justify-center gap-4">
+            <a 
+              href="/privacy" 
+              className="hover:text-blue-400 transition-colors duration-200"
+            >
+              Privacy Policy
+            </a>
+            <span>•</span>
+            <a 
+              href="/terms" 
+              className="hover:text-blue-400 transition-colors duration-200"
+            >
+              Terms of Service
+            </a>
+          </div>
+          <div>
+            © 2025 {projectName}. All rights reserved.
+          </div>
         </div>
       </div>
     </footer>
