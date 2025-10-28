@@ -455,7 +455,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
             )}
 
             {/* Processes */}
-            {iocs.processes && iocs.processes.length > 0 && (
+            {iocs.processes && iocs.processes.length > 0 ? (
               <div className="border border-border rounded overflow-hidden">
                 <div 
                   className="flex items-center justify-between p-3 bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
@@ -539,7 +539,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ analysis, iocs, threat
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Files */}
             {iocs.files && iocs.files.length > 0 && (

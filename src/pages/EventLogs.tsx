@@ -9,15 +9,12 @@ import { EventsTab } from '../components/eventlogs/EventsTab';
 import { OverviewTab } from '../components/eventlogs/OverviewTab';
 import { ExportTab } from '../components/eventlogs/ExportTab';
 import { SearchTab } from '../components/eventlogs/SearchTab';
-import { TimelineTab } from '../components/eventlogs/TimelineTab';
-import { MitreTab } from '../components/eventlogs/MitreTab';
-import { ThreatIntelTab } from '../components/eventlogs/ThreatIntelTab';
 import { OrganizedTab } from '../components/eventlogs/OrganizedTab';
 import { CriticalAlertsBar } from '../components/eventlogs/CriticalAlertsBar';
 import { QuickStatsCards } from '../components/eventlogs/QuickStatsCards';
 import { QuickJumpButtons } from '../components/eventlogs/QuickJumpButtons';
 
-type TabType = 'overview' | 'events' | 'timeline' | 'search' | 'export' | 'mitre' | 'threatintel' | 'organized';
+type TabType = 'overview' | 'events' | 'search' | 'export' | 'organized';
 
 export const EventLogs: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -73,7 +70,7 @@ export const EventLogs: React.FC = () => {
     setActiveTab('overview');
   };
 
-  const handleQuickJump = (targetType: 'threat' | 'critical' | 'suspicious') => {
+  const handleQuickJump = (_targetType: 'threat' | 'critical' | 'suspicious') => {
     setActiveTab('events');
     // Scroll to top of events tab to see filtered results
     setTimeout(() => {
@@ -232,24 +229,15 @@ export const EventLogs: React.FC = () => {
             )}
 
             {/* Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-card border border-border p-2 rounded-lg">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 bg-card border border-border p-2 rounded-lg">
               <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
                 Overview
               </TabButton>
               <TabButton active={activeTab === 'events'} onClick={() => setActiveTab('events')}>
                 Events
               </TabButton>
-              <TabButton active={activeTab === 'mitre'} onClick={() => setActiveTab('mitre')}>
-                MITRE ATT&CK
-              </TabButton>
-              <TabButton active={activeTab === 'threatintel'} onClick={() => setActiveTab('threatintel')}>
-                Threat Intel
-              </TabButton>
               <TabButton active={activeTab === 'organized'} onClick={() => setActiveTab('organized')}>
                 Organized
-              </TabButton>
-              <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')}>
-                Timeline
               </TabButton>
               <TabButton active={activeTab === 'search'} onClick={() => setActiveTab('search')}>
                 Search
@@ -274,17 +262,8 @@ export const EventLogs: React.FC = () => {
               {activeTab === 'events' && parsedData.events && (
                 <EventsTab events={parsedData.events} />
               )}
-              {activeTab === 'mitre' && parsedData.events && (
-                <MitreTab events={parsedData.events} />
-              )}
-              {activeTab === 'threatintel' && parsedData.iocs && (
-                <ThreatIntelTab iocs={parsedData.iocs} />
-              )}
               {activeTab === 'organized' && parsedData.events && (
                 <OrganizedTab events={parsedData.events} />
-              )}
-              {activeTab === 'timeline' && parsedData.events && (
-                <TimelineTab events={parsedData.events} analysis={parsedData.analysis} />
               )}
               {activeTab === 'search' && parsedData.events && (
                 <SearchTab events={parsedData.events} />
