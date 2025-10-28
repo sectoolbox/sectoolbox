@@ -33,7 +33,7 @@ export const QuickJumpButtons: React.FC<QuickJumpButtonsProps> = ({ events, onJu
   }
 
   return (
-    <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-20">
+    <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
       {threatCount > 0 && (
         <Button
           onClick={() => onJumpTo('threat')}

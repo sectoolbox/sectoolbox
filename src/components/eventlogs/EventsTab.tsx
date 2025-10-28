@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, AlertCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { Card } from '../ui/card';
+import { getSeverityColors } from '../../lib/constants';
 
 interface EventsTabProps {
   events: any[];
@@ -42,48 +43,29 @@ export const EventsTab: React.FC<EventsTabProps> = ({ events }) => {
   };
 
   const getLevelIcon = (levelName: string) => {
+    const colors = getSeverityColors(levelName);
     switch (levelName) {
       case 'Critical':
-        return <XCircle className="w-4 h-4 text-red-500" />;
+        return <XCircle className={`w-4 h-4 ${colors.text}`} />;
       case 'Error':
-        return <AlertCircle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className={`w-4 h-4 ${colors.text}`} />;
       case 'Warning':
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+        return <AlertTriangle className={`w-4 h-4 ${colors.text}`} />;
       case 'Information':
-        return <Info className="w-4 h-4 text-blue-400" />;
+        return <Info className={`w-4 h-4 ${colors.text}`} />;
       default:
-        return <Info className="w-4 h-4 text-muted-foreground" />;
+        return <Info className={`w-4 h-4 ${colors.text}`} />;
     }
   };
 
   const getLevelColor = (levelName: string) => {
-    switch (levelName) {
-      case 'Critical':
-        return 'bg-red-500/20 text-red-400 border-red-500/50';
-      case 'Error':
-        return 'bg-red-400/20 text-red-300 border-red-400/50';
-      case 'Warning':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-      case 'Information':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-      default:
-        return 'bg-muted/20 text-muted-foreground border-muted';
-    }
+    const colors = getSeverityColors(levelName);
+    return `${colors.bg} ${colors.text} ${colors.border}`;
   };
 
   const getRowBgColor = (levelName: string) => {
-    switch (levelName) {
-      case 'Critical':
-        return 'bg-red-950/30 border-red-900/50';
-      case 'Error':
-        return 'bg-red-950/20 border-red-900/30';
-      case 'Warning':
-        return 'bg-yellow-950/20 border-yellow-900/30';
-      case 'Information':
-        return 'bg-blue-950/10 border-blue-900/20';
-      default:
-        return 'bg-card border-border';
-    }
+    const colors = getSeverityColors(levelName);
+    return `${colors.rowBg} ${colors.rowBorder}`;
   };
 
   return (

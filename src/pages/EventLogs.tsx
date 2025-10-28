@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Activity, AlertTriangle, X } from 'lucide-react';
+import { Upload, Activity, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { useBackendJob } from '../hooks/useBackendJob';
@@ -202,26 +202,11 @@ export const EventLogs: React.FC = () => {
             {/* Header with stats */}
             <Card className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <div>
                     <div className="text-sm text-muted-foreground">File</div>
                     <div className="font-mono font-semibold">{parsedData.filename}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Total Events</div>
-                    <div className="font-mono font-semibold text-accent">
-                      {parsedData.metadata?.totalEvents?.toLocaleString() || 0}
-                    </div>
-                  </div>
-                  {parsedData.threats && parsedData.threats.length > 0 && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Threats Detected</div>
-                      <div className="font-mono font-semibold text-destructive flex items-center gap-1">
-                        <AlertTriangle className="w-4 h-4" />
-                        {parsedData.threats.length}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <Button variant="outline" onClick={handleReset}>
                   <X className="w-4 h-4 mr-2" />
@@ -247,7 +232,7 @@ export const EventLogs: React.FC = () => {
             )}
 
             {/* Tabs */}
-            <div className="flex gap-2 bg-muted/20 p-1 rounded-lg w-fit flex-wrap sticky top-0 z-10 backdrop-blur-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-card border border-border p-2 rounded-lg">
               <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
                 Overview
               </TabButton>

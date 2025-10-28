@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '../ui/card';
+import { getSeverityColors } from '../../lib/constants';
 
 interface SearchTabProps {
   events: any[];
@@ -257,12 +258,7 @@ export const SearchTab: React.FC<SearchTabProps> = ({ events }) => {
                             <span className="font-mono text-sm font-semibold text-accent">
                               Event {event.eventId}
                             </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              event.levelName === 'Critical' ? 'bg-red-500/20 text-red-400' :
-                              event.levelName === 'Error' ? 'bg-red-400/20 text-red-300' :
-                              event.levelName === 'Warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                              'bg-blue-500/20 text-blue-400'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${getSeverityColors(event.levelName).bg} ${getSeverityColors(event.levelName).text}`}>
                               {event.levelName}
                             </span>
                           </div>
