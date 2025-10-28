@@ -12,6 +12,7 @@ import {
   Clock,
   FolderOpen,
   Headphones,
+  FileText,
   Shield,
   Code,
   Database,
@@ -56,7 +57,6 @@ const Dashboard: React.FC = () => {
   }
 
   const handleFileUpload = (file: File) => {
-    setSelectedFile(file)
     const fileType = file.type
 
     // Pass the uploaded File object via location state so the target page can auto-load and scan
@@ -68,6 +68,8 @@ const Dashboard: React.FC = () => {
       navigate('/pcap', { state })
     } else if (fileType.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|m4a|flac|aac|wma)$/i)) {
       navigate('/audio', { state })
+    } else if (file.name.endsWith('.evtx')) {
+      navigate('/eventlogs', { state })
     } else {
       navigate('/memory', { state })
     }
@@ -137,7 +139,7 @@ const Dashboard: React.FC = () => {
             <div
               className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'image')}
+              onDrop={handleDrop}
               onClick={() => {
                 const input = document.createElement('input')
                 input.type = 'file'
@@ -158,7 +160,7 @@ const Dashboard: React.FC = () => {
             <div
               className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'pcap')}
+              onDrop={handleDrop}
               onClick={() => {
                 const input = document.createElement('input')
                 input.type = 'file'
@@ -179,7 +181,7 @@ const Dashboard: React.FC = () => {
             <div
               className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'audio')}
+              onDrop={handleDrop}
               onClick={() => {
                 const input = document.createElement('input')
                 input.type = 'file'
@@ -196,15 +198,15 @@ const Dashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground">MP3, WAV, OGG</p>
             </div>
 
-            {/* Memory Analysis Upload */}
+            {/* Event Logs Upload */}
             <div
               className="bg-card border-2 border-dashed border-border rounded-lg p-3 text-center hover:border-accent transition-colors cursor-pointer group"
               onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, 'memory')}
+              onDrop={handleDrop}
               onClick={() => {
                 const input = document.createElement('input')
                 input.type = 'file'
-                input.accept = '*'
+                input.accept = '.evtx'
                 input.onchange = (e) => {
                   const file = (e.target as HTMLInputElement).files?.[0]
                   if (file) handleFileUpload(file)
@@ -212,9 +214,9 @@ const Dashboard: React.FC = () => {
                 input.click()
               }}
             >
-              <Shield className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
-              <p className="text-xs font-medium">Memory Analysis</p>
-              <p className="text-xs text-muted-foreground">Memory dumps</p>
+              <FileText className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
+              <p className="text-xs font-medium">Event Logs</p>
+              <p className="text-xs text-muted-foreground">EVTX files</p>
             </div>
 
             {/* Folder Scanner Upload */}

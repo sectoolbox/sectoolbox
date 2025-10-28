@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Upload, Activity, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -17,12 +18,46 @@ import { QuickJumpButtons } from '../components/eventlogs/QuickJumpButtons';
 type TabType = 'overview' | 'events' | 'search' | 'export' | 'organized';
 
 export const EventLogs: React.FC = () => {
+  const location = useLocation();
   const [file, setFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [parsedData, setParsedData] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const { jobStatus, startJob } = useBackendJob();
+
+  // Handle quick upload from Dashboard
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.quickUploadFile && state?.quickUploadAutoAnalyze) {
+      const uploadedFile = state.quickUploadFile;
+      setFile(uploadedFile);
+      // Auto-analyze after a short delay to let UI update
+      setTimeout(() => {
+        handleAnalyzeFile(uploadedFile);
+      }, 100);
+      // Clear location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  const handleAnalyzeFile = async (fileToAnalyze: File) => {
+    setIsAnalyzing(true);
+
+    try {
+      const response = await apiClient.analyzeEventLog(fileToAnalyze);
+
+      if (response.jobId) {
+        startJob(response.jobId);
+      } else {
+        toast({ title: 'Error', description: response.error || 'Failed to start analysis', variant: 'destructive' });
+        setIsAnalyzing(false);
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -45,22 +80,7 @@ export const EventLogs: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!file) return;
-
-    setIsAnalyzing(true);
-
-    try {
-      const response = await apiClient.analyzeEventLog(file);
-
-      if (response.jobId) {
-        startJob(response.jobId);
-      } else {
-        toast({ title: 'Error', description: response.error || 'Failed to start analysis', variant: 'destructive' });
-        setIsAnalyzing(false);
-      }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      setIsAnalyzing(false);
-    }
+    await handleAnalyzeFile(file);
   };
 
   const handleReset = () => {
