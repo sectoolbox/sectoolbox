@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock, Zap } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
@@ -1724,7 +1724,6 @@ export default function ImageAnalysis() {
                 EXIF Fields
               </button>
               <button onClick={()=>setActiveTab('forensics')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='forensics'?'text-accent border-b-2 border-accent':''}`}>
-                <Zap className="w-4 h-4 inline mr-1" />
                 Forensics
               </button>
               <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
@@ -1883,14 +1882,31 @@ export default function ImageAnalysis() {
                   </div>
                 )}
 
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium">EXIF Data</h5>
-                    {/* Show Raw removed per request - always show organized detailed EXIF */}
+                {/* Raw EXIF Data (from backend or fallback to frontend) */}
+                {backendResults?.exif?.raw && Object.keys(backendResults.exif.raw).length > 0 ? (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-sm font-medium">Raw EXIF Data (ExifTool)</h5>
+                      <span className="text-xs text-muted-foreground">{Object.keys(backendResults.exif.raw).length} fields</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 text-sm max-h-96 overflow-y-auto">
+                      {Object.keys(backendResults.exif.raw).sort().map(k => (
+                        <div key={k} className="flex flex-col md:flex-row md:justify-between md:items-start bg-background/5 p-2 rounded">
+                          <div className="text-xs text-muted-foreground md:w-1/3 font-mono">{k}</div>
+                          <div className="break-all md:w-2/3 text-sm font-mono">{formatExifValue(backendResults.exif.raw[k])}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-
-                  {renderExifOrganized()}
-                </div>
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-sm font-medium">EXIF Data (Basic)</h5>
+                      <span className="text-xs text-yellow-500">⚠️ Backend processing...</span>
+                    </div>
+                    {renderExifOrganized()}
+                  </div>
+                )}
               </div>
             )}
 
