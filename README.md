@@ -160,10 +160,6 @@ We welcome contributions from the community. Before contributing, please review:
 - **Zeb** - [@zebbern](https://github.com/zebbern)
 - **Kimmi** - [@Opkimmi](https://github.com/Opkimmi)
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ---
 
 Built for the cybersecurity community with modern web technologies.
