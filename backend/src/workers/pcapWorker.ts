@@ -118,14 +118,14 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
     const progressInterval = setInterval(() => {
       if (currentProgress < 80) {
         currentProgress = Math.min(currentProgress + 2, 80); // Increment by 2% every 500ms
-        console.log(`⏱️ Time-based progress update: ${currentProgress}%`);
+        // Only emit progress to frontend, do not log every step
         updateProgress(currentProgress, `Processing packets...`);
       }
     }, 500);
 
     tshark.stdout.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
-      console.log(`📦 Tshark data chunk received (${chunk.length} bytes)`);
+  chunks.push(chunk);
+  // console.log(`📦 Tshark data chunk received (${chunk.length} bytes)`); // Disabled to reduce log spam
     });
 
     tshark.stderr.on('data', (data) => {
@@ -134,15 +134,12 @@ async function runTsharkFullDump(filePath: string, maxPackets: number, jobId: st
 
     tshark.on('close', (code) => {
       clearInterval(progressInterval); // Stop time-based updates
-      
       if (code === 0 || code === null) {
         try {
           const fullOutput = Buffer.concat(chunks).toString('utf8');
-          console.log(`tshark output size: ${fullOutput.length} bytes`);
-
           const packets = JSON.parse(fullOutput);
-          console.log(`Parsed ${packets.length} packets`);
-
+          // Only log summary
+          console.log(`Parsed ${packets.length} packets from tshark output (${fullOutput.length} bytes)`);
           resolve(packets);
         } catch (err: any) {
           console.error('Failed to parse tshark JSON:', err.message);
