@@ -35,14 +35,23 @@ router.post('/advanced-analysis', upload.single('file'), async (req, res) => {
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
 
-    // Parse options from request
-    const options = {
-      performELA: req.body.performELA !== 'false', // Default true
-      elaQuality: parseInt(req.body.elaQuality || '90'),
-      performSteganography: req.body.performSteganography !== 'false', // Default true
-      performFileCarving: req.body.performFileCarving !== 'false', // Default true
-      maxCarvedFiles: parseInt(req.body.maxCarvedFiles || '10')
+    // Parse options from request (sent as JSON string from frontend)
+    let options = {
+      performELA: true,
+      elaQuality: 90,
+      performSteganography: true,
+      performFileCarving: true,
+      maxCarvedFiles: 10
     };
+
+    if (req.body.options) {
+      try {
+        const parsedOptions = JSON.parse(req.body.options);
+        options = { ...options, ...parsedOptions };
+      } catch (e) {
+        console.warn('Failed to parse options, using defaults');
+      }
+    }
 
     try {
       const queue = getImageQueue();
