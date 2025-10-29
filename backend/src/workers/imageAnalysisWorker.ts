@@ -695,6 +695,114 @@ function detectExifAnomalies(exifData: any): Array<{ type: string; description: 
     });
   }
 
+  // Check for EXIF byte order manipulation (re-written EXIF)
+  const byteOrder = exifData['EXIF:ExifByteOrder'] || exifData['File:ExifByteOrder'];
+  const fileModifyDate = exifData['File:FileModifyDate'];
+  const exifModifyDate = exifData['EXIF:ModifyDate'];
+  
+  // If file modify date is much newer than EXIF modify date, metadata may have been re-added
+  if (fileModifyDate && exifModifyDate) {
+    try {
+      const fileDate = new Date(fileModifyDate);
+      const exifDate = new Date(exifModifyDate.replace(/:/g, '-').replace(' ', 'T'));
+      const diffYears = (fileDate.getTime() - exifDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+      
+      if (diffYears > 0.5) { // More than 6 months difference
+        anomalies.push({
+          type: 'metadata_reinjection',
+          description: `File modified ${diffYears.toFixed(1)} years after EXIF date - metadata may have been re-added`,
+          severity: 'high'
+        });
+      }
+    } catch (e) {
+      // Date parsing failed
+    }
+  }
+
+  // Check for missing camera-specific fields (indicates EXIF stripping)
+  const hasMake = exifData['EXIF:Make'];
+  const hasModel = exifData['EXIF:Model'];
+  const hasISO = exifData['EXIF:ISO'];
+  const hasFNumber = exifData['EXIF:FNumber'];
+  const hasExposureTime = exifData['EXIF:ExposureTime'];
+  
+  if ((hasMake || hasModel) && !hasISO && !hasFNumber && !hasExposureTime) {
+    anomalies.push({
+      type: 'stripped_camera_settings',
+      description: 'Camera make/model present but shooting settings missing - selective metadata removal detected',
+      severity: 'high'
+    });
+  }
+
+  // Check for orientation flag manipulation (common in metadata editing)
+  const orientation = exifData['EXIF:Orientation'];
+  if (orientation && parseInt(orientation) > 8) {
+    anomalies.push({
+      type: 'invalid_orientation',
+      description: `Invalid orientation value: ${orientation} (valid range: 1-8)`,
+      severity: 'medium'
+    });
+  }
+
+  // Check for ColorSpace manipulation (often changed to hide editing)
+  const colorSpace = exifData['EXIF:ColorSpace'];
+  const colorSpaceData = exifData['EXIF:ColorSpaceData'];
+  if (colorSpace && colorSpaceData && colorSpace !== colorSpaceData) {
+    anomalies.push({
+      type: 'colorspace_mismatch',
+      description: 'ColorSpace tags do not match - possible metadata manipulation',
+      severity: 'medium'
+    });
+  }
+
+  // Check for resolution inconsistencies
+  const xRes = exifData['EXIF:XResolution'];
+  const yRes = exifData['EXIF:YResolution'];
+  if (xRes && yRes && xRes !== yRes && xRes !== '72' && yRes !== '72') {
+    // Different X and Y resolutions can indicate image manipulation
+    anomalies.push({
+      type: 'resolution_mismatch',
+      description: `X and Y resolutions differ: ${xRes} vs ${yRes} - possible scaling/manipulation`,
+      severity: 'low'
+    });
+  }
+
+  // Check for missing DateTimeDigitized (should exist if camera has DateTimeOriginal)
+  if (created && !exifData['EXIF:DateTimeDigitized']) {
+    anomalies.push({
+      type: 'missing_digitized_date',
+      description: 'DateTimeOriginal exists but DateTimeDigitized is missing - incomplete metadata',
+      severity: 'low'
+    });
+  }
+
+  // Check for thumbnail size/quality mismatches
+  const thumbWidth = exifData['EXIF:ThumbnailImageWidth'] || exifData['Composite:ThumbnailImageWidth'];
+  const thumbHeight = exifData['EXIF:ThumbnailImageHeight'] || exifData['Composite:ThumbnailImageHeight'];
+  if (thumbWidth && thumbHeight && width && height) {
+    const thumbRatio = thumbWidth / thumbHeight;
+    const imageRatio = width / height;
+    const ratioDiff = Math.abs(thumbRatio - imageRatio);
+    
+    if (ratioDiff > 0.1) { // More than 10% difference
+      anomalies.push({
+        type: 'thumbnail_aspect_mismatch',
+        description: 'Thumbnail aspect ratio differs from image - thumbnail may be from different image',
+        severity: 'high'
+      });
+    }
+  }
+
+  // Check for UserComment manipulation (often used to hide data)
+  const userComment = exifData['EXIF:UserComment'];
+  if (userComment && (userComment.includes('ASCII\x00\x00\x00') || userComment.includes('\x00\x00\x00\x00'))) {
+    anomalies.push({
+      type: 'suspicious_user_comment',
+      description: 'UserComment contains unusual null bytes - possible data hiding or corruption',
+      severity: 'medium'
+    });
+  }
+
   return anomalies;
 }
 
