@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock, Zap } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
 import { performComprehensiveImageAnalysis, ImageAnalysisResult, extractBitPlaneFromCanvas, analyzeLSBWithDepth, extractPrintableStringsFromBuffer, applyEdgeDetection, analyzeNoise, applyAutoGammaCorrection, applyHistogramEqualization } from '../lib/imageAnalysis'
 import { carveFiles } from '../lib/forensics'
 import { scanImageData } from '@undecaf/zbar-wasm'
+import { apiClient } from '../services/api'
+import { useBackendJob } from '../hooks/useBackendJob'
 
 type StringsResult = { 
   all: string[]; 
@@ -62,7 +64,7 @@ export default function ImageAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [metadata, setMetadata] = useState<any | null>(null)
   const [structuredResults, setStructuredResults] = useState<ImageAnalysisResult | null>(null)
-  const [activeTab, setActiveTab] = useState<'metadata' | 'stego' | 'strings' | 'hex' | 'bitplane' | 'barcode'>('metadata')
+  const [activeTab, setActiveTab] = useState<'metadata' | 'forensics' | 'stego' | 'strings' | 'hex' | 'bitplane' | 'barcode'>('metadata')
   const [extractedStrings, setExtractedStrings] = useState<StringsResult | null>(null)
   const [stringFilter, setStringFilter] = useState('')
   const [imageList, setImageList] = useState<string[]>([])
@@ -125,6 +127,12 @@ export default function ImageAnalysis() {
   const [barcodeSubPage, setBarcodeSubPage] = useState<'original' | 'reconstructed'>('original')
   const [editableBytes, setEditableBytes] = useState<Record<number, string>>({})
 
+  // Backend analysis state
+  const [backendResults, setBackendResults] = useState<any>(null)
+  const [backendJobId, setBackendJobId] = useState<string | null>(null)
+  const [isBackendProcessing, setIsBackendProcessing] = useState(false)
+  const { jobStatus, startJob } = useBackendJob()
+
   const fileRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -158,6 +166,48 @@ export default function ImageAnalysis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
 
+  // Auto-trigger backend analysis when file is uploaded
+  useEffect(() => {
+    if (file && !backendJobId && !isBackendProcessing) {
+      triggerBackendAnalysis()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file])
+
+  // Listen for backend job updates
+  useEffect(() => {
+    if (jobStatus && jobStatus.jobId === backendJobId) {
+      if (jobStatus.status === 'completed' && jobStatus.results) {
+        setBackendResults(jobStatus.results)
+        setIsBackendProcessing(false)
+      } else if (jobStatus.status === 'failed') {
+        console.error('Backend analysis failed:', jobStatus.error)
+        setIsBackendProcessing(false)
+      }
+    }
+  }, [jobStatus, backendJobId])
+
+  const triggerBackendAnalysis = async () => {
+    if (!file) return
+    
+    setIsBackendProcessing(true)
+    try {
+      const response = await apiClient.analyzeImageAdvanced(file, {
+        performELA: true,
+        elaQuality: 90,
+        performSteganography: true,
+        performFileCarving: true
+      })
+      
+      const { jobId } = response
+      setBackendJobId(jobId)
+      startJob(jobId)
+    } catch (error) {
+      console.error('Failed to start backend analysis:', error)
+      setIsBackendProcessing(false)
+    }
+  }
+
   const onFile = (f?: File) => {
     if (!f) return
     setFile(f)
@@ -178,6 +228,10 @@ export default function ImageAnalysis() {
     setLsbDepthResult(null)
     setHexData(null)
     setBarcodeResults([])
+    // Reset backend analysis state
+    setBackendResults(null)
+    setBackendJobId(null)
+    setIsBackendProcessing(false)
     // reset user manual selection so auto-extract runs for new images
     userHasChangedBitplaneRef.current = false
   }
@@ -1665,15 +1719,19 @@ export default function ImageAnalysis() {
           </div>
 
           <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex space-x-2 border-b border-border pb-3 mb-4">
-              <button onClick={()=>setActiveTab('metadata')} className={`px-3 py-2 ${activeTab==='metadata'?'text-accent border-b-2 border-accent':''}`}>
+            <div className="flex space-x-2 border-b border-border pb-3 mb-4 overflow-x-auto">
+              <button onClick={()=>setActiveTab('metadata')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='metadata'?'text-accent border-b-2 border-accent':''}`}>
                 EXIF Fields
               </button>
-              <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
-              <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
-              <button onClick={()=>setActiveTab('strings')} className={`px-3 py-2 ${activeTab==='strings'?'text-accent border-b-2 border-accent':''}`}>Strings</button>
-              <button onClick={()=>setActiveTab('hex')} className={`px-3 py-2 ${activeTab==='hex'?'text-accent border-b-2 border-accent':''}`}>Hex</button>
-              <button onClick={()=>{setActiveTab('barcode'); if(barcodeResults.length === 0 && !isScanningBarcode) scanBarcodes()}} className={`px-3 py-2 ${activeTab==='barcode'?'text-accent border-b-2 border-accent':''}`}>Barcode</button>
+              <button onClick={()=>setActiveTab('forensics')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='forensics'?'text-accent border-b-2 border-accent':''}`}>
+                <Zap className="w-4 h-4 inline mr-1" />
+                Forensics
+              </button>
+              <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
+              <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
+              <button onClick={()=>setActiveTab('strings')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='strings'?'text-accent border-b-2 border-accent':''}`}>Strings</button>
+              <button onClick={()=>setActiveTab('hex')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='hex'?'text-accent border-b-2 border-accent':''}`}>Hex</button>
+              <button onClick={()=>{setActiveTab('barcode'); if(barcodeResults.length === 0 && !isScanningBarcode) scanBarcodes()}} className={`px-3 py-2 whitespace-nowrap ${activeTab==='barcode'?'text-accent border-b-2 border-accent':''}`}>Barcode</button>
             </div>
 
             {activeTab==='metadata' && (
@@ -1684,6 +1742,147 @@ export default function ImageAnalysis() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Format:</span><span>{metadata.format}</span></div>
                 </div>
 
+                {/* ExifTool Advanced Analysis from Backend */}
+                {backendResults?.exif && (
+                  <div className="mt-6 space-y-4">
+                    {/* Anomalies Warning */}
+                    {backendResults.exif.anomalies && backendResults.exif.anomalies.length > 0 && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                          <h5 className="font-medium text-yellow-500">EXIF Anomalies Detected</h5>
+                        </div>
+                        <div className="space-y-2">
+                          {backendResults.exif.anomalies.map((anomaly: any, i: number) => (
+                            <div key={i} className="text-sm p-2 bg-background rounded border-l-2 border-yellow-500">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-mono text-xs text-muted-foreground">{anomaly.type}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  anomaly.severity === 'high' ? 'bg-red-500/20 text-red-400' :
+                                  anomaly.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                  'bg-blue-500/20 text-blue-400'
+                                }`}>{anomaly.severity}</span>
+                              </div>
+                              <p className="text-xs">{anomaly.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* GPS Location */}
+                    {backendResults.exif.hasGPS && backendResults.exif.gps && (
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <MapPin className="w-5 h-5 text-blue-400" />
+                          <h5 className="font-medium text-blue-400">GPS Location Found</h5>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {backendResults.exif.gps.location && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Coordinates:</span>
+                              <span className="font-mono">{backendResults.exif.gps.location}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.gps.altitude && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Altitude:</span>
+                              <span className="font-mono">{backendResults.exif.gps.altitude}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.gps.timestamp && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">GPS Time:</span>
+                              <span className="font-mono">{backendResults.exif.gps.timestamp}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Camera Information */}
+                    {backendResults.exif.camera && (backendResults.exif.camera.make || backendResults.exif.camera.model) && (
+                      <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Camera className="w-5 h-5 text-purple-400" />
+                          <h5 className="font-medium text-purple-400">Camera Information</h5>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {backendResults.exif.camera.make && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Make:</span>
+                              <span>{backendResults.exif.camera.make}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.camera.model && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Model:</span>
+                              <span>{backendResults.exif.camera.model}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.camera.lens && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Lens:</span>
+                              <span>{backendResults.exif.camera.lens}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.camera.settings && Object.keys(backendResults.exif.camera.settings).some(k => backendResults.exif.camera.settings[k]) && (
+                            <div className="mt-3 pt-3 border-t border-border">
+                              <h6 className="text-xs font-medium text-muted-foreground mb-2">Settings</h6>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {backendResults.exif.camera.settings.iso && (
+                                  <div><span className="text-muted-foreground">ISO:</span> <span className="font-mono">{backendResults.exif.camera.settings.iso}</span></div>
+                                )}
+                                {backendResults.exif.camera.settings.aperture && (
+                                  <div><span className="text-muted-foreground">Aperture:</span> <span className="font-mono">{backendResults.exif.camera.settings.aperture}</span></div>
+                                )}
+                                {backendResults.exif.camera.settings.shutterSpeed && (
+                                  <div><span className="text-muted-foreground">Shutter:</span> <span className="font-mono">{backendResults.exif.camera.settings.shutterSpeed}</span></div>
+                                )}
+                                {backendResults.exif.camera.settings.focalLength && (
+                                  <div><span className="text-muted-foreground">Focal Length:</span> <span className="font-mono">{backendResults.exif.camera.settings.focalLength}</span></div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timeline Analysis */}
+                    {backendResults.exif.timeline && (backendResults.exif.timeline.created || backendResults.exif.timeline.modified) && (
+                      <div className={`rounded-lg p-4 ${backendResults.exif.timeline.possiblyEdited ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Clock className={`w-5 h-5 ${backendResults.exif.timeline.possiblyEdited ? 'text-orange-400' : 'text-green-400'}`} />
+                          <h5 className={`font-medium ${backendResults.exif.timeline.possiblyEdited ? 'text-orange-400' : 'text-green-400'}`}>
+                            Timeline {backendResults.exif.timeline.possiblyEdited ? '(Modified)' : ''}
+                          </h5>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {backendResults.exif.timeline.created && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Created:</span>
+                              <span className="font-mono">{backendResults.exif.timeline.created}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.timeline.modified && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Modified:</span>
+                              <span className="font-mono">{backendResults.exif.timeline.modified}</span>
+                            </div>
+                          )}
+                          {backendResults.exif.timeline.possiblyEdited && backendResults.exif.timeline.timeDifference && (
+                            <div className="mt-2 p-2 bg-background rounded text-xs">
+                              <AlertTriangle className="w-3 h-3 inline mr-1 text-orange-400" />
+                              Image was modified {backendResults.exif.timeline.timeDifference} after capture
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-sm font-medium">EXIF Data</h5>
@@ -1692,6 +1891,184 @@ export default function ImageAnalysis() {
 
                   {renderExifOrganized()}
                 </div>
+              </div>
+            )}
+
+            {activeTab==='forensics' && (
+              <div className="space-y-6">
+                {/* Backend Processing Status */}
+                {isBackendProcessing && !backendResults && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center space-x-3">
+                      <Activity className="w-5 h-5 text-blue-400 animate-spin" />
+                      <div>
+                        <h5 className="font-medium text-blue-400">Running Forensic Analysis...</h5>
+                        {jobStatus?.message && (
+                          <p className="text-sm text-muted-foreground mt-1">{jobStatus.message}</p>
+                        )}
+                        {jobStatus?.progress !== undefined && (
+                          <div className="mt-2 bg-background rounded-full h-2 overflow-hidden">
+                            <div className="bg-blue-500 h-full transition-all" style={{ width: `${jobStatus.progress}%` }}></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ELA Results */}
+                {backendResults?.ela && (
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Eye className="w-5 h-5 text-accent" />
+                      <h5 className="font-medium">Error Level Analysis (ELA)</h5>
+                    </div>
+                    
+                    {backendResults.ela.elaImageUrl && (
+                      <div className="mb-4">
+                        <img 
+                          src={backendResults.ela.elaImageUrl} 
+                          alt="ELA Analysis" 
+                          className="max-w-full rounded border border-border"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      <div className="p-3 bg-background rounded-lg">
+                        <p className="text-sm mb-2">{backendResults.ela.analysis?.interpretation}</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Max Difference:</span>
+                            <span className="ml-2 font-mono text-accent">{backendResults.ela.analysis?.maxDifference?.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Avg Difference:</span>
+                            <span className="ml-2 font-mono text-accent">{backendResults.ela.analysis?.avgDifference?.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {backendResults.ela.analysis?.suspiciousRegions && backendResults.ela.analysis.suspiciousRegions.length > 0 && (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <AlertTriangle className="w-4 h-4 text-red-400" />
+                            <h6 className="text-sm font-medium text-red-400">Suspicious Regions Detected</h6>
+                          </div>
+                          <div className="space-y-1 text-xs">
+                            {backendResults.ela.analysis.suspiciousRegions.slice(0, 5).map((region: any, i: number) => (
+                              <div key={i} className="flex justify-between p-2 bg-background rounded">
+                                <span>Region {i + 1}</span>
+                                <span className="font-mono">
+                                  x:{region.x} y:{region.y} ({region.width}x{region.height})
+                                </span>
+                                <span className="text-red-400">Err: {region.avgError.toFixed(1)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Steganography Detection */}
+                {backendResults?.steganography && (
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <Layers className="w-5 h-5 text-accent" />
+                        <h5 className="font-medium">Steganography Detection</h5>
+                      </div>
+                      {backendResults.steganography.overallSuspicious && (
+                        <div className="flex items-center space-x-1 text-xs">
+                          <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                          <span className="text-yellow-500 font-medium">SUSPICIOUS</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Sample Pairs Analysis */}
+                      {backendResults.steganography.samplePairsAnalysis && (
+                        <div className={`p-3 rounded-lg ${backendResults.steganography.samplePairsAnalysis.suspicious ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
+                          <h6 className="text-sm font-medium mb-2">Sample Pairs Analysis (SPA)</h6>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Embedding Rate:</span>
+                              <span className="ml-2 font-mono">{(backendResults.steganography.samplePairsAnalysis.embeddingRate * 100).toFixed(2)}%</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Confidence:</span>
+                              <span className="ml-2 font-mono">{backendResults.steganography.samplePairsAnalysis.confidence.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* RS Steganalysis */}
+                      {backendResults.steganography.rsSteganalysis && (
+                        <div className={`p-3 rounded-lg ${backendResults.steganography.rsSteganalysis.suspicious ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
+                          <h6 className="text-sm font-medium mb-2">RS Steganalysis</h6>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Estimated Length:</span>
+                              <span className="ml-2 font-mono">{(backendResults.steganography.rsSteganalysis.estimatedMessageLength * 100).toFixed(2)}%</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Confidence:</span>
+                              <span className="ml-2 font-mono">{backendResults.steganography.rsSteganalysis.confidence.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Histogram Detection */}
+                      {backendResults.steganography.histogramDetection && (
+                        <div className={`p-3 rounded-lg ${backendResults.steganography.histogramDetection.suspicious ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
+                          <h6 className="text-sm font-medium mb-2">Histogram Analysis</h6>
+                          <p className="text-xs text-muted-foreground">{backendResults.steganography.histogramDetection.analysis}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Carved Files */}
+                {backendResults?.carvedFiles && backendResults.carvedFiles.length > 0 && (
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <FileText className="w-5 h-5 text-accent" />
+                      <h5 className="font-medium">Embedded Files Found ({backendResults.carvedFiles.length})</h5>
+                    </div>
+                    <div className="space-y-2">
+                      {backendResults.carvedFiles.map((file: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
+                          <div className="flex items-center space-x-3">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm font-medium">{file.type}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Offset: {file.offset} • Size: {(file.size / 1024).toFixed(2)} KB • Hash: {file.hash}
+                              </div>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline">
+                            <Download className="w-3 h-3 mr-1" />
+                            Save
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!backendResults && !isBackendProcessing && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Forensic analysis will run automatically when you upload an image</p>
+                  </div>
+                )}
               </div>
             )}
 
