@@ -4,6 +4,7 @@ import { createClient } from 'redis';
 let pcapQueue: Bull.Queue;
 let audioQueue: Bull.Queue;
 let eventLogQueue: Bull.Queue;
+let imageQueue: Bull.Queue;
 let redisClient: ReturnType<typeof createClient>;
 
 export async function initializeQueue() {
@@ -56,6 +57,15 @@ export async function initializeQueue() {
     }
   });
 
+  imageQueue = new Bull('image-jobs', redisUrl, {
+    defaultJobOptions: {
+      attempts: 2,
+      timeout: 300000, // 5 minutes
+      removeOnComplete: 5,  // Keep only last 5 successful jobs
+      removeOnFail: 5       // Keep only last 5 failed jobs
+    }
+  });
+
   console.log('Bull queues initialized');
 }
 
@@ -72,6 +82,11 @@ export function getAudioQueue() {
 export function getEventLogQueue() {
   if (!eventLogQueue) throw new Error('Event log queue not initialized');
   return eventLogQueue;
+}
+
+export function getImageQueue() {
+  if (!imageQueue) throw new Error('Image queue not initialized');
+  return imageQueue;
 }
 
 export function getRedisClient() {

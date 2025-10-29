@@ -20,6 +20,7 @@ async function startWorkers() {
     await import('./pcapWorker.js');
     await import('./audioWorker.js');
     await import('./eventLogWorker.js');
+    await import('./imageAnalysisWorker.js');
 
     console.log('All workers started successfully');
     console.log('Workers ready to process jobs');

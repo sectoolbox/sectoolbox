@@ -61,6 +61,46 @@ class ApiClient {
     return response.data;
   }
 
+  // Image analysis - Advanced (ELA + Steganography + File Carving)
+  async analyzeImageAdvanced(
+    file: File,
+    options: {
+      performELA?: boolean;
+      elaQuality?: number;
+      performSteganography?: boolean;
+      performFileCarving?: boolean;
+    } = {}
+  ) {
+    // API call
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('options', JSON.stringify(options));
+
+    const response = await this.client.post('/api/v1/image/advanced-analysis', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    // API call
+    return response.data;
+  }
+
+  // Image analysis - ELA only
+  async analyzeImageELA(file: File, quality: number = 90) {
+    // API call
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('quality', quality.toString());
+
+    const response = await this.client.post('/api/v1/image/ela', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    // API call
+    return response.data;
+  }
+
   // Job status
   async getJobStatus(jobId: string) {
     // API call

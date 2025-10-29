@@ -12,6 +12,7 @@ import { dirname, join } from 'path';
 // Routes
 import pcapRoutes from './routes/pcap.js';
 import audioRoutes from './routes/audio.js';
+import imageRoutes from './routes/image.js';
 import jobsRoutes from './routes/jobs.js';
 import followRoutes from './routes/follow.js';
 import eventLogsRoutes from './routes/eventlogs.js';
@@ -131,6 +132,7 @@ app.get('/health', async (req, res) => {
 // API Routes with specific rate limiters
 app.use('/api/v1/pcap', uploadLimiter, pcapRoutes);
 app.use('/api/v1/audio', uploadLimiter, audioRoutes);
+app.use('/api/v1/image', uploadLimiter, imageRoutes);
 app.use('/api/v1/eventlogs', uploadLimiter, eventLogsRoutes);
 app.use('/api/v1/jobs', analysisLimiter, jobsRoutes);
 app.use('/api/v1/follow', followRoutes);
