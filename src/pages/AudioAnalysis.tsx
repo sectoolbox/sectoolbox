@@ -856,7 +856,7 @@ const AudioAnalysis: React.FC = () => {
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">Drop audio file here or click to browse</p>
             <p className="text-sm text-muted-foreground">
-              Supports MP3, WAV, OGG, M4A, FLAC - All audio formats supported
+              Supports MP3, WAV, OGG, M4A, FLAC, AAC, WMA - All audio formats supported, up to 1.5GB
             </p>
             <input
               ref={fileInputRef}

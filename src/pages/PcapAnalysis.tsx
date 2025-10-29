@@ -375,7 +375,7 @@ const PcapAnalysis: React.FC = () => {
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">Drop PCAP file here or click to browse</p>
             <p className="text-sm text-muted-foreground">
-              Supports .pcap and .pcapng files | Deep analysis powered by tshark
+              Supports .pcap, .pcapng, .cap files | Maximum file size: 1.5GB
             </p>
             <input
               ref={fileInputRef}
@@ -447,7 +447,7 @@ const PcapAnalysis: React.FC = () => {
         )}
 
         {/* Estimated analysis time warning */}
-        {file && !(notice?.toLowerCase().includes('completed') || notice === null) && (
+        {file && (
           <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-3">
             <Activity className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-yellow-500">

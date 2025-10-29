@@ -196,6 +196,17 @@ export const EventLogs: React.FC = () => {
               </div>
             </div>
 
+            {/* Estimated analysis time warning */}
+            {file && !parsedData && (
+              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-3">
+                <Activity className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-yellow-500">
+                  This {(file.size / 1024 / 1024).toFixed(1)} MB event log will take approximately{' '}
+                  {Math.ceil((file.size / 1024 / 1024) * 2.2 + 6)} seconds to analyze.
+                </p>
+              </div>
+            )}
+
             {/* Job Progress */}
             {isAnalyzing && jobStatus && (
               <div className="mt-4 bg-muted/20 rounded-lg p-4">

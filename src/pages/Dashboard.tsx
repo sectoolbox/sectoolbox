@@ -153,7 +153,7 @@ const Dashboard: React.FC = () => {
             >
               <FileImage className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
               <p className="text-xs font-medium">Image Analysis</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, GIF</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, GIF, BMP, TIFF files up to 1.5GB</p>
             </div>
 
             {/* PCAP Upload */}
@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
             >
               <Network className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
               <p className="text-xs font-medium">PCAP Analysis</p>
-              <p className="text-xs text-muted-foreground">PCAP, PCAPNG</p>
+              <p className="text-xs text-muted-foreground">PCAP, PCAPNG, CAP files up to 1.5GB</p>
             </div>
 
             {/* Audio Upload */}
@@ -195,7 +195,7 @@ const Dashboard: React.FC = () => {
             >
               <Headphones className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
               <p className="text-xs font-medium">Audio Analysis</p>
-              <p className="text-xs text-muted-foreground">MP3, WAV, OGG</p>
+              <p className="text-xs text-muted-foreground">MP3, WAV, OGG, M4A, FLAC, AAC, WMA files up to 1.5GB</p>
             </div>
 
             {/* Event Logs Upload */}
@@ -216,7 +216,7 @@ const Dashboard: React.FC = () => {
             >
               <FileText className="w-6 h-6 text-muted-foreground group-hover:text-accent mx-auto mb-1" />
               <p className="text-xs font-medium">Event Logs</p>
-              <p className="text-xs text-muted-foreground">EVTX files</p>
+              <p className="text-xs text-muted-foreground">EVTX files up to 1.5GB</p>
             </div>
 
             {/* Folder Scanner Upload */}

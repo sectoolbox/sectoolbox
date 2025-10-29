@@ -59,12 +59,11 @@ export const getSeverityColors = (levelName: string) => {
  * File size limits (same as backend)
  */
 export const FILE_SIZE_LIMITS = {
-  PCAP: 2 * 1024 * 1024 * 1024, // 2GB
-  AUDIO: 500 * 1024 * 1024, // 500MB
-  IMAGE: 100 * 1024 * 1024, // 100MB
+  PCAP: 1.5 * 1024 * 1024 * 1024, // 1.5GB
+  AUDIO: 1.5 * 1024 * 1024 * 1024, // 1.5GB
+  IMAGE: 1.5 * 1024 * 1024 * 1024, // 1.5GB
   EVTX: 1.5 * 1024 * 1024 * 1024, // 1.5GB
-  MEMORY_DUMP: 4 * 1024 * 1024 * 1024, // 4GB
-  DEFAULT: 500 * 1024 * 1024, // 500MB
+  DEFAULT: 1.5 * 1024 * 1024 * 1024, // 1.5GB
 } as const;
 
 /**
