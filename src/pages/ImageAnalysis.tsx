@@ -805,8 +805,7 @@ export default function ImageAnalysis() {
         filename: meta.filename || file.name,
         fileSize: meta.fileSize ?? file.size,
         dimensions: meta.dimensions ?? { width: 0, height: 0 },
-        format: meta.format || '',
-        exif: meta.exif || {}
+        format: meta.format || ''
       })
 
       setExtractedStrings(extractStrings(buf))
@@ -1065,25 +1064,6 @@ export default function ImageAnalysis() {
     a.href = url
     a.download = filename
     a.click()
-  }
-
-  const renderExifOrganized = () => {
-    const exif = metadata?.exif || {}
-    const keys = Object.keys(exif)
-    if (keys.length === 0) return <div className="text-sm text-muted-foreground">No EXIF data found</div>
-
-    // Sort keys and display all entries in an organized two-column layout
-    const sorted = keys.sort((a,b)=>a.localeCompare(b))
-    return (
-      <div className="grid grid-cols-1 gap-2 text-sm">
-        {sorted.map(k => (
-          <div key={k} className="flex flex-col md:flex-row md:justify-between md:items-start bg-background/5 p-2 rounded">
-            <div className="text-xs text-muted-foreground md:w-1/3 font-mono">{k}</div>
-            <div className="break-all md:w-2/3 text-sm font-mono">{formatExifValue(exif[k])}</div>
-          </div>
-        ))}
-      </div>
-    )
   }
 
   const scanForEmbeddedFiles = async () => {
@@ -1882,8 +1862,8 @@ export default function ImageAnalysis() {
                   </div>
                 )}
 
-                {/* Raw EXIF Data (from backend or fallback to frontend) */}
-                {backendResults?.exif?.raw && Object.keys(backendResults.exif.raw).length > 0 ? (
+                {/* Raw EXIF Data from ExifTool */}
+                {backendResults?.exif?.raw && Object.keys(backendResults.exif.raw).length > 0 && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-3">
                       <h5 className="text-sm font-medium">Raw EXIF Data (ExifTool)</h5>
@@ -1898,13 +1878,15 @@ export default function ImageAnalysis() {
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h5 className="text-sm font-medium">EXIF Data (Basic)</h5>
-                      <span className="text-xs text-yellow-500">⚠️ Backend processing...</span>
+                )}
+
+                {/* Show processing message if backend hasn't completed yet */}
+                {!backendResults?.exif && (
+                  <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center space-x-3">
+                      <Activity className="w-4 h-4 text-blue-400 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Processing EXIF data with ExifTool...</span>
                     </div>
-                    {renderExifOrganized()}
                   </div>
                 )}
               </div>
