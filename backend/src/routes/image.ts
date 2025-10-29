@@ -28,9 +28,8 @@ router.post('/advanced-analysis', upload.single('file'), async (req, res) => {
     }
 
     // Validate file
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'];
-    validateFileSize(file.size, FILE_SIZE_LIMITS.IMAGE || 50 * 1024 * 1024);
-    validateFileType(file.originalname, imageExtensions);
+    validateFileSize(file.size, FILE_SIZE_LIMITS.IMAGE);
+    validateFileType(file.originalname, ALLOWED_EXTENSIONS.IMAGE);
 
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
@@ -96,9 +95,8 @@ router.post('/ela', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Image file required' });
     }
 
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-    validateFileSize(file.size, FILE_SIZE_LIMITS.IMAGE || 50 * 1024 * 1024);
-    validateFileType(file.originalname, imageExtensions);
+    validateFileSize(file.size, FILE_SIZE_LIMITS.IMAGE);
+    validateFileType(file.originalname, ALLOWED_EXTENSIONS.IMAGE);
 
     const jobId = uuidv4();
     const filePath = await saveUploadedFile(file.buffer, file.originalname, jobId);
