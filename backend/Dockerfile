@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install Python, Wireshark (tshark), FFmpeg, ExifTool, and system dependencies
+# Install Python, Wireshark (tshark), FFmpeg, ExifTool, Steganography tools, and system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -20,6 +20,12 @@ RUN apt-get update && apt-get install -y \
     wireshark-common \
     ffmpeg \
     exiftool \
+    steghide \
+    binwalk \
+    foremost \
+    ruby \
+    ruby-dev \
+    && gem install zsteg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

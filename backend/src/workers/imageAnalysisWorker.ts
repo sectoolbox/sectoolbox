@@ -53,7 +53,7 @@ queue.process(async (job: Bull.Job) => {
         message: 'Running advanced steganography detection...',
         status: JOB_STATUS.PROCESSING
       });
-      results.steganography = await performSteganographyAnalysis(imageBuffer, jobId);
+      results.steganography = await performSteganographyAnalysis(filePath, jobId);
     }
 
     if (options.performFileCarving) {
@@ -229,180 +229,275 @@ function detectSuspiciousRegions(
 }
 
 /**
- * Advanced Steganography Detection
- * Uses SPA, RS Steganalysis, and Histogram Analysis
+ * Professional Steganography Analysis Using Industry-Standard Tools
+ * - ZSteg: PNG/BMP LSB analysis
+ * - Steghide: Universal steganography detection and extraction
+ * - Binwalk: Embedded file detection and carving
  */
-async function performSteganographyAnalysis(imageBuffer: Buffer, jobId: string) {
+async function performSteganographyAnalysis(filePath: string, jobId: string) {
   try {
-    // Convert to PNG for canvas compatibility (handles webp, tiff, and other formats)
-    const pngBuffer = await sharp(imageBuffer).png().toBuffer();
-    
-    const img = await loadImage(pngBuffer);
-    const canvas = createCanvas(img.width, img.height);
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
+    const results: any = {
+      tools: {},
+      summary: {
+        suspicious: false,
+        toolsDetected: [],
+        extractedData: [],
+        hiddenFiles: [],
+        findings: []
+      }
+    };
 
-    // Sample Pairs Analysis
-    const spa = performSamplePairsAnalysis(data);
+    // Get image format to optimize tool selection
+    const metadata = await sharp(filePath).metadata();
+    const format = metadata.format?.toUpperCase() || 'UNKNOWN';
 
-    // RS Steganalysis
-    const rs = performRSSteganalysis(data);
+    // Run all tools in parallel for speed
+    const [zstegResult, steghideResult, binwalkResult] = await Promise.allSettled([
+      runZSteg(filePath, format),
+      runSteghide(filePath),
+      runBinwalk(filePath, jobId)
+    ]);
 
-    // Histogram Analysis
-    const histogram = performHistogramAnalysis(data);
+    // Process ZSteg results
+    if (zstegResult.status === 'fulfilled') {
+      results.tools.zsteg = zstegResult.value;
+      if (zstegResult.value.foundData) {
+        results.summary.suspicious = true;
+        results.summary.extractedData.push(...zstegResult.value.extractedData);
+        results.summary.findings.push('ZSteg detected LSB steganography');
+      }
+    }
+
+    // Process Steghide results
+    if (steghideResult.status === 'fulfilled') {
+      results.tools.steghide = steghideResult.value;
+      if (steghideResult.value.detected) {
+        results.summary.suspicious = true;
+        results.summary.toolsDetected.push('Steghide');
+        if (steghideResult.value.extracted) {
+          results.summary.extractedData.push(steghideResult.value.data);
+          results.summary.findings.push('Steghide embedded data extracted');
+        }
+      }
+    }
+
+    // Process Binwalk results
+    if (binwalkResult.status === 'fulfilled') {
+      results.tools.binwalk = binwalkResult.value;
+      if (binwalkResult.value.filesFound > 0) {
+        results.summary.suspicious = true;
+        results.summary.hiddenFiles.push(...binwalkResult.value.files);
+        results.summary.findings.push(`Binwalk found ${binwalkResult.value.filesFound} embedded file(s)`);
+      }
+    }
+
+    return results;
+  } catch (error: any) {
+    console.error('Steganography analysis error:', error);
+    return {
+      error: `Steganography analysis failed: ${error.message}`,
+      tools: {},
+      summary: { suspicious: false, toolsDetected: [], extractedData: [], hiddenFiles: [], findings: [] }
+    };
+  }
+}
+
+/**
+ * Run ZSteg - Comprehensive LSB steganography detection for PNG/BMP
+ */
+async function runZSteg(filePath: string, format: string) {
+  // ZSteg only works on PNG and BMP
+  if (format !== 'PNG' && format !== 'BMP') {
+    return { 
+      skipped: true, 
+      reason: `ZSteg only supports PNG/BMP, image is ${format}`,
+      foundData: false,
+      extractedData: []
+    };
+  }
+
+  try {
+    // Run zsteg with all analysis methods
+    const { stdout, stderr } = await execa('zsteg', [
+      '-a',  // All analysis methods
+      '--verbose',
+      filePath
+    ], { timeout: 30000 }); // 30 second timeout
+
+    const lines = stdout.split('\n').filter(line => line.trim());
+    const findings: any[] = [];
+    const extractedData: any[] = [];
+
+    for (const line of lines) {
+      if (line.includes('text:') || line.includes('file:')) {
+        const finding = {
+          method: line.split('..')[0]?.trim() || 'unknown',
+          type: line.includes('text:') ? 'text' : 'file',
+          content: line.split('..')[1]?.trim() || ''
+        };
+        findings.push(finding);
+
+        // Extract the actual content
+        if (finding.type === 'text') {
+          const textMatch = line.match(/text:\s*"([^"]+)"/);
+          if (textMatch) {
+            extractedData.push({
+              type: 'text',
+              method: finding.method,
+              content: textMatch[1]
+            });
+          }
+        }
+      }
+    }
 
     return {
-      samplePairsAnalysis: spa,
-      rsSteganalysis: rs,
-      histogramDetection: histogram,
-      overallSuspicious: spa.suspicious || rs.suspicious || histogram.suspicious
+      foundData: findings.length > 0,
+      findings,
+      extractedData,
+      rawOutput: stdout.slice(0, 5000) // Limit output size
     };
   } catch (error: any) {
-    throw new Error(`Steganography analysis failed: ${error.message}`);
-  }
-}
-
-function performSamplePairsAnalysis(data: Uint8ClampedArray) {
-  const samples = Math.min(10000, data.length / 4);
-  let P = 0, X = 0, Y = 0, Z = 0;
-
-  for (let i = 0; i < samples - 1; i++) {
-    const idx1 = i * 4;
-    const idx2 = (i + 1) * 4;
-    const u = data[idx1];
-    const v = data[idx2];
-
-    if (u === v) P++;
-    else if (u === v + 1 || u === v - 1) X++;
-    else if (u === v + 2 || u === v - 2) Y++;
-    else Z++;
-  }
-
-  const total = P + X + Y + Z;
-  if (total === 0) {
-    return { embeddingRate: 0, suspicious: false, confidence: 0 };
-  }
-
-  const a = 2 * (X + Z) / total;
-  const b = 2 * P / total;
-
-  let embeddingRate = 0;
-  if (a > 0 && b > 0) {
-    embeddingRate = Math.min(1, Math.max(0, (a - b) / (2 * a)));
-  }
-
-  const suspicious = embeddingRate > 0.1;
-  const confidence = Math.min(100, embeddingRate * 200);
-
-  return { embeddingRate, suspicious, confidence };
-}
-
-function performRSSteganalysis(data: Uint8ClampedArray) {
-  const maskSize = 4;
-  const maxBlocks = 5000;
-
-  let Rm = 0, Sm = 0, Rn = 0, Sn = 0;
-  let blocksProcessed = 0;
-
-  for (let i = 0; i < data.length - maskSize * 4 && blocksProcessed < maxBlocks; i += maskSize * 4) {
-    const block: number[] = [];
-    for (let j = 0; j < maskSize; j++) {
-      block.push(data[i + j * 4]);
+    // If zsteg returns non-zero exit code, it might just mean no steganography found
+    if (error.stdout && error.stdout.includes('nothing')) {
+      return { foundData: false, extractedData: [], findings: [] };
     }
-
-    const f0 = calculateVariation(block);
-    const blockM = block.map(v => (v & 1) ? v - 1 : v + 1);
-    const fM = calculateVariation(blockM);
-    const blockN = block.map(v => (v & 1) ? v + 1 : v - 1);
-    const fN = calculateVariation(blockN);
-
-    if (fM > f0) Rm++;
-    else if (fM < f0) Sm++;
-
-    if (fN > f0) Rn++;
-    else if (fN < f0) Sn++;
-
-    blocksProcessed++;
+    return { error: error.message, foundData: false, extractedData: [] };
   }
-
-  const rsRatio = blocksProcessed > 0 ? (Rm - Sm) / (Rn - Sn + 0.001) : 0;
-  const d = Math.abs(rsRatio - 1);
-  const estimatedPayload = Math.min(1, Math.max(0, d / 2));
-  const suspicious = estimatedPayload > 0.05;
-  const confidence = Math.min(100, estimatedPayload * 500);
-
-  return { estimatedPayload, suspicious, confidence, rsRatio };
 }
 
-function calculateVariation(block: number[]): number {
-  let variation = 0;
-  for (let i = 0; i < block.length - 1; i++) {
-    variation += Math.abs(block[i + 1] - block[i]);
-  }
-  return variation;
-}
-
-function performHistogramAnalysis(data: Uint8ClampedArray) {
-  let evenCount = 0, oddCount = 0;
-  const histogram = new Array(256).fill(0);
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    histogram[r]++;
-    histogram[g]++;
-    histogram[b]++;
-
-    if (r % 2 === 0) evenCount++;
-    else oddCount++;
-  }
-
-  const total = evenCount + oddCount;
-  const evenRatio = evenCount / total;
-  const evenOddImbalance = Math.abs(evenRatio - 0.5);
-
-  const anomalies: string[] = [];
-  if (evenOddImbalance < 0.01) {
-    anomalies.push('Near-perfect even/odd balance suggests LSB steganography');
-  }
-
-  let pairsWithSimilarFreq = 0;
-  for (let i = 0; i < 255; i++) {
-    const diff = Math.abs(histogram[i] - histogram[i + 1]);
-    const avg = (histogram[i] + histogram[i + 1]) / 2;
-    if (avg > 10 && diff < avg * 0.1) {
-      pairsWithSimilarFreq++;
-    }
-  }
-
-  const pairsAnomaly = pairsWithSimilarFreq > 20;
-  if (pairsAnomaly) {
-    anomalies.push(`${pairsWithSimilarFreq} value pairs with suspiciously similar frequencies`);
-  }
-
-  let lsbFluctuation = 0;
-  for (let i = 0; i < 255; i += 2) {
-    const ratio = histogram[i] > 0 ? histogram[i + 1] / histogram[i] : 0;
-    lsbFluctuation += Math.abs(1 - ratio);
-  }
-  lsbFluctuation /= 128;
-
-  const suspicious = anomalies.length > 0 || lsbFluctuation < 0.05;
-
-  return {
-    suspicious,
-    anomalies,
-    histogramAnalysis: {
-      pairsAnomaly,
-      lsbFluctuation,
-      evenOddImbalance
-    }
+/**
+ * Run Steghide - Attempt to detect and extract Steghide-embedded data
+ */
+async function runSteghide(filePath: string) {
+  const results: any = {
+    detected: false,
+    extracted: false,
+    data: null,
+    passwordUsed: null,
+    filename: null
   };
+
+  // Common passwords to try (add more if needed)
+  const passwords = ['', 'password', '123456', 'admin', 'secret', 'hidden', 'flag'];
+
+  try {
+    // First, try to get info about embedded data
+    const { stdout: infoOutput } = await execa('steghide', [
+      'info',
+      filePath,
+      '-p', '' // Try empty password first
+    ], { 
+      timeout: 10000,
+      reject: false 
+    });
+
+    if (infoOutput.includes('embedded')) {
+      results.detected = true;
+    }
+
+    // Try extraction with different passwords
+    for (const password of passwords) {
+      try {
+        const outputFile = `/tmp/steghide_extracted_${Date.now()}.txt`;
+        
+        await execa('steghide', [
+          'extract',
+          '-sf', filePath,
+          '-xf', outputFile,
+          '-p', password,
+          '-f' // Force overwrite
+        ], { timeout: 10000 });
+
+        // If we get here, extraction succeeded
+        results.extracted = true;
+        results.passwordUsed = password || '(empty)';
+
+        // Read extracted content
+        const extractedContent = await fs.readFile(outputFile, 'utf-8');
+        results.data = {
+          type: 'text',
+          content: extractedContent.slice(0, 10000), // Limit size
+          size: extractedContent.length
+        };
+
+        // Clean up
+        await fs.unlink(outputFile).catch(() => {});
+        
+        break; // Stop trying passwords once successful
+      } catch (extractError) {
+        // Password didn't work, continue to next
+        continue;
+      }
+    }
+
+    return results;
+  } catch (error: any) {
+    return { ...results, error: error.message };
+  }
+}
+
+/**
+ * Run Binwalk - Detect and extract embedded files
+ */
+async function runBinwalk(filePath: string, jobId: string) {
+  try {
+    const extractDir = `/tmp/binwalk_${jobId}_${Date.now()}`;
+    
+    // Run binwalk with extraction
+    const { stdout } = await execa('binwalk', [
+      '-e',  // Extract
+      '-C', extractDir,  // Output directory
+      filePath
+    ], { 
+      timeout: 30000,
+      reject: false 
+    });
+
+    const lines = stdout.split('\n').filter(line => line.trim() && !line.startsWith('DECIMAL'));
+    const files: any[] = [];
+
+    for (const line of lines) {
+      const match = line.match(/^(\d+)\s+0x[0-9A-F]+\s+(.+)$/);
+      if (match) {
+        files.push({
+          offset: parseInt(match[1]),
+          description: match[2].trim()
+        });
+      }
+    }
+
+    // Check if any files were actually extracted
+    let extractedFiles: string[] = [];
+    try {
+      const dirExists = await fs.access(extractDir).then(() => true).catch(() => false);
+      if (dirExists) {
+        const entries = await fs.readdir(extractDir, { recursive: true, withFileTypes: true });
+        extractedFiles = entries
+          .filter(entry => entry.isFile())
+          .map(entry => entry.name);
+      }
+    } catch (e) {
+      // Directory doesn't exist or couldn't be read
+    }
+
+    // Clean up extraction directory (optional - might want to keep for user download)
+    // await fs.rm(extractDir, { recursive: true, force: true }).catch(() => {});
+
+    return {
+      filesFound: files.length,
+      files,
+      extractedFiles,
+      extractionPath: extractDir
+    };
+  } catch (error: any) {
+    return { 
+      filesFound: 0, 
+      files: [], 
+      extractedFiles: [],
+      error: error.message 
+    };
+  }
 }
 
 /**
