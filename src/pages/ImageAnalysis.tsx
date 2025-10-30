@@ -141,6 +141,13 @@ export default function ImageAnalysis() {
   const [bitplaneCache, setBitplaneCache] = useState<Record<number, string>>({})
   const [isProcessingImage, setIsProcessingImage] = useState(false)
 
+  // Bitplane gallery state
+  const [bitplaneGallery, setBitplaneGallery] = useState<Record<number, {url: string, histogram: {zeros: number, ones: number, percentage: number}}>>({})
+  const [bitplaneViewMode, setBitplaneViewMode] = useState<'normal' | 'difference' | 'xor'>('normal')
+  const [selectedGalleryPlane, setSelectedGalleryPlane] = useState<number | null>(null)
+  const [bitplaneStats, setBitplaneStats] = useState<{chiSquare: number, entropy: number[], suspicious: number[]}>({ chiSquare: 0, entropy: [], suspicious: [] })
+  const [isGeneratingGallery, setIsGeneratingGallery] = useState(false)
+
   const fileRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -1185,6 +1192,239 @@ export default function ImageAnalysis() {
     } catch (error) {
       console.error('Failed to copy image:', error)
       alert('Failed to copy image - your browser may not support this feature')
+    }
+  }
+
+  // Bitplane analysis functions
+  const calculateBitplaneHistogram = (imageData: ImageData, bitPlane: number): {zeros: number, ones: number, percentage: number} => {
+    let zeros = 0
+    let ones = 0
+    
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      // Check each RGB channel
+      for (let ch = 0; ch < 3; ch++) {
+        const pixel = imageData.data[i + ch]
+        const bit = (pixel >> bitPlane) & 1
+        if (bit === 0) zeros++
+        else ones++
+      }
+    }
+    
+    const total = zeros + ones
+    const percentage = total > 0 ? (ones / total) * 100 : 50
+    return { zeros, ones, percentage }
+  }
+
+  const calculateChiSquare = (histograms: Record<number, {zeros: number, ones: number}>): number => {
+    // Chi-square test for LSB plane randomness
+    const lsb = histograms[0]
+    if (!lsb) return 0
+    
+    const total = lsb.zeros + lsb.ones
+    const expected = total / 2
+    
+    const chiSquare = 
+      Math.pow(lsb.zeros - expected, 2) / expected +
+      Math.pow(lsb.ones - expected, 2) / expected
+    
+    // Normalize to 0-1 range (divide by critical value at p=0.05)
+    return chiSquare / 3.841
+  }
+
+  const calculateBitplaneEntropy = (imageData: ImageData, bitPlane: number): number => {
+    const frequencies: Record<number, number> = {}
+    let count = 0
+    
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      for (let ch = 0; ch < 3; ch++) {
+        const pixel = imageData.data[i + ch]
+        const bit = (pixel >> bitPlane) & 1
+        frequencies[bit] = (frequencies[bit] || 0) + 1
+        count++
+      }
+    }
+    
+    let entropy = 0
+    for (const freq of Object.values(frequencies)) {
+      const p = freq / count
+      if (p > 0) {
+        entropy -= p * Math.log2(p)
+      }
+    }
+    
+    return entropy
+  }
+
+  const generateBitplaneGallery = async () => {
+    if (!canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    
+    setIsGeneratingGallery(true)
+    
+    try {
+      const width = canvasRef.current.width
+      const height = canvasRef.current.height
+      const imageData = ctx.getImageData(0, 0, width, height)
+      
+      const gallery: Record<number, {url: string, histogram: {zeros: number, ones: number, percentage: number}}> = {}
+      const histograms: Record<number, {zeros: number, ones: number}> = {}
+      const entropyValues: number[] = []
+      const suspicious: number[] = []
+      
+      // Generate all 8 bitplanes based on view mode
+      for (let plane = 0; plane < 8; plane++) {
+        let planeCanvas: HTMLCanvasElement
+        
+        if (bitplaneViewMode === 'difference' && plane < 7) {
+          // Difference mode: Show (Plane N - Plane N+1)
+          const canvas1 = extractBitPlaneFromCanvas(ctx, width, height, plane)
+          const canvas2 = extractBitPlaneFromCanvas(ctx, width, height, plane + 1)
+          planeCanvas = createDifferenceImage(canvas1, canvas2)
+        } else if (bitplaneViewMode === 'xor') {
+          // XOR mode: Show (Plane N XOR Plane 7-N)
+          const oppositeIndex = 7 - plane
+          const canvas1 = extractBitPlaneFromCanvas(ctx, width, height, plane)
+          const canvas2 = extractBitPlaneFromCanvas(ctx, width, height, oppositeIndex)
+          planeCanvas = createXORImage(canvas1, canvas2)
+        } else {
+          // Normal mode: Standard bitplane extraction
+          planeCanvas = extractBitPlaneFromCanvas(ctx, width, height, plane)
+        }
+        
+        const url = planeCanvas.toDataURL('image/png')
+        const histogram = calculateBitplaneHistogram(imageData, plane)
+        const entropy = calculateBitplaneEntropy(imageData, plane)
+        
+        histograms[plane] = { zeros: histogram.zeros, ones: histogram.ones }
+        gallery[plane] = { url, histogram }
+        entropyValues.push(entropy)
+        
+        // Flag suspicious planes (far from 50/50 distribution)
+        if (plane <= 2 && (histogram.percentage < 45 || histogram.percentage > 55)) {
+          suspicious.push(plane)
+        }
+      }
+      
+      const chiSquare = calculateChiSquare(histograms)
+      
+      setBitplaneGallery(gallery)
+      setBitplaneStats({ chiSquare, entropy: entropyValues, suspicious })
+    } catch (error) {
+      console.error('Failed to generate bitplane gallery:', error)
+      alert('Failed to generate bitplane gallery - check console')
+    } finally {
+      setIsGeneratingGallery(false)
+    }
+  }
+
+  // Helper function for difference mode
+  const createDifferenceImage = (canvas1: HTMLCanvasElement, canvas2: HTMLCanvasElement): HTMLCanvasElement => {
+    const width = canvas1.width
+    const height = canvas1.height
+    const resultCanvas = document.createElement('canvas')
+    resultCanvas.width = width
+    resultCanvas.height = height
+    
+    const ctx1 = canvas1.getContext('2d')
+    const ctx2 = canvas2.getContext('2d')
+    const resultCtx = resultCanvas.getContext('2d')
+    
+    if (!ctx1 || !ctx2 || !resultCtx) return canvas1
+    
+    const data1 = ctx1.getImageData(0, 0, width, height)
+    const data2 = ctx2.getImageData(0, 0, width, height)
+    const resultData = resultCtx.createImageData(width, height)
+    
+    for (let i = 0; i < data1.data.length; i += 4) {
+      // Calculate absolute difference
+      const diff = Math.abs(data1.data[i] - data2.data[i])
+      resultData.data[i] = diff
+      resultData.data[i + 1] = diff
+      resultData.data[i + 2] = diff
+      resultData.data[i + 3] = 255
+    }
+    
+    resultCtx.putImageData(resultData, 0, 0)
+    return resultCanvas
+  }
+
+  // Helper function for XOR mode
+  const createXORImage = (canvas1: HTMLCanvasElement, canvas2: HTMLCanvasElement): HTMLCanvasElement => {
+    const width = canvas1.width
+    const height = canvas1.height
+    const resultCanvas = document.createElement('canvas')
+    resultCanvas.width = width
+    resultCanvas.height = height
+    
+    const ctx1 = canvas1.getContext('2d')
+    const ctx2 = canvas2.getContext('2d')
+    const resultCtx = resultCanvas.getContext('2d')
+    
+    if (!ctx1 || !ctx2 || !resultCtx) return canvas1
+    
+    const data1 = ctx1.getImageData(0, 0, width, height)
+    const data2 = ctx2.getImageData(0, 0, width, height)
+    const resultData = resultCtx.createImageData(width, height)
+    
+    for (let i = 0; i < data1.data.length; i += 4) {
+      // XOR the pixel values
+      const xor = data1.data[i] ^ data2.data[i]
+      resultData.data[i] = xor
+      resultData.data[i + 1] = xor
+      resultData.data[i + 2] = xor
+      resultData.data[i + 3] = 255
+    }
+    
+    resultCtx.putImageData(resultData, 0, 0)
+    return resultCanvas
+  }
+
+
+  const extractRawLSBBits = (): string => {
+    if (!canvasRef.current) return ''
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return ''
+    
+    const width = canvasRef.current.width
+    const height = canvasRef.current.height
+    const imageData = ctx.getImageData(0, 0, width, height)
+    
+    let bits = ''
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      // Extract LSB from RGB channels
+      for (let ch = 0; ch < 3; ch++) {
+        const pixel = imageData.data[i + ch]
+        const bit = pixel & 1
+        bits += bit
+      }
+    }
+    
+    return bits
+  }
+
+  const decodeLSBBits = (bits: string, format: 'ascii' | 'hex' | 'base64' = 'ascii'): string => {
+    const bytes: number[] = []
+    
+    // Convert bits to bytes
+    for (let i = 0; i < bits.length; i += 8) {
+      const byte = bits.slice(i, i + 8)
+      if (byte.length === 8) {
+        bytes.push(parseInt(byte, 2))
+      }
+    }
+    
+    if (format === 'hex') {
+      return bytes.map(b => b.toString(16).padStart(2, '0')).join(' ')
+    } else if (format === 'base64') {
+      const binary = String.fromCharCode(...bytes)
+      return btoa(binary)
+    } else {
+      // ASCII - only printable characters
+      return bytes
+        .filter(b => b >= 32 && b <= 126)
+        .map(b => String.fromCharCode(b))
+        .join('')
     }
   }
 
@@ -2571,380 +2811,322 @@ export default function ImageAnalysis() {
 
             {activeTab==='bitplane' && (
               <div className="space-y-4">
+                {/* Header with Generate Button */}
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium">Advanced Bitplane Analysis</h4>
+                  <h4 className="font-medium">Bitplane Gallery & Analysis</h4>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Bit {bitPlane} of 0-7 | LSB Depth: {lsbDepth}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Enhanced Bitplane Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Bitplane Selection */}
-                  <div className="bg-background/50 p-4 rounded-lg border border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium">Bitplane Selection</label>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={exportAllBitPlanes}>
-                          Export All
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Color Channel Selection */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Color Channel</label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-                        {[
-                          { value: 'rgb', label: 'RGB' },
-                          { value: 'red', label: 'Red' },
-                          { value: 'green', label: 'Green' },
-                          { value: 'blue', label: 'Blue' },
-                          { value: 'alpha', label: 'Alpha' },
-                          { value: 'grayscale', label: 'Gray' },
-                          { value: 'hsv', label: 'HSV' }
-                        ].map((channel) => (
-                          <button
-                            key={channel.value}
-                            onClick={() => {
-                              setColorChannelType(channel.value as any)
-                              // Auto-update bitplane preview when color channel changes
-                              if (bitPlaneUrl) {
-                                setTimeout(() => extractBitPlane(), 100)
-                              }
-                            }}
-                            className={`px-2 py-1 text-xs rounded transition-colors ${
-                              colorChannelType === channel.value
-                                ? 'bg-accent text-background'
-                                : 'bg-background border border-border hover:border-accent/50'
-                            }`}
-                            title={`Extract from ${channel.label} channel`}
-                          >
-                            {channel.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Enhanced Bitplane Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                      {Array.from({length: 8}, (_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            setBitPlane(i)
-                            // Auto-update bitplane preview immediately
-                            setTimeout(() => extractBitPlane(i), 50)
-                            userHasChangedBitplaneRef.current = true
-                          }}
-                          className={`p-2 rounded text-sm font-mono transition-all ${
-                            bitPlane === i 
-                              ? 'bg-accent text-background border-2 border-accent' 
-                              : 'bg-background border border-border hover:border-accent hover:bg-accent/10'
-                          }`}
-                          title={`Extract bitplane ${i} from ${colorChannelType} channel (${i === 0 ? 'LSB' : i === 7 ? 'MSB' : `Bit ${i}`})`}
-                        >
-                          {i === 0 ? 'LSB' : i === 7 ? 'MSB' : i}
-                        </button>
-                      ))}
-                    </div>
-                    
-                    {/* Navigation Controls */}
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          changeBitPlane('prev')
-                          // Auto-update after navigation
-                          setTimeout(() => extractBitPlane(), 50)
-                        }}
-                        disabled={bitPlane === 0}
-                        className="px-3 py-1 bg-background border border-border rounded text-sm hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        ← Previous
-                      </button>
-                      <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded text-sm font-mono text-accent">
-                        Plane {bitPlane}
-                      </span>
-                      <button
-                        onClick={() => {
-                          changeBitPlane('next')
-                          // Auto-update after navigation
-                          setTimeout(() => extractBitPlane(), 50)
-                        }}
-                        disabled={bitPlane === 7}
-                        className="px-3 py-1 bg-background border border-border rounded text-sm hover:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next →
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* LSB Depth Analysis */}
-                  <div className="bg-background/50 p-4 rounded-lg border border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium">LSB Depth Analysis</label>
-                      <Button size="sm" variant="outline" onClick={computeLsbDepth}>
-                        Analyze
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground flex justify-between mb-1">
-                          <span>Depth Level</span>
-                          <span className="font-mono">{lsbDepth} bit{lsbDepth !== 1 ? 's' : ''}</span>
-                        </label>
-                        <input 
-                          type="range" 
-                          min={1} 
-                          max={8} 
-                          value={lsbDepth} 
-                          onChange={(e) => {
-                            setLsbDepth(Number(e.target.value))
-                            // Auto-update bitplane preview when LSB depth changes
-                            if (bitPlaneUrl) {
-                              setTimeout(() => extractBitPlane(), 100)
-                            }
-                          }}
-                          className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
-                          style={{
-                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((lsbDepth - 1) / 7) * 100}%, #e5e7eb ${((lsbDepth - 1) / 7) * 100}%, #e5e7eb 100%)`
-                          }}
-                        />
-                      </div>
-                      
-                      <div className="text-xs text-muted-foreground">
-                        Extract and analyze the {lsbDepth} least significant bit{lsbDepth !== 1 ? 's' : ''} from each color channel for hidden data detection.
-                      </div>
-                      
-                      {/* Quick LSB Presets */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            setLsbDepth(1)
-                            setBitPlane(0)
-                            // Auto-update bitplane preview
-                            setTimeout(() => extractBitPlane(0), 50)
-                          }}
-                          className="px-2 py-1 bg-accent/10 text-accent border border-accent/20 rounded text-xs hover:bg-accent/20"
-                        >
-                          LSB Only
-                        </button>
-                        <button
-                          onClick={() => {
-                            setLsbDepth(4)
-                            computeLsbDepth()
-                          }}
-                          className="px-2 py-1 bg-accent/10 text-accent border border-accent/20 rounded text-xs hover:bg-accent/20"
-                        >
-                          Deep Scan
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bitplane Preview with Zoom and Pan */}
-                {bitPlaneUrl && (
-                  <div className="bg-background/50 p-4 rounded-lg border border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-sm font-medium">Bitplane {bitPlane} ({colorChannelType.toUpperCase()}) Preview</h5>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => downloadDataUrl(bitPlaneUrl, `${metadata?.filename||'image'}_${colorChannelType}_bitplane_${bitPlane}.png`)}
-                        >
-                          Download
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => {
-                            // Toggle between all bitplanes quickly
-                            const nextPlane = (bitPlane + 1) % 8
-                            setBitPlane(nextPlane)
-                            // Auto-update bitplane preview
-                            setTimeout(() => extractBitPlane(nextPlane), 50)
-                          }}
-                        >
-                          Next Plane
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Bitplane Zoom and Pan Controls */}
-                    <div className="mb-4 bg-background/50 p-3 rounded border border-border">
-                      <div className="text-xs font-medium text-center text-muted-foreground mb-2">Bitplane Zoom & Pan Controls</div>
-                      
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2 flex-1">
-                          <label className="text-xs text-muted-foreground min-w-max">Zoom:</label>
-                          <input
-                            type="range"
-                            min="50"
-                            max="500"
-                            step="5"
-                            value={bitPlaneZoomLevel * 100}
-                            onChange={(e) => {
-                              const newZoom = Number(e.target.value) / 100
-                              setBitPlaneZoomLevel(newZoom)
-                              if (Math.abs(newZoom - bitPlaneZoomLevel) > 0.5) {
-                                setBitPlanePanPosition({ x: 0, y: 0 })
-                              }
-                            }}
-                            className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer"
-                            style={{
-                              background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((bitPlaneZoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb ${((bitPlaneZoomLevel * 100 - 50) / (500 - 50)) * 100}%, #e5e7eb 100%)`
-                            }}
-                          />
-                          <span className="text-xs font-mono text-foreground min-w-max">
-                            {Math.round(bitPlaneZoomLevel * 100)}%
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setBitPlaneZoomLevel(1)
-                              setBitPlanePanPosition({ x: 0, y: 0 })
-                            }}
-                            className="px-2 py-1 bg-accent/10 hover:bg-accent text-accent hover:text-background rounded text-xs font-mono transition-colors"
-                          >
-                            Reset
-                          </button>
-                          {bitPlaneZoomLevel > 1 && (
-                            <button
-                              onClick={() => setBitPlanePanPosition({ x: 0, y: 0 })}
-                              className="px-2 py-1 bg-muted hover:bg-accent text-foreground hover:text-background rounded text-xs font-mono transition-colors"
-                            >
-                              Center
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {bitPlaneZoomLevel > 1 && (
-                        <div className="text-xs text-muted-foreground text-center mt-2">
-                          🔍 Click and drag on the bitplane image to pan around
-                        </div>
+                    <Button 
+                      onClick={generateBitplaneGallery}
+                      disabled={isGeneratingGallery || !canvasRef.current}
+                      size="sm"
+                      variant="default"
+                    >
+                      {isGeneratingGallery ? (
+                        <>
+                          <Activity className="w-4 h-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        'Generate Gallery'
                       )}
-                    </div>
-                    
-                    <div className="relative group overflow-hidden rounded border border-border bg-background/50">
-                      <img 
-                        src={bitPlaneUrl} 
-                        alt={`Bitplane ${bitPlane} - ${colorChannelType}`} 
-                        className={`w-full ${bitPlaneZoomLevel > 1 ? 'cursor-grab' : 'cursor-default'} ${isBitPlanePanning ? 'cursor-grabbing' : ''}`}
-                        style={{ 
-                          transform: `scale(${bitPlaneZoomLevel}) translate(${bitPlanePanPosition.x}px, ${bitPlanePanPosition.y}px)`,
-                          transformOrigin: '0 0',
-                          transition: isBitPlanePanning ? 'none' : 'transform 0.1s ease',
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          if (bitPlaneZoomLevel > 1) {
-                            setIsBitPlanePanning(true)
-                            setBitPlaneLastPanPoint({ x: e.clientX, y: e.clientY })
-                          }
-                        }}
-                        onMouseMove={(e) => {
-                          e.preventDefault()
-                          if (isBitPlanePanning && bitPlaneZoomLevel > 1) {
-                            const dx = (e.clientX - bitPlaneLastPanPoint.x) / bitPlaneZoomLevel
-                            const dy = (e.clientY - bitPlaneLastPanPoint.y) / bitPlaneZoomLevel
-                            setBitPlanePanPosition(prev => ({ 
-                              x: Math.max(-500, Math.min(500, prev.x + dx)), 
-                              y: Math.max(-500, Math.min(500, prev.y + dy))
-                            }))
-                            setBitPlaneLastPanPoint({ x: e.clientX, y: e.clientY })
-                          }
-                        }}
-                        onMouseUp={(e) => {
-                          e.preventDefault()
-                          setIsBitPlanePanning(false)
-                        }}
-                        onMouseLeave={() => {
-                          setIsBitPlanePanning(false)
-                        }}
-                        draggable={false}
-                      />
-                    </div>
-                    
-                    <div className="mt-2 text-xs text-muted-foreground text-center">
-                      {bitPlane === 0 ? 'LSB' : bitPlane === 7 ? 'MSB' : `Bit ${bitPlane}`} • {colorChannelType.toUpperCase()} Channel • 
-                      {bitPlane <= 2 ? ' High entropy (potential data)' : ' Lower entropy (structural)'}
-                    </div>
+                    </Button>
                   </div>
-                )}
+                </div>
 
-                {/* LSB Analysis Results */}
-                {lsbDepthResult && (
-                  <div className="bg-background/50 p-4 rounded-lg border border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-sm font-medium">LSB Depth Analysis Results</h5>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => {
-                          const data = JSON.stringify(lsbDepthResult, null, 2)
-                          navigator.clipboard?.writeText(data)
-                        }}
-                      >
-                        Copy Results
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {/* Channel Analysis Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {['red', 'green', 'blue'].map(channel => {
-                          const channelData = lsbDepthResult[channel as keyof typeof lsbDepthResult]
-                          if (!channelData || typeof channelData !== 'object') return null
+                {/* Gallery View or Empty State */}
+                {Object.keys(bitplaneGallery).length > 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                    {/* Bitplane Gallery Grid */}
+                    <div className="lg:col-span-3 space-y-4">
+                      {/* Color Channel & View Mode Controls */}
+                      <div className="bg-background/50 p-4 rounded-lg border border-border">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Color Channel Selection */}
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-2 block">Color Channel</label>
+                            <div className="grid grid-cols-4 gap-1">
+                              {[
+                                { value: 'rgb', label: 'RGB' },
+                                { value: 'red', label: 'Red' },
+                                { value: 'green', label: 'Green' },
+                                { value: 'blue', label: 'Blue' }
+                              ].map((channel) => (
+                                <button
+                                  key={channel.value}
+                                  onClick={() => {
+                                    setColorChannelType(channel.value as any)
+                                    generateBitplaneGallery() // Regenerate with new channel
+                                  }}
+                                  className={`px-2 py-1.5 text-xs rounded transition-colors ${
+                                    colorChannelType === channel.value
+                                      ? 'bg-accent text-background'
+                                      : 'bg-background border border-border hover:border-accent/50'
+                                  }`}
+                                >
+                                  {channel.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* View Mode Selection */}
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-2 block">View Mode</label>
+                            <div className="grid grid-cols-3 gap-1">
+                              {[
+                                { value: 'normal', label: 'Normal' },
+                                { value: 'difference', label: 'Difference' },
+                                { value: 'xor', label: 'XOR' }
+                              ].map((mode) => (
+                                <button
+                                  key={mode.value}
+                                  onClick={() => setBitplaneViewMode(mode.value as any)}
+                                  className={`px-2 py-1.5 text-xs rounded transition-colors ${
+                                    bitplaneViewMode === mode.value
+                                      ? 'bg-accent text-background'
+                                      : 'bg-background border border-border hover:border-accent/50'
+                                  }`}
+                                >
+                                  {mode.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 8-Plane Gallery Grid (2x4) */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {Array.from({length: 8}, (_, i) => {
+                          const plane = bitplaneGallery[i]
+                          if (!plane) return null
+                          
+                          const isSuspicious = bitplaneStats.suspicious.includes(i)
+                          const isSelected = selectedGalleryPlane === i
                           
                           return (
-                            <div key={channel} className="p-3 bg-background border border-border rounded">
-                              <div className="text-xs font-medium text-muted-foreground uppercase mb-1">{channel}</div>
-                              <div className="text-sm font-mono">
-                                Ratio: {((channelData as any).ratio || 0).toFixed(3)}
+                            <div
+                              key={i}
+                              onClick={() => setSelectedGalleryPlane(isSelected ? null : i)}
+                              className={`relative group cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
+                                isSelected 
+                                  ? 'border-accent ring-2 ring-accent/50' 
+                                  : isSuspicious
+                                  ? 'border-yellow-500/50 hover:border-yellow-500'
+                                  : 'border-border hover:border-accent/50'
+                              }`}
+                            >
+                              {/* Bitplane Image */}
+                              <img 
+                                src={plane.url} 
+                                alt={`Bitplane ${i}`}
+                                className="w-full h-auto"
+                              />
+                              
+                              {/* Overlay Info */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute bottom-0 left-0 right-0 p-2">
+                                  <div className="text-xs font-mono text-white">
+                                    <div className="font-bold">Bit {i} {i === 0 ? '(LSB)' : i === 7 ? '(MSB)' : ''}</div>
+                                    <div>{plane.histogram.percentage.toFixed(1)}% ones</div>
+                                    <div className="text-[10px] opacity-75">
+                                      Entropy: {bitplaneStats.entropy[i]?.toFixed(2) || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {(channelData as any).ratio > 0.4 ? 'Suspicious' : 'Normal'}
+                              
+                              {/* Label Badge */}
+                              <div className={`absolute top-1 left-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                i === 0 ? 'bg-red-500 text-white' :
+                                i === 7 ? 'bg-blue-500 text-white' :
+                                'bg-black/60 text-white'
+                              }`}>
+                                {i === 0 ? 'LSB' : i === 7 ? 'MSB' : `B${i}`}
+                              </div>
+                              
+                              {/* Suspicious Flag */}
+                              {isSuspicious && (
+                                <div className="absolute top-1 right-1 bg-yellow-500 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                  ⚠️
+                                </div>
+                              )}
+                              
+                              {/* Histogram Bar */}
+                              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
+                                <div 
+                                  className={`h-full ${
+                                    plane.histogram.percentage < 45 || plane.histogram.percentage > 55
+                                      ? 'bg-yellow-500'
+                                      : 'bg-green-500'
+                                  }`}
+                                  style={{ width: `${plane.histogram.percentage}%` }}
+                                />
                               </div>
                             </div>
                           )
                         })}
                       </div>
-                      
-                      {/* Raw Data Preview */}
-                      <details className="border border-border rounded">
-                        <summary className="p-3 text-sm font-medium cursor-pointer hover:bg-accent/5">
-                          View Raw Analysis Data
-                        </summary>
-                        <div className="p-3 border-t bg-background">
-                          <pre className="text-xs font-mono max-h-40 overflow-auto">
-                            {JSON.stringify(lsbDepthResult, null, 2)}
-                          </pre>
+
+                      {/* Selected Plane Preview */}
+                      {selectedGalleryPlane !== null && bitplaneGallery[selectedGalleryPlane] && (
+                        <div className="bg-background/50 p-4 rounded-lg border border-border">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="text-sm font-medium">
+                              Bitplane {selectedGalleryPlane} Preview 
+                              {selectedGalleryPlane === 0 ? ' (LSB)' : selectedGalleryPlane === 7 ? ' (MSB)' : ''}
+                            </h5>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => downloadDataUrl(
+                                  bitplaneGallery[selectedGalleryPlane].url,
+                                  `${metadata?.filename||'image'}_bitplane_${selectedGalleryPlane}.png`
+                                )}
+                              >
+                                <Download className="w-4 h-4 mr-1" />
+                                Download
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setSelectedGalleryPlane(null)}
+                              >
+                                Close
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="border border-border rounded overflow-hidden">
+                            <img 
+                              src={bitplaneGallery[selectedGalleryPlane].url}
+                              alt={`Bitplane ${selectedGalleryPlane} enlarged`}
+                              className="w-full h-auto"
+                            />
+                          </div>
                         </div>
-                      </details>
+                      )}
+
+                      {/* LSB Extraction Tool */}
+                      <div className="bg-background/50 p-4 rounded-lg border border-border">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-sm font-medium">LSB Data Extraction</h5>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              const bits = extractRawLSBBits()
+                              const ascii = decodeLSBBits(bits, 'ascii')
+                              const hex = decodeLSBBits(bits, 'hex')
+                              alert(`LSB Data Preview:\n\nASCII (first 200 chars):\n${ascii.slice(0, 200)}\n\nHex (first 100 bytes):\n${hex.split(' ').slice(0, 100).join(' ')}`)
+                            }}
+                          >
+                            Extract & Decode LSB
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Extract the least significant bits from all pixels and decode to ASCII/Hex/Base64 format.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Statistics Sidebar */}
+                    <div className="space-y-4">
+                      <div className="bg-background/50 p-4 rounded-lg border border-border">
+                        <h5 className="text-sm font-medium mb-3">Statistical Analysis</h5>
+                        
+                        <div className="space-y-4">
+                          {/* Chi-Square Test */}
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Chi-Square Test (LSB)</div>
+                            <div className="text-2xl font-mono font-bold">
+                              {bitplaneStats.chiSquare.toFixed(3)}
+                            </div>
+                            <div className={`text-xs mt-1 ${
+                              bitplaneStats.chiSquare > 0.05 
+                                ? 'text-yellow-500' 
+                                : 'text-green-500'
+                            }`}>
+                              {bitplaneStats.chiSquare > 0.05 
+                                ? '⚠️ Suspicious (>0.05)'
+                                : '✓ Normal randomness'
+                              }
+                            </div>
+                          </div>
+
+                          {/* Entropy Summary */}
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-2">Entropy per Plane</div>
+                            <div className="space-y-1">
+                              {bitplaneStats.entropy.map((e, i) => (
+                                <div key={i} className="flex items-center justify-between text-xs">
+                                  <span className="font-mono">Bit {i}:</span>
+                                  <span className="font-mono font-bold">{e.toFixed(3)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Suspicious Planes */}
+                          {bitplaneStats.suspicious.length > 0 && (
+                            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+                              <div className="text-xs font-medium text-yellow-500 mb-1">
+                                ⚠️ Suspicious Planes
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Bitplanes {bitplaneStats.suspicious.join(', ')} have unusual distributions
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quick Actions */}
+                          <div className="space-y-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="w-full"
+                              onClick={exportAllBitPlanes}
+                            >
+                              Export All Planes
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="w-full"
+                              onClick={generateBitplaneGallery}
+                            >
+                              Regenerate Gallery
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Analysis Tips */}
+                      <div className="bg-accent/5 border border-accent/20 rounded-lg p-3">
+                        <div className="text-xs font-medium text-accent mb-2">💡 Analysis Tips</div>
+                        <div className="text-[10px] text-muted-foreground space-y-1">
+                          <div>• <strong>LSB (0):</strong> Most common hiding spot</div>
+                          <div>• <strong>50% ones:</strong> Expected for random data</div>
+                          <div>• <strong>Chi² &gt;0.05:</strong> May indicate steganography</div>
+                          <div>• <strong>Entropy ~1.0:</strong> High randomness (suspicious)</div>
+                          <div>• <strong>Yellow flags:</strong> Unusual bit distributions</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
-
-                {/* Bitplane Analysis Tips */}
-                <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
-                  <div className="text-sm font-medium text-accent mb-2">💡 Bitplane Analysis Tips</div>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div>• <strong>LSB (0):</strong> Most likely to contain hidden data</div>
-                    <div>• <strong>Bits 1-2:</strong> Secondary hiding locations</div>
-                    <div>• <strong>MSB (7):</strong> Contains main image structure</div>
-                    <div>• <strong>High ratios (&gt;0.4):</strong> May indicate steganography</div>
-                    <div>• <strong>Export All:</strong> Download all bitplanes for external analysis</div>
+                ) : (
+                  <div className="bg-background/50 p-12 rounded-lg border border-border border-dashed text-center">
+                    <Eye className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <h5 className="text-sm font-medium mb-2">No Gallery Generated</h5>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Click "Generate Gallery" to analyze all 8 bitplanes simultaneously
+                    </p>
+                    <Button onClick={generateBitplaneGallery} disabled={!canvasRef.current}>
+                      Generate Bitplane Gallery
+                    </Button>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
