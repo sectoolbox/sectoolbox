@@ -48,7 +48,7 @@ const PORT = process.env.PORT || 8080;
 // Rate limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 40, // 40 requests per 15 min
+  max: 150, // 150 requests per 15 min
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -64,7 +64,7 @@ const uploadLimiter = rateLimit({
 
 const analysisLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 analysis requests per 15 min
+  max: 200, // 200 analysis requests per 15 min (for job status polling)
   message: 'Too many analysis requests, please slow down.',
   standardHeaders: true,
   legacyHeaders: false,
