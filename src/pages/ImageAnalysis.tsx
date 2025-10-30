@@ -62,6 +62,19 @@ export default function ImageAnalysis() {
   const [file, setFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisProgress, setAnalysisProgress] = useState<{
+    stage: number
+    total: number
+    currentTask: string
+    completedTasks: string[]
+    subTask?: string
+  }>({
+    stage: 0,
+    total: 7,
+    currentTask: '',
+    completedTasks: [],
+    subTask: undefined
+  })
   const [metadata, setMetadata] = useState<any | null>(null)
   const [structuredResults, setStructuredResults] = useState<ImageAnalysisResult | null>(null)
   const [activeTab, setActiveTab] = useState<'metadata' | 'forensics' | 'stego' | 'strings' | 'hex' | 'bitplane' | 'barcode'>('metadata')
@@ -818,9 +831,46 @@ export default function ImageAnalysis() {
   const analyze = async () => {
     if (!file) return
     setIsAnalyzing(true)
+    setAnalysisProgress({
+      stage: 0,
+      total: 7,
+      currentTask: 'Reading file data...',
+      completedTasks: [],
+      subTask: undefined
+    })
+    
     try {
       const buf = await file.arrayBuffer()
 
+      // Stage 1: File Information
+      setAnalysisProgress({
+        stage: 1,
+        total: 7,
+        currentTask: 'Extracting file information',
+        completedTasks: ['Reading file data'],
+        subTask: 'Analyzing file structure'
+      })
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Stage 2: Image Dimensions & Format
+      setAnalysisProgress({
+        stage: 2,
+        total: 7,
+        currentTask: 'Analyzing image properties',
+        completedTasks: ['Reading file data', 'File information extracted'],
+        subTask: 'Detecting format and dimensions'
+      })
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Stage 3: Comprehensive Analysis with ExifTool
+      setAnalysisProgress({
+        stage: 3,
+        total: 7,
+        currentTask: 'Running ExifTool analysis',
+        completedTasks: ['Reading file data', 'File information', 'Image properties'],
+        subTask: 'Extracting metadata fields...'
+      })
+      
       // Handle image file analysis
       const res = await performComprehensiveImageAnalysis(file)
       setStructuredResults(res)
@@ -833,32 +883,57 @@ export default function ImageAnalysis() {
         format: meta.format || ''
       })
 
-      setExtractedStrings(extractStrings(buf))
+      // Stage 4: Steganography Detection
+      setAnalysisProgress({
+        stage: 4,
+        total: 7,
+        currentTask: 'Analyzing steganography',
+        completedTasks: ['Reading file data', 'File information', 'Image properties', 'ExifTool analysis'],
+        subTask: 'Checking LSB patterns and hidden data'
+      })
+      await new Promise(resolve => setTimeout(resolve, 150))
 
+      // Stage 5: String Extraction
+      setAnalysisProgress({
+        stage: 5,
+        total: 7,
+        currentTask: 'Extracting strings',
+        completedTasks: ['Reading file data', 'File information', 'Image properties', 'ExifTool analysis', 'Steganography scan'],
+        subTask: 'Finding ASCII and Unicode strings'
+      })
+      setExtractedStrings(extractStrings(buf))
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Stage 6: Hidden File Scanning
+      setAnalysisProgress({
+        stage: 6,
+        total: 7,
+        currentTask: 'Scanning for hidden files',
+        completedTasks: ['Reading file data', 'File information', 'Image properties', 'ExifTool analysis', 'Steganography scan', 'String extraction'],
+        subTask: 'Detecting embedded archives and files'
+      })
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Stage 7: Hex Dump Generation
+      setAnalysisProgress({
+        stage: 7,
+        total: 7,
+        currentTask: 'Generating hex dump',
+        completedTasks: ['Reading file data', 'File information', 'Image properties', 'ExifTool analysis', 'Steganography scan', 'String extraction', 'Hidden file scan'],
+        subTask: 'Creating hexadecimal view'
+      })
+      
       // Generate hex data
       await generateHexData(buf)
 
-      // save lightly to DB (best-effort) - disabled for now
-      // try {
-      //   const user = await blink.auth.me()
-      //   if (user) {
-      //     await blink.db.analysisResults.create({
-      //       userId: user.id,
-      //       type: 'image',
-      //       title: `Image Analysis: ${file.name}`,
-      //       description: `Image analysis`,
-      //       timestamp: new Date().toISOString(),
-      //       status: 'completed',
-      //       fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-      //       findings: (res?.layers || []).length,
-      //       severity: 'low',
-      //       tags: 'image',
-      //       resultsData: JSON.stringify(res)
-      //     })
-      //   }
-      // } catch (e) {
-      //   console.warn('db save failed')
-      // }
+      // Complete
+      setAnalysisProgress({
+        stage: 7,
+        total: 7,
+        currentTask: 'Analysis complete',
+        completedTasks: ['Reading file data', 'File information', 'Image properties', 'ExifTool analysis', 'Steganography scan', 'String extraction', 'Hidden file scan', 'Hex dump generated'],
+        subTask: undefined
+      })
     } catch (err) {
       console.error('analysis failed', err)
       alert('Analysis failed – check console')
@@ -1580,6 +1655,118 @@ export default function ImageAnalysis() {
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Multi-Stage Analysis Pipeline Loading Overlay */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center">
+          <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-xl w-full mx-4">
+            <div className="flex flex-col gap-6">
+              {/* Title */}
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-accent mb-2 flex items-center justify-center gap-2">
+                  <Search className="w-6 h-6 animate-pulse" />
+                  Comprehensive Image Analysis
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Stage {analysisProgress.stage} of {analysisProgress.total}: {analysisProgress.currentTask}
+                </p>
+              </div>
+
+              {/* Task List with Status */}
+              <div className="space-y-2">
+                {[
+                  'File Information',
+                  'Image Properties',
+                  'ExifTool Analysis',
+                  'Steganography Detection',
+                  'String Extraction',
+                  'Hidden File Scanning',
+                  'Hex Dump Generation'
+                ].map((task, index) => {
+                  const taskNumber = index + 1
+                  const isComplete = analysisProgress.completedTasks.length > index
+                  const isCurrent = analysisProgress.stage === taskNumber
+                  
+                  return (
+                    <div
+                      key={task}
+                      className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-300 ${
+                        isComplete 
+                          ? 'bg-accent/10 border border-accent/30' 
+                          : isCurrent
+                          ? 'bg-accent/20 border-2 border-accent shadow-md'
+                          : 'bg-background/50 border border-border opacity-50'
+                      }`}
+                    >
+                      {/* Status Icon */}
+                      <div className="flex-shrink-0 mt-0.5">
+                        {isComplete ? (
+                          <CheckCircle className="w-5 h-5 text-accent" />
+                        ) : isCurrent ? (
+                          <Activity className="w-5 h-5 text-accent animate-spin" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-border" />
+                        )}
+                      </div>
+                      
+                      {/* Task Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium ${
+                          isComplete || isCurrent ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {task}
+                        </div>
+                        
+                        {/* Sub-task for current stage */}
+                        {isCurrent && analysisProgress.subTask && (
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                            <span className="inline-block w-1 h-1 bg-accent rounded-full animate-pulse"></span>
+                            {analysisProgress.subTask}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Task Number Badge */}
+                      <div className={`flex-shrink-0 text-xs font-mono px-2 py-0.5 rounded ${
+                        isComplete 
+                          ? 'bg-accent text-background' 
+                          : isCurrent
+                          ? 'bg-accent/30 text-accent font-bold'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {taskNumber}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Overall Progress</span>
+                  <span className="font-mono font-bold text-accent">
+                    {Math.round((analysisProgress.stage / analysisProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-background/50 rounded-full overflow-hidden border border-border">
+                  <div 
+                    className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out"
+                    style={{ width: `${(analysisProgress.stage / analysisProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Animation Dots */}
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex-none px-6 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
