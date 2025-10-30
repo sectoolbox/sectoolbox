@@ -910,13 +910,18 @@ export default function ImageAnalysis() {
     if (!ctx) return
     const currentPlane = plane !== undefined ? plane : bitPlane
     
-    // Check cache first for instant switching
-    if (bitplaneCache[currentPlane]) {
+    // Check cache first for instant switching (but verify canvas has data)
+    if (bitplaneCache[currentPlane] && canvasRef.current.width > 0 && canvasRef.current.height > 0) {
       setBitPlaneUrl(bitplaneCache[currentPlane])
       return
     }
     
-    // Process and cache
+    // Process and cache (only if canvas has valid dimensions)
+    if (canvasRef.current.width === 0 || canvasRef.current.height === 0) {
+      console.warn('Canvas not ready for bitplane extraction')
+      return
+    }
+    
     const planeCanvas = extractBitPlaneFromCanvas(ctx, canvasRef.current.width, canvasRef.current.height, currentPlane)
     try {
       const url = planeCanvas.toDataURL('image/png')
@@ -1136,6 +1141,53 @@ export default function ImageAnalysis() {
     a.click()
   }
 
+  const downloadModifiedImage = async (format: 'png' | 'jpeg' | 'webp' = 'png') => {
+    if (!canvasRef.current) {
+      alert('No image to download')
+      return
+    }
+
+    try {
+      const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png'
+      const quality = format === 'jpeg' ? 0.95 : format === 'webp' ? 0.90 : undefined
+      const dataUrl = canvasRef.current.toDataURL(mimeType, quality)
+      
+      const filename = metadata?.filename 
+        ? `${metadata.filename.replace(/\.[^.]+$/, '')}_modified.${format}`
+        : `modified_image.${format}`
+      
+      downloadDataUrl(dataUrl, filename)
+    } catch (error) {
+      console.error('Failed to download image:', error)
+      alert('Failed to download image - check console')
+    }
+  }
+
+  const copyModifiedImageToClipboard = async () => {
+    if (!canvasRef.current) {
+      alert('No image to copy')
+      return
+    }
+
+    try {
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvasRef.current!.toBlob((b) => {
+          if (b) resolve(b)
+          else reject(new Error('Failed to create blob'))
+        }, 'image/png')
+      })
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ])
+      
+      alert('✓ Image copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy image:', error)
+      alert('Failed to copy image - your browser may not support this feature')
+    }
+  }
+
   const scanForEmbeddedFiles = async () => {
     if (!file) return alert('No file loaded')
     const existing = structuredResults?.steganography?.embeddedFiles || []
@@ -1349,11 +1401,49 @@ export default function ImageAnalysis() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center"><Eye className="w-5 h-5 text-accent mr-2"/> Image Preview</h3>
-              {imageList.length > 1 && (
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <span>{currentImageIndex + 1} of {imageList.length}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {imageList.length > 1 && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground mr-2">
+                    <span>{currentImageIndex + 1} of {imageList.length}</span>
+                  </div>
+                )}
+                
+                {/* Quick Download Actions */}
+                {imageUrl && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadModifiedImage('png')}
+                      className="h-8 px-3"
+                      title="Download as PNG (lossless)"
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      PNG
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadModifiedImage('jpeg')}
+                      className="h-8 px-3"
+                      title="Download as JPEG (compressed)"
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      JPEG
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={copyModifiedImageToClipboard}
+                      className="h-8 px-3"
+                      title="Copy to clipboard"
+                    >
+                      <Copy className="w-4 h-4 mr-1" />
+                      Copy
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="relative group">
