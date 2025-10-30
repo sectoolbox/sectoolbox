@@ -137,6 +137,10 @@ export default function ImageAnalysis() {
   const [exifSearchQuery, setExifSearchQuery] = useState('')
   const [expandedExifCategories, setExpandedExifCategories] = useState<string[]>(['File', 'EXIF'])
 
+  // Performance optimization state
+  const [bitplaneCache, setBitplaneCache] = useState<Record<number, string>>({})
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
+
   const fileRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -232,6 +236,7 @@ export default function ImageAnalysis() {
     setLsbDepthResult(null)
     setHexData(null)
     setBarcodeResults([])
+    setBitplaneCache({}) // Clear bitplane cache for new image
     // Reset backend analysis state
     setBackendResults(null)
     setBackendJobId(null)
@@ -259,42 +264,50 @@ export default function ImageAnalysis() {
     const width = canvasRef.current.width
     const height = canvasRef.current.height
 
-    try {
-      let processedImageData: ImageData
-      let resultMessage = ''
+    setIsProcessingImage(true)
 
-      switch (processingType) {
-        case 'edge':
-          processedImageData = applyEdgeDetection(ctx, width, height)
-          resultMessage = 'Edge detection applied - highlights object boundaries and texture details'
-          break
-        case 'noise':
-          const noiseResult = analyzeNoise(ctx, width, height)
-          processedImageData = noiseResult.visualData
-          resultMessage = `Noise analysis complete - Level: ${noiseResult.noiseLevel}% (${noiseResult.analysis})`
-          break
-        case 'gamma':
-          processedImageData = applyAutoGammaCorrection(ctx, width, height)
-          resultMessage = 'Auto gamma correction applied - enhanced luminance distribution'
-          break
-        case 'histogram':
-          processedImageData = applyHistogramEqualization(ctx, width, height)
-          resultMessage = 'Histogram equalization applied - improved contrast and detail visibility'
-          break
-        default:
-          return
-      }
+    // Use setTimeout to allow UI to update with processing indicator
+    setTimeout(() => {
+      try {
+        let processedImageData: ImageData
+        let resultMessage = ''
 
-      // Apply the processed image data to canvas
-      ctx.putImageData(processedImageData, 0, 0)
-      setShowAdjustedImage(true)
+        switch (processingType) {
+          case 'edge':
+            processedImageData = applyEdgeDetection(ctx, width, height)
+            resultMessage = 'Edge detection applied - highlights object boundaries and texture details'
+            break
+          case 'noise':
+            const noiseResult = analyzeNoise(ctx, width, height)
+            processedImageData = noiseResult.visualData
+            resultMessage = `Noise analysis complete - Level: ${noiseResult.noiseLevel}% (${noiseResult.analysis})`
+            break
+          case 'gamma':
+            processedImageData = applyAutoGammaCorrection(ctx, width, height)
+            resultMessage = 'Auto gamma correction applied - enhanced luminance distribution'
+            break
+          case 'histogram':
+            processedImageData = applyHistogramEqualization(ctx, width, height)
+            resultMessage = 'Histogram equalization applied - improved contrast and detail visibility'
+            break
+          default:
+            setIsProcessingImage(false)
+            return
+        }
+
+        // Apply the processed image data to canvas
+        ctx.putImageData(processedImageData, 0, 0)
+        setShowAdjustedImage(true)
       
-      // Display result message
-      alert(resultMessage)
-    } catch (error) {
-      console.error(`${processingType} processing failed:`, error)
-      alert(`${processingType} processing failed - check console`)
-    }
+        // Display result message
+        alert(resultMessage)
+        setIsProcessingImage(false)
+      } catch (error) {
+        console.error(`${processingType} processing failed:`, error)
+        alert(`${processingType} processing failed - check console`)
+        setIsProcessingImage(false)
+      }
+    }, 50)
   }
 
   // Helper: Convert text to binary representation
@@ -896,14 +909,24 @@ export default function ImageAnalysis() {
     const ctx = canvasRef.current.getContext('2d')
     if (!ctx) return
     const currentPlane = plane !== undefined ? plane : bitPlane
+    
+    // Check cache first for instant switching
+    if (bitplaneCache[currentPlane]) {
+      setBitPlaneUrl(bitplaneCache[currentPlane])
+      return
+    }
+    
+    // Process and cache
     const planeCanvas = extractBitPlaneFromCanvas(ctx, canvasRef.current.width, canvasRef.current.height, currentPlane)
     try {
       const url = planeCanvas.toDataURL('image/png')
       setBitPlaneUrl(url)
+      // Cache this bitplane for instant future access
+      setBitplaneCache(prev => ({ ...prev, [currentPlane]: url }))
     } catch (e) {
       console.error('bitplane export failed', e)
     }
-  }, [bitPlane])
+  }, [bitPlane, bitplaneCache])
 
   const handleImageLoad = useCallback(() => {
     if (!imageRef.current || !canvasRef.current) return
@@ -1334,6 +1357,16 @@ export default function ImageAnalysis() {
             </div>
             
             <div className="relative group">
+              {/* Processing Indicator Overlay */}
+              {isProcessingImage && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded">
+                  <div className="flex flex-col items-center space-y-3">
+                    <Activity className="w-8 h-8 text-accent animate-spin" />
+                    <span className="text-sm font-medium">Processing image...</span>
+                  </div>
+                </div>
+              )}
+
               {/* Enhanced Image Display with Zoom and Pixel Inspector */}
               <div className="relative overflow-hidden rounded border border-border bg-background/50">
                 <canvas 
