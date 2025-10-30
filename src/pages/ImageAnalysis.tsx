@@ -2328,7 +2328,6 @@ export default function ImageAnalysis() {
               <button onClick={()=>setActiveTab('forensics')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='forensics'?'text-accent border-b-2 border-accent':''}`}>
                 Forensics
               </button>
-              <button onClick={()=>setActiveTab('stego')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='stego'?'text-accent border-b-2 border-accent':''}`}>Stego</button>
               <button onClick={()=>setActiveTab('bitplane')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='bitplane'?'text-accent border-b-2 border-accent':''}`}>Bitplane</button>
               <button onClick={()=>setActiveTab('strings')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='strings'?'text-accent border-b-2 border-accent':''}`}>Strings</button>
               <button onClick={()=>setActiveTab('hex')} className={`px-3 py-2 whitespace-nowrap ${activeTab==='hex'?'text-accent border-b-2 border-accent':''}`}>Hex</button>
@@ -2800,24 +2799,71 @@ export default function ImageAnalysis() {
                       <FileText className="w-5 h-5 text-accent" />
                       <h5 className="font-medium">Embedded Files Found ({backendResults.carvedFiles.length})</h5>
                     </div>
-                    <div className="space-y-2">
-                      {backendResults.carvedFiles.map((file: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
-                          <div className="flex items-center space-x-3">
-                            <FileText className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <div className="text-sm font-medium">{file.type}</div>
-                              <div className="text-xs text-muted-foreground">
-                                Offset: {file.offset} • Size: {(file.size / 1024).toFixed(2)} KB • Hash: {file.hash}
+                    <div className="space-y-3">
+                      {backendResults.carvedFiles.map((file: any, i: number) => {
+                        const isImage = ['JPEG', 'PNG', 'GIF'].includes(file.type);
+                        const dataUrl = `data:${file.mimeType};base64,${file.data}`;
+                        
+                        const handleDownload = () => {
+                          try {
+                            const byteCharacters = atob(file.data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                              byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            const blob = new Blob([byteArray], { type: file.mimeType });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `carved_${i + 1}_${file.hash}${file.extension}`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Download failed:', error);
+                            alert('Failed to download file');
+                          }
+                        };
+                        
+                        return (
+                          <div key={i} className="p-3 bg-background rounded-lg border border-border">
+                            <div className="flex items-start space-x-3">
+                              {isImage ? (
+                                <div className="flex-shrink-0">
+                                  <img 
+                                    src={dataUrl} 
+                                    alt={`Carved ${file.type}`}
+                                    className="w-24 h-24 object-cover rounded border border-border"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center bg-muted rounded border border-border">
+                                  <FileText className="w-10 h-10 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-sm font-medium">{file.type}</div>
+                                  <Button size="sm" variant="outline" onClick={handleDownload}>
+                                    <Download className="w-3 h-3 mr-1" />
+                                    Save
+                                  </Button>
+                                </div>
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                  <div>Offset: 0x{file.offset.toString(16).toUpperCase()}</div>
+                                  <div>Size: {(file.size / 1024).toFixed(2)} KB</div>
+                                  <div>Hash: {file.hash}</div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <Button size="sm" variant="outline">
-                            <Download className="w-3 h-3 mr-1" />
-                            Save
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2826,251 +2872,6 @@ export default function ImageAnalysis() {
                   <div className="text-center text-muted-foreground py-8">
                     <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>Forensic analysis will run automatically when you upload an image</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab==='stego' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium flex items-center">
-                    <Layers className="w-4 h-4 mr-2 text-accent" />
-                    Professional Steganography Analysis
-                  </h4>
-                  {backendResults?.steganography?.summary?.suspicious && (
-                    <div className="flex items-center space-x-1 text-xs">
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-yellow-500 font-medium">HIDDEN DATA DETECTED</span>
-                    </div>
-                  )}
-                </div>
-                
-                {backendResults?.steganography ? (
-                  <div className="space-y-4">
-                    {/* Summary Findings */}
-                    {backendResults.steganography.summary?.findings && backendResults.steganography.summary.findings.length > 0 && (
-                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                        <h6 className="text-sm font-medium mb-3 flex items-center">
-                          <AlertTriangle className="w-4 h-4 mr-2" />
-                          Key Findings
-                        </h6>
-                        <ul className="text-sm space-y-2">
-                          {backendResults.steganography.summary.findings.map((finding: string, i: number) => (
-                            <li key={i} className="flex items-start">
-                              <span className="text-yellow-500 mr-2 mt-0.5">•</span>
-                              <span>{finding}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Detection Summary Stats */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-background rounded-lg border border-border">
-                        <div className="text-sm text-muted-foreground mb-1">Tools Detected</div>
-                        <div className="text-2xl font-bold text-accent">
-                          {backendResults.steganography.summary?.toolsDetected?.length || 0}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-background rounded-lg border border-border">
-                        <div className="text-sm text-muted-foreground mb-1">Extracted Data</div>
-                        <div className="text-2xl font-bold text-accent">
-                          {backendResults.steganography.summary?.extractedData?.length || 0}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-background rounded-lg border border-border">
-                        <div className="text-sm text-muted-foreground mb-1">Hidden Files</div>
-                        <div className="text-2xl font-bold text-accent">
-                          {backendResults.steganography.summary?.hiddenFiles?.length || 0}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ZSteg Results (PNG/BMP LSB Analysis) */}
-                    {backendResults.steganography.tools?.zsteg && !backendResults.steganography.tools.zsteg.skipped && (
-                      <div className={`rounded-lg border ${backendResults.steganography.tools.zsteg.foundData ? 'bg-red-500/10 border-red-500/30' : 'bg-card border-border'}`}>
-                        <div className="p-4">
-                          <h6 className="text-sm font-medium mb-3 flex items-center">
-                            <Search className="w-4 h-4 mr-2" />
-                            ZSteg Analysis - LSB Detection (PNG/BMP)
-                          </h6>
-                          {backendResults.steganography.tools.zsteg.foundData ? (
-                            <div className="space-y-3">
-                              <div className="text-sm text-yellow-500 font-medium flex items-center">
-                                <AlertTriangle className="w-4 h-4 mr-1" />
-                                Hidden data found in LSB bits!
-                              </div>
-                              {backendResults.steganography.tools.zsteg.extractedData?.map((data: any, i: number) => (
-                                <div key={i} className="p-3 bg-background rounded-lg border border-border">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="text-xs text-muted-foreground">Method: <span className="font-mono text-foreground">{data.method}</span></div>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      onClick={() => navigator.clipboard.writeText(data.content)}
-                                      className="h-6 text-xs"
-                                    >
-                                      <Copy className="w-3 h-3 mr-1" />
-                                      Copy
-                                    </Button>
-                                  </div>
-                                  <div className="text-sm font-mono break-all bg-card p-2 rounded">{data.content}</div>
-                                </div>
-                              ))}
-                              {backendResults.steganography.tools.zsteg.rawOutput && (
-                                <details className="text-xs">
-                                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">View raw ZSteg output</summary>
-                                  <pre className="mt-2 p-2 bg-background rounded border border-border overflow-x-auto">
-                                    {backendResults.steganography.tools.zsteg.rawOutput}
-                                  </pre>
-                                </details>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-green-500 flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              No LSB steganography detected
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Steghide Results */}
-                    {backendResults.steganography.tools?.steghide && (
-                      <div className={`rounded-lg border ${backendResults.steganography.tools.steghide.detected ? 'bg-red-500/10 border-red-500/30' : 'bg-card border-border'}`}>
-                        <div className="p-4">
-                          <h6 className="text-sm font-medium mb-3 flex items-center">
-                            <Key className="w-4 h-4 mr-2" />
-                            Steghide Detection - Universal Steganography Tool
-                          </h6>
-                          {backendResults.steganography.tools.steghide.detected ? (
-                            <div className="space-y-3">
-                              <div className="text-sm text-yellow-500 font-medium flex items-center">
-                                <AlertTriangle className="w-4 h-4 mr-1" />
-                                Steghide embedded data detected!
-                              </div>
-                              {backendResults.steganography.tools.steghide.extracted ? (
-                                <>
-                                  <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="p-3 bg-background rounded-lg border border-border">
-                                      <div className="text-xs text-muted-foreground mb-1">Password Used</div>
-                                      <div className="font-mono text-accent">{backendResults.steganography.tools.steghide.passwordUsed}</div>
-                                    </div>
-                                    <div className="p-3 bg-background rounded-lg border border-border">
-                                      <div className="text-xs text-muted-foreground mb-1">Extraction Status</div>
-                                      <div className="text-green-500 font-medium flex items-center">
-                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                        Success
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {backendResults.steganography.tools.steghide.data && (
-                                    <div className="bg-background rounded-lg border border-border">
-                                      <div className="p-3 border-b border-border flex items-center justify-between">
-                                        <div className="text-sm font-medium">Extracted Content</div>
-                                        <Button 
-                                          size="sm" 
-                                          variant="outline"
-                                          onClick={() => navigator.clipboard.writeText(backendResults.steganography.tools.steghide.data.content)}
-                                          className="h-7 text-xs"
-                                        >
-                                          <Copy className="w-3 h-3 mr-1" />
-                                          Copy All
-                                        </Button>
-                                      </div>
-                                      <div className="p-3">
-                                        <div className="text-sm font-mono break-all max-h-64 overflow-y-auto bg-card p-3 rounded">
-                                          {backendResults.steganography.tools.steghide.data.content}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground mt-2">
-                                          Size: {backendResults.steganography.tools.steghide.data.size} bytes
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <div className="text-sm text-yellow-500 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                                  Data detected but extraction failed. The file may be password-protected with an uncommon password.
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-green-500 flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              No Steghide embedding detected
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Binwalk Results */}
-                    {backendResults.steganography.tools?.binwalk && (
-                      <div className={`rounded-lg border ${backendResults.steganography.tools.binwalk.filesFound > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-card border-border'}`}>
-                        <div className="p-4">
-                          <h6 className="text-sm font-medium mb-3 flex items-center">
-                            <FileArchive className="w-4 h-4 mr-2" />
-                            Binwalk - Embedded File Detection & Carving
-                          </h6>
-                          {backendResults.steganography.tools.binwalk.filesFound > 0 ? (
-                            <div className="space-y-3">
-                              <div className="text-sm text-yellow-500 font-medium flex items-center">
-                                <AlertTriangle className="w-4 h-4 mr-1" />
-                                Found {backendResults.steganography.tools.binwalk.filesFound} embedded file signature(s)!
-                              </div>
-                              <div className="space-y-2">
-                                {backendResults.steganography.tools.binwalk.files?.map((file: any, i: number) => (
-                                  <div key={i} className="p-3 bg-background rounded-lg border border-border">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="font-medium text-sm mb-1">{file.description}</div>
-                                        <div className="text-xs text-muted-foreground space-y-1">
-                                          <div>Offset: <span className="font-mono">0x{file.offset.toString(16).toUpperCase()}</span> ({file.offset} bytes)</div>
-                                        </div>
-                                      </div>
-                                      <FileText className="w-4 h-4 text-muted-foreground ml-2" />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {backendResults.steganography.tools.binwalk.extractedFiles?.length > 0 && (
-                                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                                  <div className="text-sm font-medium text-green-500 mb-2">
-                                    Successfully extracted {backendResults.steganography.tools.binwalk.extractedFiles.length} file(s)
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Files saved to: <span className="font-mono">{backendResults.steganography.tools.binwalk.extractionPath}</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-green-500 flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              No embedded files detected
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* No tools ran */}
-                    {(!backendResults.steganography.tools || Object.keys(backendResults.steganography.tools).length === 0) && (
-                      <div className="text-center p-8 border border-dashed border-border rounded-lg">
-                        <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                        <div className="text-sm text-muted-foreground">No steganography analysis results available</div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center p-8 border border-dashed border-border rounded-lg">
-                    <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                    <div className="text-sm text-muted-foreground mb-2">No Backend Analysis Available</div>
-                    <div className="text-xs text-muted-foreground">Upload an image and run backend analysis to detect steganography</div>
                   </div>
                 )}
               </div>

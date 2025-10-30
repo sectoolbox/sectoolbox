@@ -508,11 +508,11 @@ async function performFileCarving(imageBuffer: Buffer, maxFiles: number) {
   const files: any[] = [];
 
   const signatures = [
-    { name: 'JPEG', header: [0xFF, 0xD8, 0xFF], footer: [0xFF, 0xD9], extension: '.jpg' },
-    { name: 'PNG', header: [0x89, 0x50, 0x4E, 0x47], footer: [0x49, 0x45, 0x4E, 0x44], extension: '.png' },
-    { name: 'GIF', header: [0x47, 0x49, 0x46, 0x38], footer: [0x00, 0x3B], extension: '.gif' },
-    { name: 'PDF', header: [0x25, 0x50, 0x44, 0x46], footer: [0x25, 0x25, 0x45, 0x4F, 0x46], extension: '.pdf' },
-    { name: 'ZIP', header: [0x50, 0x4B, 0x03, 0x04], footer: [0x50, 0x4B, 0x05, 0x06], extension: '.zip' }
+    { name: 'JPEG', header: [0xFF, 0xD8, 0xFF], footer: [0xFF, 0xD9], extension: '.jpg', mimeType: 'image/jpeg' },
+    { name: 'PNG', header: [0x89, 0x50, 0x4E, 0x47], footer: [0x49, 0x45, 0x4E, 0x44], extension: '.png', mimeType: 'image/png' },
+    { name: 'GIF', header: [0x47, 0x49, 0x46, 0x38], footer: [0x00, 0x3B], extension: '.gif', mimeType: 'image/gif' },
+    { name: 'PDF', header: [0x25, 0x50, 0x44, 0x46], footer: [0x25, 0x25, 0x45, 0x4F, 0x46], extension: '.pdf', mimeType: 'application/pdf' },
+    { name: 'ZIP', header: [0x50, 0x4B, 0x03, 0x04], footer: [0x50, 0x4B, 0x05, 0x06], extension: '.zip', mimeType: 'application/zip' }
   ];
 
   for (let i = 0; i < data.length - 20 && files.length < maxFiles; i++) {
@@ -535,13 +535,18 @@ async function performFileCarving(imageBuffer: Buffer, maxFiles: number) {
       if (size > 0 && size <= data.length - i) {
         const fileData = data.slice(i, i + size);
         const hash = simpleHash(fileData);
+        
+        // Convert file data to base64 for frontend download/preview
+        const base64Data = Buffer.from(fileData).toString('base64');
 
         files.push({
           type: sig.name,
           offset: i,
           size,
           extension: sig.extension,
-          hash
+          mimeType: sig.mimeType,
+          hash,
+          data: base64Data
         });
 
         i += size - 1;
