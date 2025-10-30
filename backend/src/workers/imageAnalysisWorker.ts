@@ -13,11 +13,18 @@ const queue = getImageQueue();
 queue.process(async (job: Bull.Job) => {
   const { jobId, filePath, filename, options, task } = job.data;
 
-  emitJobProgress(jobId, {
-    progress: 10,
-    message: 'Starting image analysis...',
-    status: JOB_STATUS.PROCESSING
-  });
+  // Helper function to update both Bull job state and WebSocket
+  const updateProgress = async (progress: number, message: string, delay: number = 300) => {
+    await job.progress({ progress, message });
+    emitJobProgress(jobId, {
+      progress,
+      message,
+      status: JOB_STATUS.PROCESSING
+    });
+    await new Promise(resolve => setTimeout(resolve, delay));
+  };
+
+  await updateProgress(10, 'Starting image analysis...');
 
   try {
     const results: any = {
@@ -30,46 +37,26 @@ queue.process(async (job: Bull.Job) => {
     const imageBuffer = await fs.readFile(filePath);
 
     // Extract EXIF metadata with ExifTool (always run first)
-    emitJobProgress(jobId, {
-      progress: 15,
-      message: 'Extracting EXIF metadata with ExifTool...',
-      status: JOB_STATUS.PROCESSING
-    });
+    await updateProgress(15, 'Extracting EXIF metadata with ExifTool...');
     results.exif = await performExifAnalysis(filePath, jobId);
 
     // Perform requested analyses
     if (options.performELA) {
-      emitJobProgress(jobId, {
-        progress: 30,
-        message: 'Performing ELA (Error Level Analysis)...',
-        status: JOB_STATUS.PROCESSING
-      });
+      await updateProgress(30, 'Performing ELA (Error Level Analysis)...');
       results.ela = await performELAAnalysis(imageBuffer, options.elaQuality || 90, jobId);
     }
 
     if (options.performSteganography) {
-      emitJobProgress(jobId, {
-        progress: 60,
-        message: 'Running advanced steganography detection...',
-        status: JOB_STATUS.PROCESSING
-      });
+      await updateProgress(60, 'Running advanced steganography detection...');
       results.steganography = await performSteganographyAnalysis(filePath, jobId);
     }
 
     if (options.performFileCarving) {
-      emitJobProgress(jobId, {
-        progress: 85,
-        message: 'Carving embedded files...',
-        status: JOB_STATUS.PROCESSING
-      });
+      await updateProgress(85, 'Carving embedded files...');
       results.carvedFiles = await performFileCarving(imageBuffer, options.maxCarvedFiles || 10);
     }
 
-    emitJobProgress(jobId, {
-      progress: 95,
-      message: 'Finalizing results...',
-      status: JOB_STATUS.PROCESSING
-    });
+    await updateProgress(95, 'Finalizing results...');
 
     await saveResults(jobId, results);
     emitJobCompleted(jobId, results);

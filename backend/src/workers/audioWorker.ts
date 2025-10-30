@@ -11,18 +11,24 @@ const queue = getAudioQueue();
 queue.process(async (job) => {
   const { jobId, filePath, task, filename } = job.data;
 
-  emitJobProgress(jobId, {
-    progress: 10,
-    message: 'Starting audio analysis...',
-    status: JOB_STATUS.PROCESSING
-  });
+  // Helper function to update both Bull job state and WebSocket
+  const updateProgress = async (progress: number, message: string) => {
+    await job.progress({ progress, message });
+    emitJobProgress(jobId, {
+      progress,
+      message,
+      status: JOB_STATUS.PROCESSING
+    });
+  };
+
+  await updateProgress(10, 'Starting audio analysis...');
 
   try {
     if (task === 'spectrogram') {
       // Generate both waveform and spectrogram automatically
       const [waveformData, spectrogramData] = await Promise.all([
-        generateWaveform(filePath, jobId),
-        generateSpectrogram(filePath, jobId)
+        generateWaveform(filePath, jobId, job),
+        generateSpectrogram(filePath, jobId, job)
       ]);
 
       const results = {
@@ -47,11 +53,12 @@ queue.process(async (job) => {
   }
 });
 
-async function generateWaveform(audioPath: string, jobId: string): Promise<any> {
+async function generateWaveform(audioPath: string, jobId: string, job: any): Promise<any> {
   return new Promise((resolve, reject) => {
     // Use FFmpeg to generate waveform visualization
     const outputPath = join(dirname(audioPath), `${jobId}_waveform.png`);
 
+    job.progress({ progress: 20, message: 'Generating waveform with FFmpeg...' });
     emitJobProgress(jobId, {
       progress: 20,
       message: 'Generating waveform with FFmpeg...',
@@ -74,6 +81,7 @@ async function generateWaveform(audioPath: string, jobId: string): Promise<any> 
 
     ffmpeg.on('close', async (code) => {
       if (code === 0) {
+        job.progress({ progress: 50, message: 'Processing waveform data...' });
         emitJobProgress(jobId, {
           progress: 50,
           message: 'Processing waveform data...',
@@ -108,11 +116,12 @@ async function generateWaveform(audioPath: string, jobId: string): Promise<any> 
   });
 }
 
-async function generateSpectrogram(audioPath: string, jobId: string): Promise<any> {
+async function generateSpectrogram(audioPath: string, jobId: string, job: any): Promise<any> {
   return new Promise((resolve, reject) => {
     // Use FFmpeg to generate spectrogram
     const outputPath = join(dirname(audioPath), `${jobId}_spectrogram.png`);
 
+    job.progress({ progress: 60, message: 'Generating spectrogram with FFmpeg...' });
     emitJobProgress(jobId, {
       progress: 60,
       message: 'Generating spectrogram with FFmpeg...',
@@ -134,6 +143,7 @@ async function generateSpectrogram(audioPath: string, jobId: string): Promise<an
 
     ffmpeg.on('close', async (code) => {
       if (code === 0) {
+        job.progress({ progress: 80, message: 'Processing spectrogram data...' });
         emitJobProgress(jobId, {
           progress: 80,
           message: 'Processing spectrogram data...',
