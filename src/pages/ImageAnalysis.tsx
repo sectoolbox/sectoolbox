@@ -10,6 +10,15 @@ import { scanImageData } from '@undecaf/zbar-wasm'
 import { apiClient } from '../services/api'
 import { useBackendJob } from '../hooks/useBackendJob'
 
+const IMAGE_ANALYSIS_STAGES = [
+  'Starting image analysis',
+  'Extracting EXIF metadata',
+  'Performing ELA analysis',
+  'Running steganography detection',
+  'Carving embedded files',
+  'Finalizing results'
+];
+
 type StringsResult = { 
   all: string[]; 
   interesting: string[]; 
@@ -1655,7 +1664,105 @@ export default function ImageAnalysis() {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Multi-Stage Analysis Pipeline Loading Overlay */}
+      {/* Multi-Stage Analysis Pipeline Loading Overlay - Backend Progress */}
+      {isBackendProcessing && jobStatus && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center">
+          <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-xl w-full mx-4">
+            <div className="flex flex-col gap-6">
+              {/* Title */}
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-accent mb-2 flex items-center justify-center gap-2">
+                  <Search className="w-6 h-6 animate-pulse" />
+                  Forensic Image Analysis
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {jobStatus.message || 'Processing...'}
+                </p>
+              </div>
+
+              {/* Task List with Status */}
+              <div className="space-y-2">
+                {IMAGE_ANALYSIS_STAGES.map((task, index) => {
+                  const taskNumber = index + 1
+                  const progressPercentage = jobStatus.progress || 0
+                  const stagesCompleted = Math.floor((progressPercentage / 100) * IMAGE_ANALYSIS_STAGES.length)
+                  const isComplete = index < stagesCompleted
+                  const isCurrent = index === stagesCompleted && progressPercentage < 100
+                  
+                  return (
+                    <div
+                      key={task}
+                      className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-300 ${
+                        isComplete 
+                          ? 'bg-accent/10 border border-accent/30' 
+                          : isCurrent
+                          ? 'bg-accent/20 border-2 border-accent shadow-md'
+                          : 'bg-background/50 border border-border opacity-50'
+                      }`}
+                    >
+                      {/* Status Icon */}
+                      <div className="flex-shrink-0 mt-0.5">
+                        {isComplete ? (
+                          <CheckCircle className="w-5 h-5 text-accent" />
+                        ) : isCurrent ? (
+                          <Activity className="w-5 h-5 text-accent animate-spin" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-border" />
+                        )}
+                      </div>
+                      
+                      {/* Task Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium ${
+                          isComplete || isCurrent ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {task}
+                        </div>
+                      </div>
+                      
+                      {/* Task Number Badge */}
+                      <div className={`flex-shrink-0 text-xs font-mono px-2 py-0.5 rounded ${
+                        isComplete 
+                          ? 'bg-accent text-background' 
+                          : isCurrent
+                          ? 'bg-accent/30 text-accent font-bold'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {taskNumber}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Overall Progress</span>
+                  <span className="font-mono font-bold text-accent">
+                    {Math.round(jobStatus.progress || 0)}%
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-background/50 rounded-full overflow-hidden border border-border">
+                  <div 
+                    className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out"
+                    style={{ width: `${jobStatus.progress || 0}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Animation Dots */}
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client-side Analysis Loading (for local processing) */}
       {isAnalyzing && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center">
           <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-xl w-full mx-4">
@@ -1664,7 +1771,7 @@ export default function ImageAnalysis() {
               <div className="text-center">
                 <h3 className="text-xl font-bold text-accent mb-2 flex items-center justify-center gap-2">
                   <Search className="w-6 h-6 animate-pulse" />
-                  Comprehensive Image Analysis
+                  Client-Side Analysis
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   Stage {analysisProgress.stage} of {analysisProgress.total}: {analysisProgress.currentTask}
