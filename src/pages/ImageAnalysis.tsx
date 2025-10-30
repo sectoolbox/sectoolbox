@@ -2448,8 +2448,8 @@ export default function ImageAnalysis() {
               <div>
                 <h4 className="font-medium mb-2">File Information</h4>
                 <div className="text-sm font-mono space-y-2">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Filename:</span><span>{metadata.filename}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Format:</span><span>{metadata.format}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Filename:</span><span>{metadata?.filename || file?.name || 'Unknown'}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Format:</span><span>{metadata?.format || 'Processing...'}</span></div>
                 </div>
 
                 {/* ExifTool Advanced Analysis from Backend */}
