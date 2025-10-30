@@ -1957,7 +1957,7 @@ export default function ImageAnalysis() {
       </div>
 
       {/* Content Area */}
-      {imageUrl && metadata && (
+      {imageUrl && (
         <div className="px-6 pb-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-card border border-border rounded-lg p-6">
@@ -2425,7 +2425,7 @@ export default function ImageAnalysis() {
             
             <div className="mt-3 flex items-center justify-between">
               <div className="font-mono text-xs text-muted-foreground">
-                {metadata.dimensions?.width} x {metadata.dimensions?.height} • {(Number(metadata.fileSize||0)/1024/1024).toFixed(2)} MB
+                {metadata?.dimensions?.width || '?'} x {metadata?.dimensions?.height || '?'} • {(Number(metadata?.fileSize||0)/1024/1024).toFixed(2)} MB
               </div>
             </div>
           </div>
