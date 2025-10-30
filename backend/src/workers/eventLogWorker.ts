@@ -20,6 +20,9 @@ queue.process(async (job) => {
 
   // Helper function to emit progress with a delay
   const emitProgressWithDelay = async (progress: number, message: string, delay: number = 300) => {
+    // Update the job's progress in the queue (for polling)
+    await job.progress({ progress, message });
+    // Also emit via WebSocket for real-time updates
     emitJobProgress(jobId, {
       progress,
       message,
