@@ -229,6 +229,9 @@ export default function ImageAnalysis() {
     if (!file) return
     
     setIsBackendProcessing(true)
+    // Immediately switch to forensics tab so user can see results as they populate
+    setActiveTab('forensics')
+    
     try {
       const response = await apiClient.analyzeImageAdvanced(file, {
         performELA: true,
