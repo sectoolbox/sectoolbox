@@ -147,6 +147,7 @@ export default function ImageAnalysis() {
   const [selectedGalleryPlane, setSelectedGalleryPlane] = useState<number | null>(null)
   const [bitplaneStats, setBitplaneStats] = useState<{chiSquare: number, entropy: number[], suspicious: number[]}>({ chiSquare: 0, entropy: [], suspicious: [] })
   const [isGeneratingGallery, setIsGeneratingGallery] = useState(false)
+  const [galleryProgress, setGalleryProgress] = useState<{current: number, total: number, status: string}>({current: 0, total: 8, status: 'Initializing...'})
 
   const fileRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -1261,6 +1262,7 @@ export default function ImageAnalysis() {
     if (!ctx) return
     
     setIsGeneratingGallery(true)
+    setGalleryProgress({current: 0, total: 8, status: 'Preparing image data...'})
     
     try {
       const width = canvasRef.current.width
@@ -1274,6 +1276,16 @@ export default function ImageAnalysis() {
       
       // Generate all 8 bitplanes based on view mode
       for (let plane = 0; plane < 8; plane++) {
+        // Update progress
+        setGalleryProgress({
+          current: plane, 
+          total: 8, 
+          status: `Extracting bitplane ${plane} (${plane === 0 ? 'LSB' : plane === 7 ? 'MSB' : `Bit ${plane}`})...`
+        })
+        
+        // Small delay to allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
         let planeCanvas: HTMLCanvasElement
         
         if (bitplaneViewMode === 'difference' && plane < 7) {
@@ -1293,6 +1305,14 @@ export default function ImageAnalysis() {
         }
         
         const url = planeCanvas.toDataURL('image/png')
+        
+        // Update progress for analysis
+        setGalleryProgress({
+          current: plane, 
+          total: 8, 
+          status: `Analyzing bitplane ${plane} (histogram & entropy)...`
+        })
+        
         const histogram = calculateBitplaneHistogram(imageData, plane)
         const entropy = calculateBitplaneEntropy(imageData, plane)
         
@@ -1306,6 +1326,10 @@ export default function ImageAnalysis() {
         }
       }
       
+      // Final statistics
+      setGalleryProgress({current: 8, total: 8, status: 'Calculating Chi-Square test...'})
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       const chiSquare = calculateChiSquare(histograms)
       
       setBitplaneGallery(gallery)
@@ -1315,6 +1339,7 @@ export default function ImageAnalysis() {
       alert('Failed to generate bitplane gallery - check console')
     } finally {
       setIsGeneratingGallery(false)
+      setGalleryProgress({current: 0, total: 8, status: 'Complete'})
     }
   }
 
@@ -2845,22 +2870,86 @@ export default function ImageAnalysis() {
                   </div>
                 </div>
 
-                {/* Loading Overlay */}
+                {/* Fancy Bitplane Scanning Animation Overlay */}
                 {isGeneratingGallery && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-md">
-                      <div className="flex flex-col items-center gap-4">
-                        <Activity className="w-16 h-16 text-accent animate-spin" />
+                  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center">
+                    <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-lg w-full mx-4">
+                      <div className="flex flex-col items-center gap-6">
+                        {/* Title */}
                         <div className="text-center">
-                          <h3 className="text-lg font-bold text-accent mb-2">Generating Bitplane Gallery</h3>
+                          <h3 className="text-xl font-bold text-accent mb-2 flex items-center justify-center gap-2">
+                            <Layers className="w-6 h-6 animate-pulse" />
+                            Generating Bitplane Gallery
+                          </h3>
                           <p className="text-sm text-muted-foreground">
-                            Analyzing all 8 bitplanes and calculating statistics...
+                            {galleryProgress.status}
                           </p>
-                          <div className="mt-4 flex items-center justify-center gap-1">
-                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                        </div>
+
+                        {/* 2x4 Bitplane Grid Progress Visualization */}
+                        <div className="grid grid-cols-4 gap-3 w-full max-w-sm">
+                          {Array.from({length: 8}, (_, i) => {
+                            const isComplete = i < galleryProgress.current
+                            const isCurrent = i === galleryProgress.current
+                            
+                            return (
+                              <div
+                                key={i}
+                                className={`relative aspect-square rounded-lg border-2 transition-all duration-300 ${
+                                  isComplete 
+                                    ? 'bg-accent border-accent' 
+                                    : isCurrent
+                                    ? 'bg-accent/30 border-accent animate-pulse shadow-lg shadow-accent/50'
+                                    : 'bg-background/50 border-border'
+                                }`}
+                              >
+                                {/* Bitplane Label */}
+                                <div className={`absolute inset-0 flex items-center justify-center font-mono text-xs font-bold ${
+                                  isComplete ? 'text-background' : 'text-muted-foreground'
+                                }`}>
+                                  {isComplete ? (
+                                    <CheckCircle className="w-6 h-6" />
+                                  ) : isCurrent ? (
+                                    <Activity className="w-6 h-6 animate-spin text-accent" />
+                                  ) : (
+                                    <span>{i === 0 ? 'LSB' : i === 7 ? 'MSB' : i}</span>
+                                  )}
+                                </div>
+                                
+                                {/* Plane Number Badge */}
+                                <div className={`absolute top-0.5 left-0.5 text-[8px] font-mono px-1 rounded ${
+                                  isComplete 
+                                    ? 'bg-background/90 text-accent' 
+                                    : 'bg-accent/20 text-muted-foreground'
+                                }`}>
+                                  {i}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="w-full">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                            <span>Progress</span>
+                            <span className="font-mono font-bold text-accent">
+                              {galleryProgress.current}/{galleryProgress.total}
+                            </span>
                           </div>
+                          <div className="w-full h-2 bg-background/50 rounded-full overflow-hidden border border-border">
+                            <div 
+                              className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out"
+                              style={{ width: `${(galleryProgress.current / galleryProgress.total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Animation Dots */}
+                        <div className="flex items-center justify-center gap-1">
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                          <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                         </div>
                       </div>
                     </div>
@@ -3173,12 +3262,7 @@ export default function ImageAnalysis() {
                   </div>
                 ) : (
                   <div className="bg-background/50 p-12 rounded-lg border-2 border-accent/30 border-dashed text-center">
-                    <div className="relative">
-                      <Eye className="w-16 h-16 text-accent mx-auto mb-4 opacity-80 animate-pulse" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-20 h-20 border-4 border-accent/20 border-t-accent rounded-full animate-spin"></div>
-                      </div>
-                    </div>
+                    <Eye className="w-16 h-16 text-accent mx-auto mb-4 opacity-80" />
                     <h5 className="text-lg font-bold text-accent mb-2">Ready to Analyze Bitplanes</h5>
                     <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
                       Generate a comprehensive gallery of all 8 bitplanes with histogram analysis, 
