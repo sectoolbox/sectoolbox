@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock, ChevronDown } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock, ChevronDown, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
@@ -2814,24 +2814,58 @@ export default function ImageAnalysis() {
                 {/* Header with Generate Button */}
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-medium">Bitplane Gallery & Analysis</h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {/* Settings Changed Indicator */}
+                    {Object.keys(bitplaneGallery).length > 0 && (
+                      <div className="text-xs text-yellow-500 flex items-center gap-1 animate-pulse">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Settings changed - regenerate to see updates</span>
+                      </div>
+                    )}
+                    
+                    {/* Generate Button - More Prominent */}
                     <Button 
                       onClick={generateBitplaneGallery}
                       disabled={isGeneratingGallery || !canvasRef.current}
-                      size="sm"
-                      variant="default"
+                      size="default"
+                      className="bg-accent hover:bg-accent/90 text-background font-semibold px-6 shadow-lg"
                     >
                       {isGeneratingGallery ? (
                         <>
                           <Activity className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
+                          Generating Gallery...
                         </>
                       ) : (
-                        'Generate Gallery'
+                        <>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Generate Gallery
+                        </>
                       )}
                     </Button>
                   </div>
                 </div>
+
+                {/* Loading Overlay */}
+                {isGeneratingGallery && (
+                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="bg-background border-2 border-accent rounded-lg p-8 shadow-2xl max-w-md">
+                      <div className="flex flex-col items-center gap-4">
+                        <Activity className="w-16 h-16 text-accent animate-spin" />
+                        <div className="text-center">
+                          <h3 className="text-lg font-bold text-accent mb-2">Generating Bitplane Gallery</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Analyzing all 8 bitplanes and calculating statistics...
+                          </p>
+                          <div className="mt-4 flex items-center justify-center gap-1">
+                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                            <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Gallery View or Empty State */}
                 {Object.keys(bitplaneGallery).length > 0 ? (
@@ -2843,7 +2877,15 @@ export default function ImageAnalysis() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Color Channel Selection */}
                           <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">Color Channel</label>
+                            <label className="text-xs text-muted-foreground mb-2 block flex items-center gap-2">
+                              Color Channel
+                              {colorChannelType !== 'rgb' && (
+                                <span className="text-yellow-500 text-[10px] flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Click "Generate Gallery" to apply
+                                </span>
+                              )}
+                            </label>
                             <div className="grid grid-cols-4 gap-1">
                               {[
                                 { value: 'rgb', label: 'RGB' },
@@ -2855,13 +2897,14 @@ export default function ImageAnalysis() {
                                   key={channel.value}
                                   onClick={() => {
                                     setColorChannelType(channel.value as any)
-                                    generateBitplaneGallery() // Regenerate with new channel
+                                    // Don't auto-regenerate - let user click button
                                   }}
+                                  disabled={isGeneratingGallery}
                                   className={`px-2 py-1.5 text-xs rounded transition-colors ${
                                     colorChannelType === channel.value
                                       ? 'bg-accent text-background'
                                       : 'bg-background border border-border hover:border-accent/50'
-                                  }`}
+                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {channel.label}
                                 </button>
@@ -2871,21 +2914,34 @@ export default function ImageAnalysis() {
 
                           {/* View Mode Selection */}
                           <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">View Mode</label>
+                            <label className="text-xs text-muted-foreground mb-2 block flex items-center gap-2">
+                              View Mode
+                              {bitplaneViewMode !== 'normal' && (
+                                <span className="text-yellow-500 text-[10px] flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Click "Generate Gallery" to apply
+                                </span>
+                              )}
+                            </label>
                             <div className="grid grid-cols-3 gap-1">
                               {[
-                                { value: 'normal', label: 'Normal' },
-                                { value: 'difference', label: 'Difference' },
-                                { value: 'xor', label: 'XOR' }
+                                { value: 'normal', label: 'Normal', desc: 'Standard extraction' },
+                                { value: 'difference', label: 'Difference', desc: 'Plane N - N+1' },
+                                { value: 'xor', label: 'XOR', desc: 'Plane N ⊕ (7-N)' }
                               ].map((mode) => (
                                 <button
                                   key={mode.value}
-                                  onClick={() => setBitplaneViewMode(mode.value as any)}
+                                  onClick={() => {
+                                    setBitplaneViewMode(mode.value as any)
+                                    // Don't auto-regenerate - let user click button
+                                  }}
+                                  disabled={isGeneratingGallery}
+                                  title={mode.desc}
                                   className={`px-2 py-1.5 text-xs rounded transition-colors ${
                                     bitplaneViewMode === mode.value
                                       ? 'bg-accent text-background'
                                       : 'bg-background border border-border hover:border-accent/50'
-                                  }`}
+                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {mode.label}
                                 </button>
@@ -3116,15 +3172,32 @@ export default function ImageAnalysis() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-background/50 p-12 rounded-lg border border-border border-dashed text-center">
-                    <Eye className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <h5 className="text-sm font-medium mb-2">No Gallery Generated</h5>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Click "Generate Gallery" to analyze all 8 bitplanes simultaneously
+                  <div className="bg-background/50 p-12 rounded-lg border-2 border-accent/30 border-dashed text-center">
+                    <div className="relative">
+                      <Eye className="w-16 h-16 text-accent mx-auto mb-4 opacity-80 animate-pulse" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 border-4 border-accent/20 border-t-accent rounded-full animate-spin"></div>
+                      </div>
+                    </div>
+                    <h5 className="text-lg font-bold text-accent mb-2">Ready to Analyze Bitplanes</h5>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                      Generate a comprehensive gallery of all 8 bitplanes with histogram analysis, 
+                      Chi-Square testing, and entropy calculations
                     </p>
-                    <Button onClick={generateBitplaneGallery} disabled={!canvasRef.current}>
+                    <Button 
+                      onClick={generateBitplaneGallery} 
+                      disabled={!canvasRef.current}
+                      size="lg"
+                      className="bg-accent hover:bg-accent/90 text-background font-bold px-8 shadow-lg"
+                    >
+                      <Eye className="w-5 h-5 mr-2" />
                       Generate Bitplane Gallery
                     </Button>
+                    {!canvasRef.current && (
+                      <p className="text-xs text-red-500 mt-3">
+                        ⚠️ Please upload an image first
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
