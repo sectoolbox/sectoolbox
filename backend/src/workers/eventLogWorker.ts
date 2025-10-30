@@ -18,18 +18,20 @@ queue.process(async (job) => {
 
   console.log(`Processing Event Log job ${jobId}: ${filename}`);
 
-  emitJobProgress(jobId, {
-    progress: 10,
-    message: 'Reading event log file...',
-    status: JOB_STATUS.PROCESSING
-  });
-
-  try {
+  // Helper function to emit progress with a delay
+  const emitProgressWithDelay = async (progress: number, message: string, delay: number = 300) => {
     emitJobProgress(jobId, {
-      progress: 30,
-      message: 'Parsing events with Python parser...',
+      progress,
+      message,
       status: JOB_STATUS.PROCESSING
     });
+    await new Promise(resolve => setTimeout(resolve, delay));
+  };
+
+  try {
+    await emitProgressWithDelay(5, 'Uploading file to server');
+    await emitProgressWithDelay(15, 'Parsing EVTX structure');
+    await emitProgressWithDelay(25, 'Extracting event records');
 
     // Run Python script to parse the .evtx file
     // In production (Docker), scripts are in /app/python-scripts
@@ -38,13 +40,13 @@ queue.process(async (job) => {
       ? '/app/python-scripts/evtx-parser.py'
       : path.join(__dirname, '..', 'scripts', 'pythonScripts', 'evtx-parser.py');
     
+    await emitProgressWithDelay(40, 'Analyzing security events');
+    
     const pythonOutput = await runPythonParser(scriptPath, filePath, jobId);
 
-    emitJobProgress(jobId, {
-      progress: 90,
-      message: 'Finalizing results...',
-      status: JOB_STATUS.PROCESSING
-    });
+    await emitProgressWithDelay(70, 'Detecting anomalies');
+    await emitProgressWithDelay(85, 'Organizing by categories');
+    await emitProgressWithDelay(95, 'Generating statistics');
 
     // Add metadata
     const results = {
