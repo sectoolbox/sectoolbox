@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock } from 'lucide-react'
+import { Upload, Image as ImageIcon, Search, Eye, Layers, FileText, AlertTriangle, CheckCircle, XCircle, QrCode, Copy, Download, ExternalLink, Activity, MapPin, Camera, Clock, ChevronDown } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { ShowFullToggle } from '../components/ShowFullToggle'
@@ -132,6 +132,10 @@ export default function ImageAnalysis() {
   const [backendJobId, setBackendJobId] = useState<string | null>(null)
   const [isBackendProcessing, setIsBackendProcessing] = useState(false)
   const { jobStatus, startJob } = useBackendJob()
+
+  // EXIF display state
+  const [exifSearchQuery, setExifSearchQuery] = useState('')
+  const [expandedExifCategories, setExpandedExifCategories] = useState<string[]>(['File', 'EXIF'])
 
   const fileRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -1058,6 +1062,49 @@ export default function ImageAnalysis() {
     setLsbDepthResult(res)
   }
 
+  // Group EXIF data by category
+  const groupExifByCategory = (exifData: Record<string, any>) => {
+    const grouped: Record<string, Array<{key: string, value: any}>> = {}
+    
+    Object.keys(exifData).forEach(key => {
+      // Extract category from key (e.g., "EXIF:Make" -> "EXIF", "GPS:Latitude" -> "GPS")
+      const parts = key.split(':')
+      const category = parts.length > 1 ? parts[0] : 'File'
+      
+      if (!grouped[category]) {
+        grouped[category] = []
+      }
+      
+      grouped[category].push({ key, value: exifData[key] })
+    })
+    
+    // Sort categories: prioritize common ones
+    const priorityOrder = ['File', 'EXIF', 'GPS', 'XMP', 'ICC_Profile', 'Composite', 'MakerNotes']
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      const aIndex = priorityOrder.indexOf(a)
+      const bIndex = priorityOrder.indexOf(b)
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+      if (aIndex !== -1) return -1
+      if (bIndex !== -1) return 1
+      return a.localeCompare(b)
+    })
+    
+    const result: Record<string, Array<{key: string, value: any}>> = {}
+    sortedCategories.forEach(cat => {
+      result[cat] = grouped[cat].sort((a, b) => a.key.localeCompare(b.key))
+    })
+    
+    return result
+  }
+
+  const toggleExifCategory = (category: string) => {
+    setExpandedExifCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    )
+  }
+
   const downloadDataUrl = (url: string | null, filename = 'download.png') => {
     if (!url) return
     const a = document.createElement('a')
@@ -1862,20 +1909,84 @@ export default function ImageAnalysis() {
                   </div>
                 )}
 
-                {/* Raw EXIF Data from ExifTool */}
+                {/* EXIF Data with Search and Grouped Categories */}
                 {backendResults?.exif?.raw && Object.keys(backendResults.exif.raw).length > 0 && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-sm font-medium">Raw EXIF Data (ExifTool)</h5>
+                      <h5 className="text-sm font-medium">EXIF Data</h5>
                       <span className="text-xs text-muted-foreground">{Object.keys(backendResults.exif.raw).length} fields</span>
                     </div>
-                    <div className="grid grid-cols-1 gap-2 text-sm max-h-96 overflow-y-auto">
-                      {Object.keys(backendResults.exif.raw).sort().map(k => (
-                        <div key={k} className="flex flex-col md:flex-row md:justify-between md:items-start bg-background/5 p-2 rounded">
-                          <div className="text-xs text-muted-foreground md:w-1/3 font-mono">{k}</div>
-                          <div className="break-all md:w-2/3 text-sm font-mono">{formatExifValue(backendResults.exif.raw[k])}</div>
-                        </div>
-                      ))}
+
+                    {/* Search Bar */}
+                    <div className="mb-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Search EXIF fields..."
+                          value={exifSearchQuery}
+                          onChange={(e) => setExifSearchQuery(e.target.value)}
+                          className="pl-10 h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Grouped Accordion */}
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                      {Object.entries(groupExifByCategory(backendResults.exif.raw))
+                        .filter(([, fields]) => {
+                          if (!exifSearchQuery) return true
+                          // Show category if any field matches search
+                          return fields.some(field => 
+                            field.key.toLowerCase().includes(exifSearchQuery.toLowerCase()) ||
+                            String(field.value).toLowerCase().includes(exifSearchQuery.toLowerCase())
+                          )
+                        })
+                        .map(([category, fields]) => {
+                          const filteredFields = exifSearchQuery
+                            ? fields.filter(field => 
+                                field.key.toLowerCase().includes(exifSearchQuery.toLowerCase()) ||
+                                String(field.value).toLowerCase().includes(exifSearchQuery.toLowerCase())
+                              )
+                            : fields
+                          
+                          const isExpanded = expandedExifCategories.includes(category)
+                          
+                          return (
+                            <div key={category} className="border border-border rounded-lg overflow-hidden">
+                              {/* Category Header */}
+                              <button
+                                onClick={() => toggleExifCategory(category)}
+                                className="w-full flex items-center justify-between p-3 bg-background/50 hover:bg-background/80 transition-colors"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                                  <span className="font-medium text-sm">{category}</span>
+                                  <span className="text-xs text-muted-foreground">({filteredFields.length})</span>
+                                </div>
+                              </button>
+                              
+                              {/* Category Content */}
+                              {isExpanded && (
+                                <div className="border-t border-border">
+                                  {filteredFields.map((field, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      className="flex flex-col md:flex-row md:justify-between md:items-start p-2 hover:bg-background/30 border-b border-border/50 last:border-b-0"
+                                    >
+                                      <div className="text-xs text-muted-foreground md:w-1/3 font-mono break-all">
+                                        {field.key.split(':').slice(1).join(':') || field.key}
+                                      </div>
+                                      <div className="break-all md:w-2/3 text-sm font-mono">
+                                        {formatExifValue(field.value)}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                     </div>
                   </div>
                 )}
