@@ -88,8 +88,14 @@ queue.process(async (job: Bull.Job) => {
  */
 async function performELAAnalysis(imageBuffer: Buffer, quality: number, jobId: string) {
   try {
+    // Get image metadata first
+    const metadata = await sharp(imageBuffer).metadata();
+    
+    // Convert to PNG for canvas compatibility (handles webp, tiff, and other formats)
+    const pngBuffer = await sharp(imageBuffer).png().toBuffer();
+    
     // Load original image
-    const img = await loadImage(imageBuffer);
+    const img = await loadImage(pngBuffer);
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
@@ -228,7 +234,10 @@ function detectSuspiciousRegions(
  */
 async function performSteganographyAnalysis(imageBuffer: Buffer, jobId: string) {
   try {
-    const img = await loadImage(imageBuffer);
+    // Convert to PNG for canvas compatibility (handles webp, tiff, and other formats)
+    const pngBuffer = await sharp(imageBuffer).png().toBuffer();
+    
+    const img = await loadImage(pngBuffer);
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
